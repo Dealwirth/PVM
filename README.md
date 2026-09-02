@@ -4,9 +4,18 @@
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.2.0+-blue.svg)](https://www.home-assistant.io)
 [![GitHub Release](https://img.shields.io/github/v/release/Dealwirth/PVM)](https://github.com/Dealwirth/PVM/releases)
 [![License](https://img.shields.io/github/license/Dealwirth/PVM)](LICENSE)
-[![HACS Install](https://img.shields.io/badge/HACS-Install-41BDF5.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Dealwirth&repository=PVM&category=integration)
 
 **PVM** ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deinen PV-Überschuss automatisch an Wallboxen, Wärmepumpe, Waschmaschine und Co. – basierend auf einer **Prioritätenliste**, die du per Drag & Drop festlegst.
+
+<div align="center">
+  <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Dealwirth&repository=PVM&category=integration">
+    <img src="https://img.shields.io/badge/Integration_hinzufügen-41BDF5?style=for-the-badge&logo=homeassistant&logoColor=white" alt="Integration hinzufügen" width="300">
+  </a>
+  <br>
+  <em>Klick auf den Button – HACS öffnet sich automatisch.</em>
+</div>
+
+<br>
 
 <div align="center">
   <img src="https://via.placeholder.com/800x450/1a1a2e/ffffff?text=PVM+Dashboard+Preview" alt="PVM Dashboard Preview" width="800">
@@ -27,10 +36,8 @@
 
 ### Installation
 
-#### Variante 1: Per HACS-Button (empfohlen)
-Klicke auf den Button unten – HACS öffnet sich automatisch:
-
-[![HACS Install](https://img.shields.io/badge/HACS-Install-41BDF5.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Dealwirth&repository=PVM&category=integration)
+#### Variante 1: Per Button (empfohlen)
+Klicke auf den großen Button oben – HACS öffnet sich automatisch und du kannst die Integration direkt installieren.
 
 #### Variante 2: Manuell in HACS
 1. **HACS öffnen** → Drei-Punkte-Menü → **"Custom repositories"**.
