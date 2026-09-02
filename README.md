@@ -46,6 +46,8 @@
 ## 🚀 Schnellstart
 
 ### Was kann PVM?
+PVM ist ein **modulares System** – du musst nicht alle Funktionen nutzen. Es funktioniert genauso gut, wenn du nur eine Wallbox hast oder nur eine Wärmepumpe. Je nachdem, welche Geräte du in Home Assistant integriert hast, stehen dir entsprechende Funktionen zur Verfügung.
+
 - **Automatische PV-Überschussverteilung** an alle deine Verbraucher.
 - **E-Auto-Laden** mit Mindestreichweite, 80%-Limit und Zeit-Zielen (z.B. "bis 18 Uhr voll").
 - **Wärmepumpen-Steuerung** inkl. automatischem Testlauf zur Verbrauchsmessung.
@@ -77,11 +79,17 @@ Klicke auf den großen Button oben – HACS öffnet sich automatisch und du kann
 
 ## 🤖 KI-Support
 
-Du hast ein Problem bei der Installation oder Einrichtung? Kopiere einfach den folgenden **KI-Prompt** und füge ihn in deine KI (ChatGPT, Claude, etc.) ein. Die KI weiß dann genau, um welche Integration es sich handelt und wird dich nach deinem Problem fragen.
+Du hast ein Problem bei der Installation oder Einrichtung? Kopiere den folgenden Prompt in deine KI (ChatGPT, Claude, etc.). Die KI wird dich dann nach deinem Problem fragen und dir Schritt für Schritt helfen.
+
+**So funktioniert es:**
+1. Kopiere den Prompt unten.
+2. Füge ihn in deine KI ein.
+3. Die KI fragt dich nach deinem konkreten Problem.
+4. Gemeinsam findet ihr eine Lösung.
 
 **📋 KI-Prompt zum Kopieren:**
 
-Ich habe ein Problem mit der Home Assistant-Integration "PVM – PV Manager" von GitHub (https://github.com/Dealwirth/PVM). Die Integration ist ein Energiemanager für PV-Überschuss und steuert: Wallboxen (E-Auto-Laden mit Mindestreichweite und Zeit-Zielen), Wärmepumpen (inkl. Test-Modus zur Verbrauchsmessung) und universelle Verbraucher (Waschmaschine, Lüftung, etc.). Bitte hilf mir bei der Lösung. Ich werde dir jetzt mein Problem schildern.
+Ich habe ein Problem mit der Home Assistant-Integration "PVM – PV Manager" von GitHub (https://github.com/Dealwirth/PVM). Die Integration ist ein modularer Energiemanager für PV-Überschuss. Das bedeutet: Nicht jeder Nutzer hat alle Geräte. Manche haben nur eine Wallbox, andere nur eine Wärmepumpe – und manche haben alles. Die Integration passt sich automatisch an das an, was vorhanden ist. Steuern kann die Integration: Wallboxen (E-Auto-Laden mit Mindestreichweite und Zeit-Zielen), Wärmepumpen (inkl. Test-Modus zur Verbrauchsmessung) und universelle Verbraucher (Waschmaschine, Lüftung, etc.). Bitte frag mich nach meinem konkreten Problem und hilf mir dann bei der Lösung. Ich werde dir jetzt mein Problem schildern.
 
 ---
 
