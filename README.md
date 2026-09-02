@@ -22,9 +22,6 @@
   <br>
   <em>Das PVM-Dashboard – sauber, übersichtlich und sofort einsatzbereit.</em>
 </div>
-
----
-
 ## 🚀 Schnellstart
 
 ### Was kann PVM?
@@ -57,6 +54,31 @@ Klicke auf den großen Button oben – HACS öffnet sich automatisch und du kann
 
 ---
 
+## 🤖 KI-Support
+
+Du hast ein Problem bei der Installation oder Einrichtung? Kopiere einfach den folgenden Text und füge ihn in deine KI (ChatGPT, Claude, etc.) ein. Die KI weiß dann genau, um welche Integration es sich handelt und kann dir gezielt helfen.
+
+<details>
+<summary><b>📋 KI-Prompt zum Kopieren</b></summary>
+
+```text
+Ich habe ein Problem mit der Home Assistant-Integration "PVM – PV Manager" von GitHub (https://github.com/Dealwirth/PVM).
+
+Die Integration ist ein Energiemanager für PV-Überschuss und steuert:
+- Wallboxen (E-Auto-Laden mit Mindestreichweite und Zeit-Zielen)
+- Wärmepumpen (inkl. Test-Modus zur Verbrauchsmessung)
+- Universelle Verbraucher (Waschmaschine, Lüftung, etc.)
+
+Mein Problem ist:
+[Bitte hier dein Problem beschreiben]
+
+Folgende Informationen könnten helfen:
+- Home Assistant-Version: [z.B. 2025.2.0]
+- Installierte Geräte: [z.B. Fronius PV, Viessmann WP, Wattpilot Wallbox]
+- Fehlermeldung (falls vorhanden): [Hier einfügen]
+- Bereits durchgeführte Schritte: [Hier einfügen]
+
+Bitte hilf mir bei der Lösung.
 ## 🔧 Für Entwickler
 
 ### Kurz & Knackig
