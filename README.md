@@ -27,14 +27,14 @@ PVM ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deine
 
 📌 Inhaltsverzeichnis
 
-· Schnellstart
-· KI-Support
-· Für Entwickler
-· Lizenz
+· 🚀 Schnellstart
+· 🤖 KI-Support
+· 🔧 Für Entwickler
+· 📜 Lizenz
 
 ---
 
-Schnellstart
+🚀 Schnellstart
 
 Was kann PVM?
 
@@ -72,7 +72,7 @@ Du musst kein YAML schreiben. Alles geht per Klick.
 
 ---
 
-KI-Support
+🤖 KI-Support
 
 Du brauchst Hilfe bei der Installation oder Einrichtung? Kopiere den folgenden Prompt in deine KI. Sie wird sich zuerst das gesamte Projekt auf GitHub anschauen und sich dann als PVM Assistant vorstellen.
 
@@ -89,7 +89,7 @@ Antworte danach immer kurz, klar und verständlich. Keine langen Erklärungen. W
 
 ---
 
-Für Entwickler
+🔧 Für Entwickler
 
 Thema Details
 Sprache Python 3.11+
@@ -139,7 +139,7 @@ Pull Requests
 
 ---
 
-Lizenz
+📜 Lizenz
 
 MIT – siehe LICENSE.
 
