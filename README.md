@@ -1,11 +1,12 @@
- PVM – PV Manager
+# ☀️ PVM – PV Manager
 
-https://img.shields.io/badge/HACS-Custom-orange.svg
-https://img.shields.io/badge/Home%20Assistant-2025.2.0+-blue.svg
-https://img.shields.io/github/v/release/deinusername/pvm-integration
-https://img.shields.io/github/license/deinusername/pvm-integration
+[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.2.0+-blue.svg)](https://www.home-assistant.io)
+[![GitHub Release](https://img.shields.io/github/v/release/Dealwirth/PVM)](https://github.com/Dealwirth/PVM/releases)
+[![License](https://img.shields.io/github/license/Dealwirth/PVM)](LICENSE)
+[![HACS Install](https://img.shields.io/badge/HACS-Install-41BDF5.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Dealwirth&repository=PVM&category=integration)
 
-PVM ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deinen PV-Überschuss automatisch an Wallboxen, Wärmepumpe, Waschmaschine und Co. – basierend auf einer Prioritätenliste, die du per Drag & Drop festlegst.
+**PVM** ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deinen PV-Überschuss automatisch an Wallboxen, Wärmepumpe, Waschmaschine und Co. – basierend auf einer **Prioritätenliste**, die du per Drag & Drop festlegst.
 
 <div align="center">
   <img src="https://via.placeholder.com/800x450/1a1a2e/ffffff?text=PVM+Dashboard+Preview" alt="PVM Dashboard Preview" width="800">
@@ -15,94 +16,96 @@ PVM ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deine
 
 ---
 
-🚀 Schnellstart
+## 🚀 Schnellstart
 
-Was kann PVM?
+### Was kann PVM?
+- **Automatische PV-Überschussverteilung** an alle deine Verbraucher.
+- **E-Auto-Laden** mit Mindestreichweite, 80%-Limit und Zeit-Zielen (z.B. "bis 18 Uhr voll").
+- **Wärmepumpen-Steuerung** inkl. automatischem Testlauf zur Verbrauchsmessung.
+- **Waschmaschine, Lüftung, Poolpumpe** – alles, was du mit Home Assistant schalten kannst.
+- **Fertiges Dashboard** – wird bei Installation automatisch erstellt.
 
-· Automatische PV-Überschussverteilung an alle deine Verbraucher.
-· E-Auto-Laden mit Mindestreichweite, 80%-Limit und Zeit-Zielen (z.B. "bis 18 Uhr voll").
-· Wärmepumpen-Steuerung inkl. automatischem Testlauf zur Verbrauchsmessung.
-· Waschmaschine, Lüftung, Poolpumpe – alles, was du mit Home Assistant schalten kannst.
-· Fertiges Dashboard – wird bei Installation automatisch erstellt.
+### Installation
 
-Installation
+#### Variante 1: Per HACS-Button (empfohlen)
+Klicke auf den Button unten – HACS öffnet sich automatisch:
 
-1. HACS öffnen → Drei-Punkte-Menü → "Custom repositories".
-2. URL eingeben: https://github.com/deinusername/pvm-integration → Typ: "Integration".
-3. In HACS nach "PV Manager" suchen → Installieren.
-4. Home Assistant neustarten.
-5. Der Setup-Wizard öffnet sich automatisch – einfach den Anweisungen folgen.
-6. Fertig! Das Dashboard "PV Manager" erscheint in deiner Seitenleiste.
+[![HACS Install](https://img.shields.io/badge/HACS-Install-41BDF5.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Dealwirth&repository=PVM&category=integration)
 
-Bedienung
+#### Variante 2: Manuell in HACS
+1. **HACS öffnen** → Drei-Punkte-Menü → **"Custom repositories"**.
+2. URL eingeben: `https://github.com/Dealwirth/PVM` → Typ: **"Integration"**.
+3. In HACS nach **"PV Manager"** suchen → **Installieren**.
+4. **Home Assistant neustarten**.
+5. Der **Setup-Wizard** öffnet sich automatisch – einfach den Anweisungen folgen.
+6. **Fertig!** Das Dashboard "PV Manager" erscheint in deiner Seitenleiste.
 
-· Prioritätenliste: Ziehe die Geräte per Drag & Drop in die gewünschte Reihenfolge.
-· Power Charge: Klick auf den roten Button – dein Auto lädt mit voller Leistung.
-· Ziele setzen: Gib eine Uhrzeit und einen Zielwert ein (z.B. 80 % oder 100 km).
-· WP-Test: Klick auf "Test starten" – die WP heizt einmal auf 70 °C hoch und misst den Verbrauch.
+### Bedienung
+- **Prioritätenliste**: Ziehe die Geräte per Drag & Drop in die gewünschte Reihenfolge.
+- **Power Charge**: Klick auf den roten Button – dein Auto lädt mit voller Leistung.
+- **Ziele setzen**: Gib eine Uhrzeit und einen Zielwert ein (z.B. 80 % oder 100 km).
+- **WP-Test**: Klick auf "Test starten" – die WP heizt einmal auf 70 °C hoch und misst den Verbrauch.
 
-Du musst kein YAML schreiben. Alles geht per Klick.
+> **Du musst kein YAML schreiben. Alles geht per Klick.**
 
 ---
 
-🔧 Für Entwickler
+## 🔧 Für Entwickler
 
-Kurz & Knackig
+### Kurz & Knackig
 
-Thema Details
-Sprache Python 3.11+
-Framework Home Assistant Core (Async/Await)
-Abhängigkeiten HACS (für Installation), keine weiteren externen Libs
-Daten Alle Konfigurationen als input_*-Entitäten gespeichert
-Erweiterung Neue Gerätetypen können über die DEVICE_TYPES-Registry hinzugefügt werden
+| Thema | Details |
+| :--- | :--- |
+| **Sprache** | Python 3.11+ |
+| **Framework** | Home Assistant Core (Async/Await) |
+| **Abhängigkeiten** | HACS (für Installation), keine weiteren externen Libs |
+| **Daten** | Alle Konfigurationen als `input_*`-Entitäten gespeichert |
+| **Erweiterung** | Neue Gerätetypen können über die `DEVICE_TYPES`-Registry hinzugefügt werden |
 
-Neues Gerät hinzufügen
+### Neues Gerät hinzufügen
 
-1. Erstelle eine neue Datei im Ordner custom_components/pvm/device_types/.
-2. Definiere die Klasse (erbt von BaseDevice).
+1. Erstelle eine neue Datei im Ordner `custom_components/pvm/device_types/`.
+2. Definiere die Klasse (erbt von `BaseDevice`).
 3. Implementiere die Methoden:
-   · async_get_power() – aktuelle Leistung abrufen.
-   · async_set_power(value) – Leistung setzen (falls regelbar).
-   · async_turn_on() / async_turn_off() – Ein-/Ausschalten.
-4. Registriere das Gerät in der DEVICE_TYPES-Registry in const.py.
+   - `async_get_power()` – aktuelle Leistung abrufen.
+   - `async_set_power(value)` – Leistung setzen (falls regelbar).
+   - `async_turn_on()` / `async_turn_off()` – Ein-/Ausschalten.
+4. Registriere das Gerät in der `DEVICE_TYPES`-Registry in `const.py`.
 
-Wichtige Dateien
+### Wichtige Dateien
 
-Datei Zweck
-config_flow.py Setup-Wizard & Konfiguration
-const.py Konstanten, Registry, Standardwerte
-sensor.py Sensoren für PV, WP, Verbraucher
-switch.py Schalter für Power Charge, WP-Test
-device_types/base.py Basis-Klasse für alle Geräte
-device_types/wallbox.py Wallbox-Logik inkl. Auto-Zuordnung
-device_types/wärmepumpe.py WP-Logik inkl. Test-Modus
+| Datei | Zweck |
+| :--- | :--- |
+| `config_flow.py` | Setup-Wizard & Konfiguration |
+| `const.py` | Konstanten, Registry, Standardwerte |
+| `sensor.py` | Sensoren für PV, WP, Verbraucher |
+| `switch.py` | Schalter für Power Charge, WP-Test |
+| `device_types/base.py` | Basis-Klasse für alle Geräte |
+| `device_types/wallbox.py` | Wallbox-Logik inkl. Auto-Zuordnung |
+| `device_types/wärmepumpe.py` | WP-Logik inkl. Test-Modus |
 
-Code-Stil
+### Code-Stil
+- **Async/Await** für alle I/O-Operationen.
+- **Type Hints** für alle Funktionen.
+- **Docstrings** in Google-Style (kurz, präzise).
+- Keine externen Abhängigkeiten außer Home Assistant Core.
 
-· Async/Await für alle I/O-Operationen.
-· Type Hints für alle Funktionen.
-· Docstrings in Google-Style (kurz, präzise).
-· Keine externen Abhängigkeiten außer Home Assistant Core.
+### Testen
+- Lokale Tests mit `pytest` (Tests im `tests/`-Ordner).
+- CI/CD über GitHub Actions (siehe `.github/workflows/validate.yml`).
 
-Testen
-
-· Lokale Tests mit pytest (Tests im tests/-Ordner).
-· CI/CD über GitHub Actions (siehe .github/workflows/validate.yml).
-
-Pull Requests
-
-· Branche von dev abzweigen.
-· Änderungen dokumentieren (in dieser README, falls relevant).
-· Sicherstellen, dass alle Tests durchlaufen.
+### Pull Requests
+- Branche von `dev` abzweigen.
+- Änderungen dokumentieren (in dieser README, falls relevant).
+- Sicherstellen, dass alle Tests durchlaufen.
 
 ---
 
-📜 Lizenz
-
-MIT – siehe LICENSE.
+## 📜 Lizenz
+MIT – siehe [LICENSE](LICENSE).
 
 ---
 
 <div align="center">
-  <sub>Made with ❤️ by [Dein Name]</sub>
+  <sub>Made with ❤️ by Dealwirth</sub>
 </div>
