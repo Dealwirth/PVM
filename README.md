@@ -22,6 +22,27 @@
   <br>
   <em>Das PVM-Dashboard – sauber, übersichtlich und sofort einsatzbereit.</em>
 </div>
+
+---
+
+## 📌 Inhaltsverzeichnis
+
+- [🚀 Schnellstart](#-schnellstart)
+  - [Was kann PVM?](#was-kann-pvm)
+  - [Installation](#installation)
+  - [Bedienung](#bedienung)
+- [🤖 KI-Support](#-ki-support)
+- [🔧 Für Entwickler](#-für-entwickler)
+  - [Kurz & Knackig](#kurz--knackig)
+  - [Neues Gerät hinzufügen](#neues-gerät-hinzufügen)
+  - [Wichtige Dateien](#wichtige-dateien)
+  - [Code-Stil](#code-stil)
+  - [Testen](#testen)
+  - [Pull Requests](#pull-requests)
+- [📜 Lizenz](#-lizenz)
+
+---
+
 ## 🚀 Schnellstart
 
 ### Was kann PVM?
@@ -56,29 +77,14 @@ Klicke auf den großen Button oben – HACS öffnet sich automatisch und du kann
 
 ## 🤖 KI-Support
 
-Du hast ein Problem bei der Installation oder Einrichtung? Kopiere einfach den folgenden Text und füge ihn in deine KI (ChatGPT, Claude, etc.) ein. Die KI weiß dann genau, um welche Integration es sich handelt und kann dir gezielt helfen.
+Du hast ein Problem bei der Installation oder Einrichtung? Kopiere einfach den folgenden **KI-Prompt** und füge ihn in deine KI (ChatGPT, Claude, etc.) ein. Die KI weiß dann genau, um welche Integration es sich handelt und wird dich nach deinem Problem fragen.
 
-<details>
-<summary><b>📋 KI-Prompt zum Kopieren</b></summary>
+**📋 KI-Prompt zum Kopieren:**
 
-```text
-Ich habe ein Problem mit der Home Assistant-Integration "PVM – PV Manager" von GitHub (https://github.com/Dealwirth/PVM).
+Ich habe ein Problem mit der Home Assistant-Integration "PVM – PV Manager" von GitHub (https://github.com/Dealwirth/PVM). Die Integration ist ein Energiemanager für PV-Überschuss und steuert: Wallboxen (E-Auto-Laden mit Mindestreichweite und Zeit-Zielen), Wärmepumpen (inkl. Test-Modus zur Verbrauchsmessung) und universelle Verbraucher (Waschmaschine, Lüftung, etc.). Bitte hilf mir bei der Lösung. Ich werde dir jetzt mein Problem schildern.
 
-Die Integration ist ein Energiemanager für PV-Überschuss und steuert:
-- Wallboxen (E-Auto-Laden mit Mindestreichweite und Zeit-Zielen)
-- Wärmepumpen (inkl. Test-Modus zur Verbrauchsmessung)
-- Universelle Verbraucher (Waschmaschine, Lüftung, etc.)
+---
 
-Mein Problem ist:
-[Bitte hier dein Problem beschreiben]
-
-Folgende Informationen könnten helfen:
-- Home Assistant-Version: [z.B. 2025.2.0]
-- Installierte Geräte: [z.B. Fronius PV, Viessmann WP, Wattpilot Wallbox]
-- Fehlermeldung (falls vorhanden): [Hier einfügen]
-- Bereits durchgeführte Schritte: [Hier einfügen]
-
-Bitte hilf mir bei der Lösung.
 ## 🔧 Für Entwickler
 
 ### Kurz & Knackig
