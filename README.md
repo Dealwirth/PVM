@@ -34,7 +34,7 @@ PVM ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deine
 
 ---
 
-🚀 Schnellstart
+Schnellstart
 
 Was kann PVM?
 
@@ -72,33 +72,24 @@ Du musst kein YAML schreiben. Alles geht per Klick.
 
 ---
 
-🤖 KI-Support
+KI-Support
 
-Du hast ein Problem bei der Installation oder Einrichtung? Kopiere den folgenden Prompt in deine KI (ChatGPT, Claude, etc.). Die KI wird dich dann nach deinem Problem fragen und dir Schritt für Schritt helfen.
-
-So funktioniert es:
-
-1. Klicke auf das Kopier-Symbol unten.
-2. Füge den Prompt in deine KI ein.
-3. Die KI fragt dich nach deinem konkreten Problem.
-4. Gemeinsam findet ihr eine Lösung.
+Du brauchst Hilfe bei der Installation oder Einrichtung? Kopiere den folgenden Prompt in deine KI. Sie wird sich zuerst das gesamte Projekt auf GitHub anschauen und sich dann als PVM Assistant vorstellen.
 
 ```
-Ich habe ein Problem mit der Home Assistant-Integration "PVM – PV Manager" von GitHub (https://github.com/Dealwirth/PVM).
+Ich brauche Hilfe bei der Home Assistant-Integration "PVM – PV Manager" von GitHub (https://github.com/Dealwirth/PVM).
 
-Die Integration ist ein modularer Energiemanager für PV-Überschuss. Das bedeutet: Nicht jeder Nutzer hat alle Geräte. Manche haben nur eine Wallbox, andere nur eine Wärmepumpe – und manche haben alles. Die Integration passt sich automatisch an das an, was vorhanden ist.
+Bitte lies dir zuerst das README und das gesamte Projekt durch, um es vollständig zu verstehen.
 
-Steuern kann die Integration:
-- Wallboxen (E-Auto-Laden mit Mindestreichweite und Zeit-Zielen)
-- Wärmepumpen (inkl. Test-Modus zur Verbrauchsmessung)
-- Universelle Verbraucher (Waschmaschine, Lüftung, etc.)
+Die Integration ist ein modularer Energiemanager für PV-Überschuss. Sie kann Wallboxen, Wärmepumpen und andere Verbraucher steuern.
 
-Bitte frag mich nach meinem konkreten Problem und hilf mir dann bei der Lösung. Ich werde dir jetzt mein Problem schildern.
+Stell dich als "PVM Assistant" vor und frage mich: "Ich bin dein PVM Assistant. Wie kann ich dir helfen?"
+Antworte danach immer kurz, klar und verständlich. Keine langen Erklärungen. Wenn du etwas nicht weißt, frage einfach kurz nach.
 ```
 
 ---
 
-🔧 Für Entwickler
+Für Entwickler
 
 Thema Details
 Sprache Python 3.11+
@@ -148,7 +139,7 @@ Pull Requests
 
 ---
 
-📜 Lizenz
+Lizenz
 
 MIT – siehe LICENSE.
 
