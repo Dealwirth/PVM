@@ -1,11 +1,11 @@
-# ☀️ PVM – PV Manager
+☀️ PVM – PV Manager
 
-[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
-[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.2.0+-blue.svg)](https://www.home-assistant.io)
-[![GitHub Release](https://img.shields.io/github/v/release/Dealwirth/PVM)](https://github.com/Dealwirth/PVM/releases)
-[![License](https://img.shields.io/github/license/Dealwirth/PVM)](LICENSE)
+https://img.shields.io/badge/HACS-Custom-orange.svg
+https://img.shields.io/badge/Home%20Assistant-2025.2.0+-blue.svg
+https://img.shields.io/github/v/release/Dealwirth/PVM
+https://img.shields.io/github/license/Dealwirth/PVM
 
-**PVM** ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deinen PV-Überschuss automatisch an Wallboxen, Wärmepumpe, Waschmaschine und Co. – basierend auf einer **Prioritätenliste**, die du per Drag & Drop festlegst.
+PVM ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deinen PV-Überschuss automatisch an Wallboxen, Wärmepumpe, Waschmaschine und Co. – basierend auf einer Prioritätenliste, die du per Drag & Drop festlegst.
 
 <div align="center">
   <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Dealwirth&repository=PVM&category=integration">
@@ -25,127 +25,132 @@
 
 ---
 
-## 📌 Inhaltsverzeichnis
+📌 Inhaltsverzeichnis
 
-- [🚀 Schnellstart](#-schnellstart)
-  - [Was kann PVM?](#was-kann-pvm)
-  - [Installation](#installation)
-  - [Bedienung](#bedienung)
-- [🤖 KI-Support](#-ki-support)
-- [🔧 Für Entwickler](#-für-entwickler)
-  - [Kurz & Knackig](#kurz--knackig)
-  - [Neues Gerät hinzufügen](#neues-gerät-hinzufügen)
-  - [Wichtige Dateien](#wichtige-dateien)
-  - [Code-Stil](#code-stil)
-  - [Testen](#testen)
-  - [Pull Requests](#pull-requests)
-- [📜 Lizenz](#-lizenz)
+· Schnellstart
+· KI-Support
+· Für Entwickler
+· Lizenz
 
 ---
 
-## 🚀 Schnellstart
+🚀 Schnellstart
 
-### Was kann PVM?
-PVM ist ein **modulares System** – du musst nicht alle Funktionen nutzen. Es funktioniert genauso gut, wenn du nur eine Wallbox hast oder nur eine Wärmepumpe. Je nachdem, welche Geräte du in Home Assistant integriert hast, stehen dir entsprechende Funktionen zur Verfügung.
+Was kann PVM?
 
-- **Automatische PV-Überschussverteilung** an alle deine Verbraucher.
-- **E-Auto-Laden** mit Mindestreichweite, 80%-Limit und Zeit-Zielen (z.B. "bis 18 Uhr voll").
-- **Wärmepumpen-Steuerung** inkl. automatischem Testlauf zur Verbrauchsmessung.
-- **Waschmaschine, Lüftung, Poolpumpe** – alles, was du mit Home Assistant schalten kannst.
-- **Fertiges Dashboard** – wird bei Installation automatisch erstellt.
+PVM ist ein modulares System – du musst nicht alle Funktionen nutzen. Es funktioniert genauso gut, wenn du nur eine Wallbox hast oder nur eine Wärmepumpe. Je nachdem, welche Geräte du in Home Assistant integriert hast, stehen dir entsprechende Funktionen zur Verfügung.
 
-### Installation
+· Automatische PV-Überschussverteilung an alle deine Verbraucher.
+· E-Auto-Laden mit Mindestreichweite, 80%-Limit und Zeit-Zielen (z.B. "bis 18 Uhr voll").
+· Wärmepumpen-Steuerung inkl. automatischem Testlauf zur Verbrauchsmessung.
+· Waschmaschine, Lüftung, Poolpumpe – alles, was du mit Home Assistant schalten kannst.
+· Fertiges Dashboard – wird bei Installation automatisch erstellt.
 
-#### Variante 1: Per Button (empfohlen)
+Installation
+
+Variante 1: Per Button (empfohlen)
+
 Klicke auf den großen Button oben – HACS öffnet sich automatisch und du kannst die Integration direkt installieren.
 
-#### Variante 2: Manuell in HACS
-1. **HACS öffnen** → Drei-Punkte-Menü → **"Custom repositories"**.
-2. URL eingeben: `https://github.com/Dealwirth/PVM` → Typ: **"Integration"**.
-3. In HACS nach **"PV Manager"** suchen → **Installieren**.
-4. **Home Assistant neustarten**.
-5. Der **Setup-Wizard** öffnet sich automatisch – einfach den Anweisungen folgen.
-6. **Fertig!** Das Dashboard "PV Manager" erscheint in deiner Seitenleiste.
+Variante 2: Manuell in HACS
 
-### Bedienung
-- **Prioritätenliste**: Ziehe die Geräte per Drag & Drop in die gewünschte Reihenfolge.
-- **Power Charge**: Klick auf den roten Button – dein Auto lädt mit voller Leistung.
-- **Ziele setzen**: Gib eine Uhrzeit und einen Zielwert ein (z.B. 80 % oder 100 km).
-- **WP-Test**: Klick auf "Test starten" – die WP heizt einmal auf 70 °C hoch und misst den Verbrauch.
+1. HACS öffnen → Drei-Punkte-Menü → "Custom repositories".
+2. URL eingeben: https://github.com/Dealwirth/PVM → Typ: "Integration".
+3. In HACS nach "PV Manager" suchen → Installieren.
+4. Home Assistant neustarten.
+5. Der Setup-Wizard öffnet sich automatisch – einfach den Anweisungen folgen.
+6. Fertig! Das Dashboard "PV Manager" erscheint in deiner Seitenleiste.
 
-> **Du musst kein YAML schreiben. Alles geht per Klick.**
+Bedienung
+
+· Prioritätenliste: Ziehe die Geräte per Drag & Drop in die gewünschte Reihenfolge.
+· Power Charge: Klick auf den roten Button – dein Auto lädt mit voller Leistung.
+· Ziele setzen: Gib eine Uhrzeit und einen Zielwert ein (z.B. 80 % oder 100 km).
+· WP-Test: Klick auf "Test starten" – die WP heizt einmal auf 70 °C hoch und misst den Verbrauch.
+
+Du musst kein YAML schreiben. Alles geht per Klick.
 
 ---
 
-## 🤖 KI-Support
+🤖 KI-Support
 
 Du hast ein Problem bei der Installation oder Einrichtung? Kopiere den folgenden Prompt in deine KI (ChatGPT, Claude, etc.). Die KI wird dich dann nach deinem Problem fragen und dir Schritt für Schritt helfen.
 
-**So funktioniert es:**
-1. Kopiere den Prompt unten.
-2. Füge ihn in deine KI ein.
+So funktioniert es:
+
+1. Klicke auf das Kopier-Symbol unten.
+2. Füge den Prompt in deine KI ein.
 3. Die KI fragt dich nach deinem konkreten Problem.
 4. Gemeinsam findet ihr eine Lösung.
 
-**📋 KI-Prompt zum Kopieren:**
+```
+Ich habe ein Problem mit der Home Assistant-Integration "PVM – PV Manager" von GitHub (https://github.com/Dealwirth/PVM).
 
-Ich habe ein Problem mit der Home Assistant-Integration "PVM – PV Manager" von GitHub (https://github.com/Dealwirth/PVM). Die Integration ist ein modularer Energiemanager für PV-Überschuss. Das bedeutet: Nicht jeder Nutzer hat alle Geräte. Manche haben nur eine Wallbox, andere nur eine Wärmepumpe – und manche haben alles. Die Integration passt sich automatisch an das an, was vorhanden ist. Steuern kann die Integration: Wallboxen (E-Auto-Laden mit Mindestreichweite und Zeit-Zielen), Wärmepumpen (inkl. Test-Modus zur Verbrauchsmessung) und universelle Verbraucher (Waschmaschine, Lüftung, etc.). Bitte frag mich nach meinem konkreten Problem und hilf mir dann bei der Lösung. Ich werde dir jetzt mein Problem schildern.
+Die Integration ist ein modularer Energiemanager für PV-Überschuss. Das bedeutet: Nicht jeder Nutzer hat alle Geräte. Manche haben nur eine Wallbox, andere nur eine Wärmepumpe – und manche haben alles. Die Integration passt sich automatisch an das an, was vorhanden ist.
+
+Steuern kann die Integration:
+- Wallboxen (E-Auto-Laden mit Mindestreichweite und Zeit-Zielen)
+- Wärmepumpen (inkl. Test-Modus zur Verbrauchsmessung)
+- Universelle Verbraucher (Waschmaschine, Lüftung, etc.)
+
+Bitte frag mich nach meinem konkreten Problem und hilf mir dann bei der Lösung. Ich werde dir jetzt mein Problem schildern.
+```
 
 ---
 
-## 🔧 Für Entwickler
+🔧 Für Entwickler
 
-### Kurz & Knackig
+Thema Details
+Sprache Python 3.11+
+Framework Home Assistant Core (Async/Await)
+Abhängigkeiten HACS (für Installation), keine weiteren externen Libs
+Daten Alle Konfigurationen als input_*-Entitäten gespeichert
+Erweiterung Neue Gerätetypen können über die DEVICE_TYPES-Registry hinzugefügt werden
 
-| Thema | Details |
-| :--- | :--- |
-| **Sprache** | Python 3.11+ |
-| **Framework** | Home Assistant Core (Async/Await) |
-| **Abhängigkeiten** | HACS (für Installation), keine weiteren externen Libs |
-| **Daten** | Alle Konfigurationen als `input_*`-Entitäten gespeichert |
-| **Erweiterung** | Neue Gerätetypen können über die `DEVICE_TYPES`-Registry hinzugefügt werden |
+Neues Gerät hinzufügen
 
-### Neues Gerät hinzufügen
-
-1. Erstelle eine neue Datei im Ordner `custom_components/pvm/device_types/`.
-2. Definiere die Klasse (erbt von `BaseDevice`).
+1. Erstelle eine neue Datei im Ordner custom_components/pvm/device_types/.
+2. Definiere die Klasse (erbt von BaseDevice).
 3. Implementiere die Methoden:
-   - `async_get_power()` – aktuelle Leistung abrufen.
-   - `async_set_power(value)` – Leistung setzen (falls regelbar).
-   - `async_turn_on()` / `async_turn_off()` – Ein-/Ausschalten.
-4. Registriere das Gerät in der `DEVICE_TYPES`-Registry in `const.py`.
+   · async_get_power() – aktuelle Leistung abrufen.
+   · async_set_power(value) – Leistung setzen (falls regelbar).
+   · async_turn_on() / async_turn_off() – Ein-/Ausschalten.
+4. Registriere das Gerät in der DEVICE_TYPES-Registry in const.py.
 
-### Wichtige Dateien
+Wichtige Dateien
 
-| Datei | Zweck |
-| :--- | :--- |
-| `config_flow.py` | Setup-Wizard & Konfiguration |
-| `const.py` | Konstanten, Registry, Standardwerte |
-| `sensor.py` | Sensoren für PV, WP, Verbraucher |
-| `switch.py` | Schalter für Power Charge, WP-Test |
-| `device_types/base.py` | Basis-Klasse für alle Geräte |
-| `device_types/wallbox.py` | Wallbox-Logik inkl. Auto-Zuordnung |
-| `device_types/wärmepumpe.py` | WP-Logik inkl. Test-Modus |
+Datei Zweck
+config_flow.py Setup-Wizard & Konfiguration
+const.py Konstanten, Registry, Standardwerte
+sensor.py Sensoren für PV, WP, Verbraucher
+switch.py Schalter für Power Charge, WP-Test
+device_types/base.py Basis-Klasse für alle Geräte
+device_types/wallbox.py Wallbox-Logik inkl. Auto-Zuordnung
+device_types/wärmepumpe.py WP-Logik inkl. Test-Modus
 
-### Code-Stil
-- **Async/Await** für alle I/O-Operationen.
-- **Type Hints** für alle Funktionen.
-- **Docstrings** in Google-Style (kurz, präzise).
-- Keine externen Abhängigkeiten außer Home Assistant Core.
+Code-Stil
 
-### Testen
-- Lokale Tests mit `pytest` (Tests im `tests/`-Ordner).
-- CI/CD über GitHub Actions (siehe `.github/workflows/validate.yml`).
+· Async/Await für alle I/O-Operationen.
+· Type Hints für alle Funktionen.
+· Docstrings in Google-Style (kurz, präzise).
+· Keine externen Abhängigkeiten außer Home Assistant Core.
 
-### Pull Requests
-- Branche von `dev` abzweigen.
-- Änderungen dokumentieren (in dieser README, falls relevant).
-- Sicherstellen, dass alle Tests durchlaufen.
+Testen
+
+· Lokale Tests mit pytest (Tests im tests/-Ordner).
+· CI/CD über GitHub Actions (siehe .github/workflows/validate.yml).
+
+Pull Requests
+
+· Branche von dev abzweigen.
+· Änderungen dokumentieren (in dieser README, falls relevant).
+· Sicherstellen, dass alle Tests durchlaufen.
 
 ---
 
-## 📜 Lizenz
-MIT – siehe [LICENSE](LICENSE).
+📜 Lizenz
+
+MIT – siehe LICENSE.
 
 ---
 
