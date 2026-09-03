@@ -1,9 +1,9 @@
 """Service-Implementierungen für die PVM-Integration."""
 
 import voluptuous as vol
+from datetime import datetime, timedelta  # ← HIER wurde timedelta ergänzt!
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import entity_registry as er
 
 from .const import DOMAIN
 from .logic.error_handler import ErrorHandler
@@ -27,6 +27,12 @@ async def async_setup_services(hass: HomeAssistant):
         if not device:
             raise HomeAssistantError(f"Gerät {device_id} nicht gefunden")
 
+        # Priorität in input_number speichern
+        input_number_id = f"input_number.priority_{device_id}"
+        await hass.services.async_call(
+            "input_number", "set_value",
+            {"entity_id": input_number_id, "value": priority}
+        )
         error_handler.log_info("services", f"Priorität für {device_id} auf {priority} gesetzt")
 
     async def handle_power_charge(call: ServiceCall):
@@ -57,13 +63,12 @@ async def async_setup_services(hass: HomeAssistant):
         if not scheduler:
             raise HomeAssistantError("Scheduler nicht verfügbar")
 
-        from datetime import datetime
         try:
             target_dt = datetime.strptime(target_time, "%H:%M")
             now = datetime.now()
             target_dt = target_dt.replace(year=now.year, month=now.month, day=now.day)
             if target_dt < now:
-                target_dt = target_dt + timedelta(days=1)
+                target_dt = target_dt + timedelta(days=1)  # ← hier wird timedelta verwendet
         except ValueError:
             raise HomeAssistantError(f"Ungültiges Zeitformat: {target_time}. Erwartet: HH:MM")
 
