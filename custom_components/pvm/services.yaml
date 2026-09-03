@@ -1,1 +1,81 @@
-?
+# Services für die PVM-Integration
+
+set_priority:
+  name: Priorität setzen
+  description: Setzt die Priorität eines Geräts (1 = niedrig, 10 = hoch)
+  fields:
+    device_id:
+      name: Gerät-ID
+      description: ID des Geräts
+      required: true
+      example: "wallbox_1"
+      selector:
+        text:
+    priority:
+      name: Priorität
+      description: Priorität von 1 bis 10
+      required: true
+      example: 8
+      selector:
+        number:
+          min: 1
+          max: 10
+          step: 1
+
+power_charge:
+  name: Power Charge
+  description: Startet Power Charge für ein Auto (volle Leistung)
+  fields:
+    device_id:
+      name: Gerät-ID
+      description: ID der Wallbox
+      required: true
+      example: "wallbox_1"
+      selector:
+        text:
+
+set_deadline:
+  name: Ziel setzen
+  description: Setzt ein zeitliches Ziel für ein Auto oder Gerät
+  fields:
+    device_id:
+      name: Gerät-ID
+      description: ID des Geräts
+      required: true
+      example: "wallbox_1"
+      selector:
+        text:
+    target_time:
+      name: Zielzeit
+      description: Bis wann das Ziel erreicht sein soll (z.B. 18:00)
+      required: true
+      example: "18:00"
+      selector:
+        text:
+    target_value:
+      name: Zielwert
+      description: Zielwert in kWh oder %
+      required: true
+      example: 80
+      selector:
+        number:
+          min: 1
+          max: 100
+          step: 1
+
+clear_deadline:
+  name: Ziel löschen
+  description: Löscht ein zeitliches Ziel für ein Gerät
+  fields:
+    device_id:
+      name: Gerät-ID
+      description: ID des Geräts
+      required: true
+      example: "wallbox_1"
+      selector:
+        text:
+
+scan_devices:
+  name: Neue Geräte suchen
+  description: Startet die automatische Geräteerkennung
+  fields: {}
