@@ -73,3 +73,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok:
         hass.data.pop(DOMAIN, None)
     return unload_ok
+# Services registrieren
+from .services import async_setup_services
+await async_setup_services(hass)
