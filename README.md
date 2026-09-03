@@ -18,7 +18,16 @@ PVM ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deine
 <br>
 
 <div align="center">
-  <img src="https://via.placeholder.com/800x450/1a1a2e/ffffff?text=PVM+Dashboard+Preview" alt="PVM Dashboard Preview" width="800">
+  <svg width="800" height="450" viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg" style="border-radius: 12px; background: #1a1a2e;">
+    <rect width="800" height="450" rx="12" fill="#1a1a2e"/>
+    <rect x="20" y="20" width="760" height="50" rx="8" fill="#16213e"/>
+    <rect x="30" y="32" width="120" height="26" rx="4" fill="#0f3460"/>
+    <rect x="160" y="32" width="80" height="26" rx="4" fill="#0f3460"/>
+    <rect x="250" y="32" width="90" height="26" rx="4" fill="#0f3460"/>
+    <rect x="600" y="32" width="80" height="26" rx="4" fill="#e94560"/>
+    <rect x="690" y="32" width="80" height="26" rx="4" fill="#0f3460"/>
+
+  </svg>
   <br>
   <em>Das PVM-Dashboard – sauber, übersichtlich und sofort einsatzbereit.</em>
 </div>
