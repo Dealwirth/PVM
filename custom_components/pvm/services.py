@@ -131,3 +131,30 @@ async def async_setup_services(hass: HomeAssistant):
     )
 
     error_handler.log_info("services", "Alle Services registriert")
+async def handle_run_diagnostics(call: ServiceCall):
+    """Führt die Diagnose durch und gibt das Ergebnis aus."""
+    from .diagnostics import PVMDiagnostics
+    diag = PVMDiagnostics(hass)
+    result = await diag.async_run_diagnostics()
+    
+    # Fehler als Error melden
+    if result["errors"]:
+        for error in result["errors"]:
+            error_handler.log_error("Diagnostics", error)
+    # Warnungen als Warnung melden
+    if result["warnings"]:
+        for warning in result["warnings"]:
+            error_handler.log_warning("Diagnostics", warning)
+    # Infos als Info melden
+    if result["infos"]:
+        for info in result["infos"]:
+            error_handler.log_info("Diagnostics", info)
+    
+    # Zusammenfassung als Benachrichtigung
+    hass.components.persistent_notification.async_create(
+        result["summary"],
+        title="PVM Diagnose-Ergebnis",
+        notification_id="pvm_diagnostic"
+    )
+    
+    return result
