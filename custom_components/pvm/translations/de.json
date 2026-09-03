@@ -1,1 +1,66 @@
-?
+{
+  "title": "PV Manager",
+  "config": {
+    "step": {
+      "user": {
+        "title": "PV Manager – Willkommen",
+        "description": "PVM hilft dir, deinen PV-Überschuss intelligent zu verteilen.",
+        "data": {}
+      },
+      "devices": {
+        "title": "Geräteerkennung",
+        "description": "Diese Geräte wurden automatisch erkannt:",
+        "data": {
+          "devices": "Verfügbare Geräte"
+        }
+      },
+      "autos": {
+        "title": "Autos konfigurieren",
+        "description": "Bitte konfiguriere deine E-Autos.",
+        "data": {
+          "auto1_name": "Auto 1 Name",
+          "auto1_battery": "Akkugröße (kWh)",
+          "auto1_mindest_kwh": "Mindest-kWh",
+          "auto1_max_soc": "Maximal-SoC (%)",
+          "auto2_name": "Auto 2 Name",
+          "auto2_battery": "Akkugröße (kWh)",
+          "auto2_mindest_kwh": "Mindest-kWh",
+          "auto2_max_soc": "Maximal-SoC (%)"
+        }
+      },
+      "priorities": {
+        "title": "Prioritäten festlegen",
+        "description": "Lege fest, welche Geräte bevorzugt werden.",
+        "data": {}
+      }
+    },
+    "error": {
+      "no_devices": "Keine Geräte gefunden. Bitte füge Geräte manuell hinzu."
+    },
+    "abort": {
+      "already_configured": "PVM ist bereits konfiguriert."
+    }
+  },
+  "services": {
+    "set_priority": {
+      "name": "Priorität setzen",
+      "description": "Setzt die Priorität eines Geräts."
+    },
+    "power_charge": {
+      "name": "Power Charge",
+      "description": "Startet Power Charge für ein Auto."
+    },
+    "set_deadline": {
+      "name": "Ziel setzen",
+      "description": "Setzt ein zeitliches Ziel."
+    },
+    "clear_deadline": {
+      "name": "Ziel löschen",
+      "description": "Löscht ein zeitliches Ziel."
+    },
+    "scan_devices": {
+      "name": "Neue Geräte suchen",
+      "description": "Startet die automatische Geräteerkennung."
+    }
+  }
+}
