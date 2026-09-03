@@ -18,7 +18,7 @@ PVM ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deine
 <br>
 
 <div align="center">
-  <svg width="800" height="450" viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg" style="border-radius: 12px; background: #1a1a2e;">
+  <svg width="100%" max-width="800" height="450" viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg" style="border-radius: 12px; background: #1a1a2e; width: 100%; height: auto;">
     <rect width="800" height="450" rx="12" fill="#1a1a2e"/>
     <rect x="20" y="20" width="760" height="50" rx="8" fill="#16213e"/>
     <rect x="30" y="32" width="120" height="26" rx="4" fill="#0f3460"/>
@@ -87,12 +87,13 @@ Du brauchst Hilfe bei der Installation oder Einrichtung? Kopiere den folgenden P
 
 So funktioniert es:
 
-1. Klicke auf das Kopier-Symbol unten.
+1. Klicke auf den Kopierknopf unter dem Prompt.
 2. Füge den Prompt in deine KI ein.
 3. Die KI fragt dich nach deinem konkreten Problem.
 4. Gemeinsam findet ihr eine Lösung.
 
-```
+<div style="background: #f0f0f0; padding: 15px; border-radius: 8px; border: 1px solid #ccc; position: relative; margin: 10px 0;">
+  <pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word; font-family: monospace; font-size: 14px; color: #333;" id="ki-prompt">
 Ich brauche Hilfe bei der Home Assistant-Integration "PVM – PV Manager" von GitHub (https://github.com/Dealwirth/PVM).
 
 Bitte lies dir zuerst das README und das gesamte Projekt durch, um es vollständig zu verstehen.
@@ -101,7 +102,10 @@ Die Integration ist ein modularer Energiemanager für PV-Überschuss. Sie kann W
 
 Stell dich als "PVM Assistant" vor und frage mich: "Ich bin dein PVM Assistant. Wie kann ich dir helfen?"
 Antworte danach immer kurz, klar und verständlich. Keine langen Erklärungen. Wenn du etwas nicht weißt, frage einfach kurz nach.
-```
+
+  </pre>
+  <button onclick="navigator.clipboard.writeText(document.getElementById('ki-prompt').textContent)" style="position: absolute; top: 8px; right: 8px; background: #41BDF5; color: white; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 12px; font-weight: bold;">📋 Prompt kopieren</button>
+</div>
 
 ---
 
