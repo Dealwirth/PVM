@@ -7,9 +7,9 @@ https://img.shields.io/github/license/Dealwirth/PVM
 
 PVM ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deinen PV-Überschuss automatisch an Wallboxen, Wärmepumpe, Waschmaschine und Co. – basierend auf einer Prioritätenliste, die du per Drag & Drop festlegst.
 
-<div align="center">
-  <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Dealwirth&repository=PVM&category=integration">
-    <img src="https://img.shields.io/badge/Integration_hinzufügen-41BDF5?style=for-the-badge&logo=homeassistant&logoColor=white" alt="Integration hinzufügen" width="300">
+<div align="center" style="width:100%;">
+  <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Dealwirth&repository=PVM&category=integration" style="display:block;width:100%;">
+    <img src="https://img.shields.io/badge/Integration_hinzufügen-41BDF5?style=for-the-badge&logo=homeassistant&logoColor=white" alt="Integration hinzufügen" style="width:100%;">
   </a>
   <br>
   <em>Klick auf den Button – HACS öffnet sich automatisch.</em>
@@ -75,6 +75,13 @@ Du musst kein YAML schreiben. Alles geht per Klick.
 🤖 KI-Support
 
 Du brauchst Hilfe bei der Installation oder Einrichtung? Kopiere den folgenden Prompt in deine KI. Sie wird sich zuerst das gesamte Projekt auf GitHub anschauen und sich dann als PVM Assistant vorstellen.
+
+So funktioniert es:
+
+1. Klicke auf das Kopier-Symbol unten.
+2. Füge den Prompt in deine KI ein.
+3. Die KI fragt dich nach deinem konkreten Problem.
+4. Gemeinsam findet ihr eine Lösung.
 
 ```
 Ich brauche Hilfe bei der Home Assistant-Integration "PVM – PV Manager" von GitHub (https://github.com/Dealwirth/PVM).
