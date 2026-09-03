@@ -55,42 +55,66 @@ class PriorityEngine:
         """Ein einzelner Zyklus der Engine."""
         # Alle Geräte aktualisieren
         for device in self.registry.get_all_devices():
-            await device.async_update()
+            try:
+                await device.async_update()
+            except Exception as e:
+                self.error_handler.log_warning("PriorityEngine", f"Fehler beim Aktualisieren von {device.device_id}: {e}")
 
         # Autos erkennen
-        await self.auto_detector.async_detect()
+        try:
+            await self.auto_detector.async_detect()
+        except Exception as e:
+            self.error_handler.log_warning("PriorityEngine", f"Fehler bei Auto-Erkennung: {e}")
 
         # Verfügbare Leistung berechnen (PV + Netz)
         available_power = await self._get_available_power()
 
-        # Geräte nach Priorität sortieren
-        sorted_devices = self._sort_devices_by_priority()
+        # Geräte nach Priorität sortieren (aus input_number lesen)
+        sorted_devices = await self._sort_devices_by_priority()
 
         # Leistung verteilen
         remaining_power = available_power
         for device in sorted_devices:
             if remaining_power <= 0:
-                await device.async_turn_off()
+                try:
+                    await device.async_turn_off()
+                except Exception:
+                    pass
                 continue
 
             # Bedarf des Geräts ermitteln
-            demand = await self._get_device_demand(device)
-            if demand > 0:
-                power = min(demand, remaining_power)
-                await device.async_set_power(power)
-                remaining_power -= power
-            else:
-                await device.async_turn_off()
+            try:
+                demand = await self._get_device_demand(device)
+                if demand > 0:
+                    power = min(demand, remaining_power)
+                    await device.async_set_power(power)
+                    remaining_power -= power
+                else:
+                    await device.async_turn_off()
+            except Exception as e:
+                self.error_handler.log_warning("PriorityEngine", f"Fehler bei Gerät {device.device_id}: {e}")
 
     async def _get_available_power(self) -> float:
         """Berechnet die verfügbare Leistung (PV + Netz)."""
         # Platzhalter – später mit echten Sensoren
-        return 3.5  # 3.5 kW
+        return 3.5
 
-    def _sort_devices_by_priority(self) -> list:
+    async def _sort_devices_by_priority(self) -> list:
         """Sortiert Geräte nach Priorität (niedrige Zahl = höhere Priorität)."""
-        # Platzhalter – später aus Entitäten lesen
-        return self.registry.get_all_devices()
+        devices = self.registry.get_all_devices()
+        # Prioritäten aus input_number lesen
+        priority_list = []
+        for device in devices:
+            try:
+                input_number_id = f"input_number.priority_{device.device_id}"
+                state = self.hass.states.get(input_number_id)
+                priority = int(state.state) if state else 5
+            except Exception:
+                priority = 5
+            priority_list.append((priority, device))
+        # Nach Priorität sortieren (1 = höchste)
+        priority_list.sort(key=lambda x: x[0])
+        return [device for _, device in priority_list]
 
     async def _get_device_demand(self, device) -> float:
         """Ermittelt den Leistungsbedarf eines Geräts."""
