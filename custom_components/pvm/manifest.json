@@ -1,0 +1,13 @@
+{
+  "domain": "pvm",
+  "name": "PV Manager (PVM)",
+  "codeowners": ["@Dealwirth"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/Dealwirth/PVM",
+  "issue_tracker": "https://github.com/Dealwirth/PVM/issues",
+  "integration_type": "hub",
+  "iot_class": "local_polling",
+  "requirements": [],
+  "version": "1.0.0"
+}

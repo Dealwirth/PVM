@@ -1,0 +1,7 @@
+{
+  "name": "PV Manager",
+  "country": "DE",
+  "render_readme": true,
+  "domains": ["pvm"],
+  "homeassistant": "2025.2.0"
+}

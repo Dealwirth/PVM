@@ -1,0 +1,13 @@
+target-version = "py311"
+line-length = 88
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+  "E501",   # line length handled by formatter/black style; not enforced
+  "UP035",  # keep explicit imports stable across HA Python versions
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["B011"]
+"custom_components/pvm/tests/*" = ["B011"]

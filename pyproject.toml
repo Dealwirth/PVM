@@ -1,0 +1,15 @@
+[project]
+name = "homeassistant-pvm"
+version = "1.0.0"
+description = "PV Manager – intelligente PV-Ueberschussverteilung fuer Home Assistant"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
