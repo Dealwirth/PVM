@@ -9,7 +9,11 @@ from .const import DOMAIN, MAX_CONSECUTIVE_ERRORS
 from .logic.error_handler import ErrorHandler
 from .logic.priority_engine import PriorityEngine
 from .logic.auto_detector import AutoDetector
+from .logic.scheduler import Scheduler
+from .logic.wp_calibration import WpCalibration
+from .logic.test_runner import TestRunner
 from .device_types.registry import DeviceRegistry
+from .dashboard.dashboard_creator import DashboardCreator
 
 PLATFORMS = ["sensor", "switch"]
 
@@ -23,9 +27,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     auto_detector = AutoDetector(hass, registry, error_handler)
     await auto_detector.async_initialize()
 
+    # Initialisiere Scheduler
+    scheduler = Scheduler(hass, error_handler)
+
+    # Initialisiere WP-Calibration (Gerüst)
+    wp_calibration = WpCalibration(hass, error_handler)
+
+    # Initialisiere Test-Runner (Gerüst)
+    test_runner = TestRunner(hass, error_handler)
+
     # Initialisiere PriorityEngine
     engine = PriorityEngine(hass, registry, error_handler, auto_detector)
     hass.data[DOMAIN]["engine"] = engine
+    hass.data[DOMAIN]["registry"] = registry
+    hass.data[DOMAIN]["auto_detector"] = auto_detector
+    hass.data[DOMAIN]["scheduler"] = scheduler
+    hass.data[DOMAIN]["wp_calibration"] = wp_calibration
+    hass.data[DOMAIN]["test_runner"] = test_runner
+
+    # Dashboard erstellen (falls noch nicht vorhanden)
+    dashboard_creator = DashboardCreator(hass, error_handler)
+    await dashboard_creator.async_create_dashboard()
 
     # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
