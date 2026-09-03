@@ -1,1 +1,66 @@
-?
+# Lovelace-Karten für das PVM-Dashboard
+
+# Übersichtskarte: Energiefluss
+- type: custom:power-flow-card
+  title: Energiefluss
+  entities:
+    pv: sensor.pv_power
+    grid: sensor.grid_power
+    home: sensor.home_power
+    battery: sensor.battery_power
+
+# Übersichtskarte: PV-Daten
+- type: entities
+  title: PV-Anlage
+  entities:
+    - sensor.pv_power
+    - sensor.pv_today
+    - sensor.pv_total
+
+# Übersichtskarte: Wärmepumpe
+- type: entities
+  title: Wärmepumpe
+  entities:
+    - sensor.wp_temperature
+    - sensor.wp_power
+    - sensor.wp_status
+
+# Auto-Karte 1
+- type: entities
+  title: Auto 1
+  entities:
+    - sensor.auto1_soc
+    - sensor.auto1_power
+    - input_number.auto1_mindest_kwh
+    - input_number.auto1_max_soc
+
+# Auto-Karte 2
+- type: entities
+  title: Auto 2
+  entities:
+    - sensor.auto2_soc
+    - sensor.auto2_power
+    - input_number.auto2_mindest_kwh
+    - input_number.auto2_max_soc
+
+# Power Charge Schalter
+- type: entities
+  title: Power Charge
+  entities:
+    - switch.power_charge_auto1
+    - switch.power_charge_auto2
+
+# Prioritätenliste (später mit Drag & Drop)
+- type: entities
+  title: Prioritäten
+  entities:
+    - input_number.priority_wallbox1
+    - input_number.priority_wallbox2
+    - input_number.priority_wp
+    - input_number.priority_verbraucher
+
+# WP-Test (vorbereitet)
+- type: button
+  name: WP-Test starten
+  entity: input_boolean.wp_test_start
+  icon: mdi:thermometer
