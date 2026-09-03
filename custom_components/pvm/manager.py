@@ -28,9 +28,12 @@ from homeassistant.util import dt as dt_util
 from . import engine as eng
 from .config_model import (
     deadline_next_ts,
+    energy_configured,
     find_device,
+    setup_stage,
 )
 from .const import (
+    CONTROL_BUTTONS,
     DOMAIN,
     GRID_KIND_NET,
     MODE_AUTO,
@@ -40,11 +43,12 @@ from .const import (
     ROLE_VERBRAUCHER,
     ROLE_WAERMEPUMPE,
     ROLE_WALLBOX,
+    SETUP_LABELS,
     STALE_SENSOR_AFTER_S,
     STALE_SOC_AFTER_S,
     STALE_TEMP_AFTER_S,
 )
-from .detector import match_power_soc, suggest_devices, suggest_energy
+from .detector import match_power_soc, suggest_sets
 from .store import PvmStore
 from .wp_test import (
     STATUS_DONE,
@@ -60,6 +64,11 @@ _LOGGER = logging.getLogger(__name__)
 BUFFER_MAX = 60
 # Abstand zwischen zwei manuell angestoßenen Zyklen (Entprellung)
 MIN_CYCLE_GAP_S = 3.0
+# Ab Leistung über dieser Schwelle gilt eine Wallbox/Verbraucher als „an“
+# (wichtig bei der Steuerung über zwei Taster ohne Schalterzustand)
+CHARGE_ON_W = 60.0
+# Nach einem Stopp-Befehl wird nicht sofort erneut gestoppt
+MIN_STOP_GAP_S = 30.0
 
 
 class PvmManager:
@@ -98,6 +107,7 @@ class PvmManager:
         self._applied: dict[str, dict[str, Any]] = {}
         self._on_timers: dict[str, float] = {}
         self._off_timers: dict[str, float] = {}
+        self._last_stop_press: dict[str, float] = {}
 
         # Verlaufs-Puffer für Korrelation (power/soc)
         self._power_buf: dict[str, deque] = {}
@@ -108,6 +118,7 @@ class PvmManager:
         self.wp_test_device: str | None = None
 
         self._started_event_bound = False
+        self._auto_scan_done = False
 
     @property
     def closing(self) -> bool:
@@ -131,8 +142,26 @@ class PvmManager:
                 self._run_loop(), name=f"{DOMAIN}_cycle_{self.entry.entry_id}"
             )
             self._listen_once_started()
+            self._schedule_initial_scan()
         else:
             self._listen_once_started()
+
+    def _schedule_initial_scan(self) -> None:
+        """Scannt beim Start einmal automatisch (nach dem ersten Zyklus)."""
+        if self._auto_scan_done:
+            return
+        self._auto_scan_done = True
+
+        async def _scan_later() -> None:
+            await asyncio.sleep(5.0)
+            if self._closing:
+                return
+            try:
+                await self.scan_devices()
+            except Exception:  # noqa: BLE001
+                _LOGGER.debug("PVM: automatischer Scan fehlgeschlagen", exc_info=True)
+
+        self.hass.async_create_task(_scan_later(), name=f"{DOMAIN}_initial_scan")
 
     def _listen_once_started(self) -> None:
         """Startet den Zyklus, sobald HA vollständig läuft."""
@@ -146,6 +175,8 @@ class PvmManager:
                     self._run_loop(), name=f"{DOMAIN}_cycle_{self.entry.entry_id}"
                 )
                 await self.run_cycle()
+            if not self._auto_scan_done:
+                self._schedule_initial_scan()
 
         self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _on_started)
 
@@ -332,21 +363,8 @@ class PvmManager:
         limits = device.get("limits", {})
 
         settings = self.config.get("settings", {})
-        # Zustand des externen Schalters lesen
-        switch_entity = control.get("switch_entity")
-        on = False
-        if switch_entity:
-            state = self.hass.states.get(switch_entity)
-            if state and state.state == STATE_ON:
-                on = True
-        # Kurz nach einem eigenen Einschalten als an behandeln (HA-Zustand hinkt)
-        applied = self._applied.get(device_id)
-        if not on and applied and applied.get("on") and (
-            _time.time() - applied.get("ts", 0) < 30
-        ):
-            on = True
-
         measured, _valid = self.read_number(sensors.get("power"))
+        on = self._control_is_on(device_id, device.get("control", {}), measured)
         has_setpoint = control.get("type") == "switch_number"
 
         engine_device = eng.Device(
@@ -483,6 +501,10 @@ class PvmManager:
         if action.set_on is None:
             return False  # „Halten“ – nichts tun
 
+        # --- Zwei Taster (Start/Stopp) -------------------------------------
+        if control.get("type") == CONTROL_BUTTONS:
+            return await self._execute_buttons(device, action, now)
+
         changed = False
 
         # 1) Sollwert zuerst, wenn eingeschaltet wird
@@ -523,6 +545,50 @@ class PvmManager:
 
         return changed
 
+    async def _execute_buttons(
+        self, device: dict, action: eng.DeviceAction, now: float
+    ) -> bool:
+        """Start/Stopp-Taster bedienen – nur bei echtem Zustandswechsel."""
+        control = device.get("control", {})
+        device_id = device["id"]
+        sensors = device.get("sensors", {})
+        measured, _valid = self.read_number(sensors.get("power"))
+        is_on = self._control_is_on(device_id, control, measured)
+        changed = False
+
+        if action.set_on is True:
+            if not is_on:
+                on_entity = control.get("on_entity")
+                if on_entity:
+                    await self._press_entity(on_entity, want_on=True)
+                    changed = True
+            self._applied[device_id] = {"on": True, "ts": now}
+        elif action.set_on is False:
+            # Nicht sofort erneut stoppen (Ladeleistung kann nachhängen)
+            if (
+                is_on
+                and control.get("off_entity")
+                and now - self._last_stop_press.get(device_id, 0.0) >= MIN_STOP_GAP_S
+            ):
+                await self._press_entity(control["off_entity"], want_on=False)
+                self._last_stop_press[device_id] = now
+                changed = True
+            self._applied[device_id] = {"on": False, "ts": now}
+        return changed
+
+    async def _press_entity(self, entity_id: str, want_on: bool) -> None:
+        """Drückt einen Taster: button.press bzw. switch.turn_on/turn_off."""
+        if self.hass.states.get(entity_id) is None:
+            _LOGGER.warning("PVM: Taster-Entität %s existiert nicht", entity_id)
+            return
+        domain = entity_id.split(".", 1)[0]
+        if domain == "button":
+            await self._call_service("button", "press", entity_id)
+        elif want_on:
+            await self._call_service(domain, "turn_on", entity_id)
+        else:
+            await self._call_service(domain, "turn_off", entity_id)
+
     def _is_on(self, switch_entity: str | None, device_id: str) -> bool:
         if not switch_entity:
             return bool(self._applied.get(device_id, {}).get("on"))
@@ -533,6 +599,41 @@ class PvmManager:
         if applied.get("on") and _time.time() - applied.get("ts", 0) < 30:
             return True
         return False
+
+    def _applied_on_recent(self, device_id: str, window_s: float = 30.0) -> bool:
+        """Hat PVM kürzlich selbst „an“ gesetzt? (HA-Zustand kann nachhinken)"""
+        applied = self._applied.get(device_id, {})
+        return bool(
+            applied.get("on") and _time.time() - applied.get("ts", 0) < window_s
+        )
+
+    def _control_is_on(
+        self,
+        device_id: str,
+        control: dict,
+        measured_power: float | None = None,
+    ) -> bool:
+        """Ist das Gerät aus Sicht von PVM gerade eingeschaltet?
+
+        - Ein-Schalter: Zustand der Schalter-Entität (mit Nachlauf-Gnade)
+        - Zwei Taster: echte Ladeleistung (Schwelle) bzw. letzter Start-Befehl
+        """
+        if control.get("type") == CONTROL_BUTTONS:
+            # Kurz nach eigenem Befehl gilt das Gerät als an (Nachlauf-Gnade),
+            # danach zählt die echte Leistung.
+            if self._applied_on_recent(device_id):
+                return True
+            if measured_power is not None:
+                return measured_power >= CHARGE_ON_W
+            return False
+        switch_entity = control.get("switch_entity")
+        if switch_entity:
+            state = self.hass.states.get(switch_entity)
+            if state and state.state == STATE_ON:
+                return True
+            if state and state.state not in (STATE_ON, STATE_UNKNOWN, STATE_UNAVAILABLE):
+                return False
+        return self._applied_on_recent(device_id)
 
     def _power_to_entity_value(self, control: dict, watts: float) -> float:
         """Rechnet Watt in den Wert der Nummern-Entität um."""
@@ -687,14 +788,19 @@ class PvmManager:
     # Geräte-Scan + Korrelation
     # ------------------------------------------------------------------
     async def scan_devices(self) -> dict[str, Any]:
-        """Scannt die Entitäten und schlägt passende Geräte vor."""
+        """Scannt alle Entitäten/Geräte und schlägt Kandidaten vor."""
+        from homeassistant.helpers import device_registry as device_dr
         from homeassistant.helpers import entity_registry as er
 
         registry = er.async_get(self.hass)
+        devices = device_dr.async_get(self.hass)
         entities: list[dict[str, Any]] = []
         for entry in registry.entities.values():
             domain = entry.domain
-            if domain not in ("sensor", "switch", "number", "binary_sensor"):
+            if domain not in {
+                "sensor", "switch", "number", "binary_sensor", "button",
+                "select", "input_boolean", "input_number", "input_select",
+            }:
                 continue
             if entry.disabled_by or entry.hidden_by:
                 continue
@@ -704,41 +810,64 @@ class PvmManager:
             )
             name = (state and state.name) or entry.original_name or entry.entity_id
             unit = state.attributes.get("unit_of_measurement", "") if state else ""
+            device_id = entry.device_id or None
+            manufacturer = ""
+            model = ""
+            device_name = ""
+            if device_id and devices is not None:
+                device = devices.async_get(device_id)
+                if device:
+                    manufacturer = str(device.manufacturer or "")
+                    model = str(device.model or "")
+                    device_name = str(device.name or "")
             entities.append(
                 {
                     "entity_id": entry.entity_id,
                     "name": name,
                     "device_class": device_class,
                     "unit_of_measurement": unit,
+                    "state_value": state.state if state else "",
+                    "device_id": device_id,
+                    "manufacturer": manufacturer,
+                    "model": model,
+                    "device_name": device_name,
+                    "integration": str(entry.platform or ""),
                 }
             )
 
-        energy = suggest_energy(entities)
-        found = suggest_devices(entities)
-        configured = {
+        sets = suggest_sets(entities)
+        configured_entities = {
             sensor
             for device in self.config.get("devices", [])
             for sensor in device.get("sensors", {}).values()
             if sensor
         }
-        new_candidates = {
-            role: [e for e in ids if e not in configured]
-            for role, ids in found.items()
-        }
+        fresh = [
+            found for found in sets if found.get("fields", {}).get("entity") not in configured_entities
+        ]
         result = {
-            "energy": energy,
-            "devices": found,
-            "new_candidates": new_candidates,
+            "sets": fresh,
+            "energy": {
+                role: next(
+                    (f["fields"]["entity"] for f in fresh if f["role"] == role),
+                    None,
+                )
+                for role in ("pv", "grid", "house")
+            },
+            "devices": suggest_sets(entities),
+            "new_candidates": {
+                role: [f["fields"].get("entity") for f in fresh if f["role"] == role]
+                for role in ("pv", "grid", "house", "wallbox", "wp", "verbraucher")
+            },
             "count": len(entities),
             "ts": _time.time(),
         }
         self.last_scan = result
         # Nur informieren, wenn es wirklich neue Vorschläge gibt
-        total_new = sum(len(v) for v in new_candidates.values())
-        if total_new:
-            text = self._scan_text(found, energy)
+        if fresh:
+            text = self._scan_text(fresh)
             self.hass.components.persistent_notification.async_create(
-                title="PVM – Geräte gefunden",
+                title="PVM – Geräte & Sensoren gefunden",
                 message=text,
                 notification_id=f"{DOMAIN}_scan",
             )
@@ -749,22 +878,53 @@ class PvmManager:
         self._broadcast()
         return result
 
-    def _scan_text(self, found: dict, energy: dict) -> str:
+    def _scan_text(self, fresh: list[dict]) -> str:
         lines = [
-            "In deinem Home Assistant wurden folgende Geräte erkannt:",
+            "In deinem Home Assistant wurde Folgendes gefunden:",
             "",
         ]
-        for key, label in (
-            ("wallbox", "Wallboxen / Ladestationen"),
-            ("wp_temp", "Wärmepumpen-Temperatur"),
-            ("auto_soc", "Auto-SoC-Sensoren"),
-        ):
-            if found.get(key):
-                lines.append(f"**{label}:**")
-                lines.extend(f"- `{e}`" for e in found[key])
-                lines.append("")
-        lines.append("Öffne **Einstellungen → Geräte & Dienste → PV Manager → Optionen**, um sie zu übernehmen.")
+        for found in fresh:
+            role = found.get("role")
+            title = found.get("title", "")
+            label = {
+                "pv": "PV-Leistung",
+                "grid": "Netzbezug/Einspeisung",
+                "house": "Hausverbrauch",
+                "wallbox": "Wallbox",
+                "wp": "Wärmepumpe",
+                "verbraucher": "Verbraucher",
+            }.get(role, role)
+            lines.append(f"**{label}:** {title}")
+        lines.append(
+            "Öffne **Einstellungen → Geräte & Dienste → PV Manager → Optionen**, "
+            "um die Vorschläge zu übernehmen."
+        )
         return "\n".join(lines)
+
+    # ------------------------------------------------------------------
+    # Setup-Fortschritt (für Tutorial & Status)
+    # ------------------------------------------------------------------
+    def setup_stage(self) -> str:
+        """Aktuelle Einrichtungs-Stufe (start/messungen/bereit)."""
+        return setup_stage(self.config)
+
+    def setup_stage_label(self) -> str:
+        return SETUP_LABELS.get(self.setup_stage(), self.setup_stage())
+
+    def setup_missing(self) -> list[str]:
+        """Fehlende Messungs-Rollen (deutsche Kurztexte für das Tutorial)."""
+        missing: list[str] = []
+        energy = self.config.get("energy", {})
+        if not energy_configured(self.config):
+            return ["PV-Leistung", "Netzbezug / Einspeisung"]
+        for key, label in (
+            ("pv_sensor", "PV-Leistung"),
+            ("grid_sensor", "Netzbezug / Einspeisung"),
+            ("house_sensor", "Hausverbrauch"),
+        ):
+            if not energy.get(key):
+                missing.append(label)
+        return missing
 
     # ------------------------------------------------------------------
     # WP-Test
@@ -920,16 +1080,9 @@ class PvmManager:
         """Ist das Gerät aktuell (aus Sicht von PVM) eingeschaltet?"""
         device_id = device["id"]
         control = device.get("control", {})
-        switch_entity = control.get("switch_entity")
-        if switch_entity:
-            state = self.hass.states.get(switch_entity)
-            if state is not None and state.state == STATE_ON:
-                return True
-            if state is None:
-                applied = self._applied.get(device_id, {})
-                return bool(applied.get("on"))
-            return False
-        return bool(self._applied.get(device_id, {}).get("on"))
+        sensors = device.get("sensors", {})
+        measured, _valid = self.read_number(sensors.get("power"))
+        return self._control_is_on(device_id, control, measured)
 
     def rank_of(self, device_id: str) -> int:
         """Rang (1 = höchste Priorität) eines Geräts."""

@@ -16,7 +16,7 @@ Service-Aufrufe und Entitäten.
 | Dashboard-Aufbau | `dashboard_builder.py` | nur Python |
 | Laufzeit + Zyklus | `manager.py`, `store.py` | Home Assistant |
 | Entitäten | `sensor.py`, `number.py`, `switch.py`, `button.py`, `select.py`, `time.py` | Home Assistant |
-| Wizard/Options | `config_flow.py` | Home Assistant |
+| Verwaltung (Options) | `config_flow.py` | Home Assistant |
 | Dashboard-Erstellung | `dashboard_creator.py` | Home Assistant |
 | Services/Diagnose | `services.py`, `services.yaml`, `diagnostics.py` | Home Assistant |
 | Einstieg | `__init__.py`, `manifest.json` | Home Assistant |
@@ -40,7 +40,7 @@ Alle `cycle_s` Sekunden (Standard 30 s):
 
 Eine neue *Rolle* braucht in der Regel **keinen Code**:
 
-1. Im Wizard/Options-Flow Formularfelder ergänzen (`config_flow.py`).
+1. Im Options-Flow (kurze Dialoge, kein Install-Wizard) Formularfelder ergänzen (`config_flow.py`).
 2. Entitäten-Katalog und Dashboard-Karten für die Rolle ergänzen
    (`dashboard_creator.py::_kinds_for_role`, `dashboard_builder.py`).
 3. Engine-Verhalten erweitern (`engine.py::_need_forced_on` / `_surplus_want`).

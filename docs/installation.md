@@ -22,15 +22,20 @@ automatisch und zeigt dir das Repository zum Installieren an.
    `custom_components/`-Verzeichnis von Home Assistant.
 3. **Home Assistant neu starten.**
 
-## Einrichtung (Wizard)
+## Erste Schritte (kein Wizard)
 
-1. Gehe zu **Einstellungen → Geräte & Dienste → Integration hinzufügen** und suche nach **„PV Manager“**.
-2. Wähle **„Automatische Einrichtung“**, damit PVM passende Sensoren vorschlägt
-   (oder „Manuelle Einrichtung“).
-3. Wähle deine **Energie-Sensoren** (PV und/oder Netz – mindestens einen).
-4. Füge deine **Geräte** hinzu: Wallboxen/E-Autos, Wärmepumpe, Verbraucher.
-   Jedes Formular ist mit der Auto-Erkennung vorbefüllt – einfach bestätigen oder anpassen.
-5. Fertig. Das **„PV Manager“-Dashboard** erscheint automatisch in der Seitenleiste.
+1. Gehe zu **Einstellungen → Geräte & Dienste → Integration hinzufügen** und suche nach
+   **„PV Manager“**. Es werden **keine Fragen gestellt** – die Installation ist sofort fertig.
+2. PVM erstellt automatisch das **„PV Manager“-Dashboard** (mit Start-/Tutorial-Seite)
+   und scannt beim Start einmal nach passenden Sensoren und Geräten.
+3. Öffne das Dashboard: Die **Start-Seite** erklärt dir in drei kurzen Schritten,
+   wie du Sensoren abliest, Geräte hinzufügst und Einstellungen anpasst.
+4. **Gefundene Vorschläge** werden dir mit Live-Messwert zum Bestätigen angeboten;
+   bei mehreren Treffern fragt PVM nach. Alles Weitere (Ziele, Prioritäten,
+   Design) steuerst du direkt im Dashboard.
+
+> Ein Setup-Wizard ist bewusst **kein** Teil von PVM mehr – alles läuft
+> zentral im Dashboard, damit du nichts zweimal einrichten musst.
 
 ## Deinstallation
 

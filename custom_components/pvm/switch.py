@@ -1,4 +1,4 @@
-"""Schalter für PVM (Automatik, Power Charge, Netz-Freigaben)."""
+"""Schalter für PVM (Automatik, Power Charge, Netz-Freigaben, UI-Gruppen)."""
 
 from __future__ import annotations
 
@@ -44,10 +44,11 @@ async def async_setup_entry(
 ) -> None:
     """Richtet die Schalter ein."""
     manager: PvmManager = hass.data[DOMAIN][entry.entry_id]
-    entities: list[SwitchEntity] = []
+    entities: list[SwitchEntity] = [PvmGlobalGroupSwitch(manager)]
     for device in manager.config.get("devices", []):
         for kind, path, default in DEVICE_SWITCHES.get(device.get("role"), []):
             entities.append(PvmDeviceSwitch(manager, device["id"], kind, path, default))
+        entities.append(PvmDeviceGroupSwitch(manager, device["id"]))
     async_add_entities(entities)
 
 
@@ -124,3 +125,52 @@ class PvmDeviceSwitch(PvmSwitch):
             "grid_fallback": "mdi:alert-decagram",
         }
         return icons.get(self.kind, "mdi:toggle-switch")
+
+
+class _PvmUiGroupSwitch(PvmSwitch):
+    """Reiner UI-Schalter: klappt eine Einstellungsgruppe auf/zu.
+
+    Zustand wird nicht persistiert – nach einem Neustart sind Geräte-Gruppen
+    wieder zugeklappt (bewusst ruhige Standard-Ansicht).
+    """
+
+    _attr_icon = "mdi:chevron-double-down"
+
+    def __init__(self, manager: PvmManager, default_on: bool) -> None:
+        super().__init__(manager)
+        self._state = default_on
+
+    @property
+    def is_on(self) -> bool:
+        return self._state
+
+    async def async_turn_on(self, **kwargs) -> None:
+        self._state = True
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs) -> None:
+        self._state = False
+        self.async_write_ha_state()
+
+
+class PvmGlobalGroupSwitch(_PvmUiGroupSwitch):
+    """Klappt die Gruppe „Globale Regeln“ im Dashboard auf (Standard: an)."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "global_rules"
+    _attr_unique_id = f"{DOMAIN}_group_global"
+
+    def __init__(self, manager: PvmManager) -> None:
+        super().__init__(manager, default_on=True)
+
+
+class PvmDeviceGroupSwitch(_PvmUiGroupSwitch):
+    """Klappt die Einstellungs-Gruppe eines Geräts auf (Standard: zu)."""
+
+    def __init__(self, manager: PvmManager, device_id: str) -> None:
+        super().__init__(manager, default_on=False)
+        self.device_id = device_id
+        device = manager.get_device(device_id) or {}
+        name = device.get("name", "Gerät")
+        self._attr_name = f"{name} – {ENTITY_LABELS.get('options', 'Optionen')}"
+        self._attr_unique_id = f"{DOMAIN}_group_{device_id}"

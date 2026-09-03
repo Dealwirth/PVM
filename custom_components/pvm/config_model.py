@@ -10,7 +10,10 @@ import copy
 import uuid
 
 from .const import (
+    CONTROL_BUTTONS,
     CONTROL_SWITCH,
+    CONTROL_SWITCH_NUMBER,
+    CONTROL_TYPES,
     DEFAULT_CAPACITY_KWH,
     DEFAULT_CONFIG,
     DEFAULT_CONSUMER_NOMINAL_W,
@@ -20,6 +23,7 @@ from .const import (
     DEFAULT_MIN_SOC,
     DEFAULT_PHASES,
     DEFAULT_POWER_LIMIT_W,
+    DEFAULT_UI_THEME,
     DEFAULT_WP_EST_POWER_W,
     DEFAULT_WP_SAFETY_MIN_C,
     DEFAULT_WP_TARGET_C,
@@ -28,6 +32,10 @@ from .const import (
     ROLE_VERBRAUCHER,
     ROLE_WAERMEPUMPE,
     ROLE_WALLBOX,
+    SETUP_BEREIT,
+    SETUP_MESSUNGEN,
+    SETUP_START,
+    UI_THEMES,
 )
 
 # Erlaubte Rollen/Modi (Vermeidet kaputte Daten durch Tippfehler)
@@ -88,6 +96,8 @@ def default_device(role: str, name: str = "Gerät") -> dict:
             "type": CONTROL_SWITCH,
             "switch_entity": None,
             "number_entity": None,
+            "on_entity": None,   # Zwei Taster: Start-Taster
+            "off_entity": None,  # Zwei Taster: Stopp-Taster
             "number_unit": "W",
             "phases": DEFAULT_PHASES,
         },
@@ -160,10 +170,17 @@ def normalize_device(device: dict) -> dict:
 
     # Steuerung
     control = merged.setdefault("control", {})
-    if control.get("type") not in ("switch", "switch_number"):
+    if control.get("type") not in CONTROL_TYPES:
         control["type"] = CONTROL_SWITCH
-    for key in ("switch_entity", "number_entity"):
+    for key in ("switch_entity", "number_entity", "on_entity", "off_entity"):
         control[key] = control.get(key) or None
+    # Unvollständige/kaputte Steuerungen auf sichere Varianten zurückstufen
+    if control["type"] == CONTROL_BUTTONS and not (
+        control.get("on_entity") and control.get("off_entity")
+    ):
+        control["type"] = CONTROL_SWITCH
+    if control["type"] == CONTROL_SWITCH_NUMBER and not control.get("number_entity"):
+        control["type"] = CONTROL_SWITCH
     if control.get("number_unit") not in ("W", "kW", "A", "mA"):
         control["number_unit"] = "W"
     control["phases"] = int(_clean(control.get("phases", DEFAULT_PHASES)) or DEFAULT_PHASES)
@@ -239,6 +256,8 @@ def normalize_config(data: dict | None) -> dict:
             settings[key] = _clamp(_clean(settings[key]), bounds)
     if settings.get("mode") not in VALID_MODES:
         settings["mode"] = MODE_AUTO
+    if settings.get("ui_theme") not in UI_THEMES:
+        settings["ui_theme"] = DEFAULT_UI_THEME
     defaults = DEFAULT_CONFIG["settings"]
     for key, value in settings.items():
         if value is None and key in defaults:
@@ -264,6 +283,27 @@ def find_device(config: dict, device_id: str) -> dict | None:
         if device.get("id") == device_id:
             return device
     return None
+
+
+def energy_configured(config: dict | None) -> bool:
+    """Sind überhaupt Energiemessungen (PV/Netz/Haus) konfiguriert?"""
+    if not isinstance(config, dict):
+        return False
+    energy = config.get("energy") or {}
+    return bool(
+        energy.get("pv_sensor") or energy.get("grid_sensor") or energy.get("house_sensor")
+    )
+
+
+def setup_stage(config: dict | None) -> str:
+    """Einrichtungs-Stufe für Tutorial/Status (start → messungen → bereit)."""
+    if not isinstance(config, dict):
+        return SETUP_START
+    if config.get("devices"):
+        return SETUP_BEREIT
+    if energy_configured(config):
+        return SETUP_MESSUNGEN
+    return SETUP_START
 
 
 def deadline_next_ts(now_local, deadline_time: str | None) -> float | None:

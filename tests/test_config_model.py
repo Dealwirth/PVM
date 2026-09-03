@@ -4,10 +4,16 @@ from datetime import UTC, datetime
 
 from custom_components.pvm import config_model as cm
 from custom_components.pvm.const import (
+    CONTROL_BUTTONS,
+    CONTROL_SWITCH,
     DEFAULT_CONFIG,
+    DEFAULT_UI_THEME,
     ROLE_VERBRAUCHER,
     ROLE_WAERMEPUMPE,
     ROLE_WALLBOX,
+    SETUP_BEREIT,
+    SETUP_MESSUNGEN,
+    SETUP_START,
 )
 
 
@@ -55,6 +61,55 @@ def test_consumer_defaults():
 def test_invalid_role_falls_back():
     device = cm.normalize_device({"id": "x", "role": "u-boot", "name": "N"})
     assert device["role"] == ROLE_VERBRAUCHER
+
+
+def test_two_button_control_normalized():
+    device = cm.default_device(ROLE_WALLBOX, "Auto 1")
+    device["control"] = {
+        "type": CONTROL_BUTTONS,
+        "on_entity": "button.wallbox_start",
+        "off_entity": "button.wallbox_stop",
+    }
+    normalized = cm.normalize_device(device)
+    assert normalized["control"]["type"] == CONTROL_BUTTONS
+    assert normalized["control"]["on_entity"] == "button.wallbox_start"
+    assert normalized["control"]["off_entity"] == "button.wallbox_stop"
+
+
+def test_incomplete_two_buttons_falls_back_to_switch():
+    device = cm.default_device(ROLE_WAERMEPUMPE, "WP")
+    device["control"] = {
+        "type": CONTROL_BUTTONS,
+        "on_entity": None,
+        "off_entity": "button.wp_stop",
+    }
+    normalized = cm.normalize_device(device)
+    assert normalized["control"]["type"] == CONTROL_SWITCH
+
+
+def test_theme_default_and_invalid_value():
+    config = cm.normalize_config(None)
+    assert config["settings"]["ui_theme"] == DEFAULT_UI_THEME
+    bad = cm.normalize_config({"settings": {"ui_theme": "neon"}})
+    assert bad["settings"]["ui_theme"] == DEFAULT_UI_THEME
+
+
+def test_setup_stages():
+    assert cm.setup_stage(None) == SETUP_START
+    empty = {"energy": {}, "devices": []}
+    assert cm.setup_stage(empty) == SETUP_START
+    with_energy = {"energy": {"pv_sensor": "sensor.pv"}, "devices": []}
+    assert cm.setup_stage(with_energy) == SETUP_MESSUNGEN
+    with_device = {
+        "energy": {"pv_sensor": "sensor.pv"},
+        "devices": [cm.default_device(ROLE_WALLBOX, "Auto 1")],
+    }
+    assert cm.setup_stage(with_device) == SETUP_BEREIT
+
+
+def test_energy_configured():
+    assert not cm.energy_configured({})
+    assert cm.energy_configured({"energy": {"house_sensor": "sensor.haus"}})
 
 
 def test_deadline_next_ts_today_and_tomorrow():

@@ -25,7 +25,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await manager.async_start()
 
     await async_setup_services(hass)
-    schedule_dashboard_creation(manager)
+
+    # Nach Verwaltungs-Änderungen (Options-Flow) das Dashboard neu aufbauen
+    settings = manager.config.setdefault("settings", {})
+    force_rebuild = bool(settings.pop("dashboard_rebuild", False))
+    if force_rebuild:
+        manager.schedule_save()  # Marker aus dem Store entfernen
+        schedule_dashboard_creation(manager, force_rebuild=True)
+    else:
+        schedule_dashboard_creation(manager)
 
     entry.async_on_unload(entry.add_update_listener(async_update_entry))
     return True

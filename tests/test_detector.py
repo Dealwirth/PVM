@@ -76,6 +76,61 @@ def test_match_power_soc_correlation_positive():
     assert detector.match_power_soc(power, soc) is True
 
 
+def test_manufacturer_signals_help():
+    # Ohne „wallbox“ im Namen, aber mit Hersteller-Signal
+    entities = [
+        ent("sensor.garage_charge_power", "Ladeleistung", "power", "W"),
+    ]
+    enriched = [{**entities[0], "manufacturer": "go-e", "model": "Charger Home+"}]
+    assert "sensor.garage_charge_power" in detector.suggest_devices(enriched)["wallbox"]
+
+
+def test_ev_model_detected_as_soc():
+    entities = [
+        ent("sensor.enyaq_battery", "Batterie", "battery", "%"),
+    ]
+    result = detector.suggest_devices(entities)
+    assert "sensor.enyaq_battery" in result["auto_soc"]
+
+
+def test_multi_candidates_ranked_with_reasons():
+    entities = [
+        ent("sensor.wechselrichter_leistung", "PV Leistung", "power", "W"),
+        ent("sensor.solar_leistung", "Solar Leistung", "power", "W"),
+        ent("sensor.haus_leistung", "Haus Leistung", "power", "W"),
+    ]
+    candidates = detector.candidates_for_role(entities, "pv", top_n=2)
+    assert len(candidates) == 2
+    assert all(c["entity_id"] for c in candidates)
+    assert all(c["reasons"] for c in candidates)
+    # Beste zuerst
+    assert candidates[0]["score"] >= candidates[1]["score"]
+
+
+def test_suggest_sets_groups_device_with_buttons():
+    entities = [
+        ent("sensor.wallbox_leistung", "Wallbox Ladeleistung", "power", "W"),
+        ent("switch.wallbox_freigabe", "Wallbox Freigabe", "", ""),
+        ent("button.wallbox_start", "Wallbox Laden starten", "", ""),
+        ent("button.wallbox_stop", "Wallbox Laden stoppen", "", ""),
+        ent("sensor.auto_soc", "Auto SoC", "battery", "%"),
+    ]
+    with_device = [
+        {**e, "device_id": "dev_wallbox", "device_name": "Wallbox Garage",
+         "manufacturer": "openWB", "model": "Pro"}
+        for e in entities
+    ]
+    sets = detector.suggest_sets(with_device)
+    wallbox_sets = [s for s in sets if s["role"] == "wallbox"]
+    assert wallbox_sets
+    found = wallbox_sets[0]
+    assert found["title"] == "Wallbox Garage"
+    assert found["fields"]["power_sensor"] == "sensor.wallbox_leistung"
+    assert found["fields"]["on_entity"] == "button.wallbox_start"
+    assert found["fields"]["off_entity"] == "button.wallbox_stop"
+    assert found["fields"]["soc_sensor"] == "sensor.auto_soc"
+
+
 def test_match_power_soc_correlation_negative():
     # Leistung hoch, aber SoC steigt nicht
     power = [(0.0, 3000.0), (60.0, 3200.0), (120.0, 3100.0)]

@@ -1,4 +1,4 @@
-"""Nummern-Entitäten für PVM (Reserve + Geräte-Ziele)."""
+"""Nummern-Entitäten für PVM (Reserve, Zeiten + Geräte-Ziele)."""
 
 from __future__ import annotations
 
@@ -9,22 +9,36 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, ENTITY_LABELS, ROLE_WAERMEPUMPE, ROLE_WALLBOX
+from .const import (
+    DEFAULT_CYCLE_S,
+    DEFAULT_MIN_OFF_S,
+    DEFAULT_MIN_ON_S,
+    DOMAIN,
+    ENTITY_LABELS,
+    ROLE_VERBRAUCHER,
+    ROLE_WAERMEPUMPE,
+    ROLE_WALLBOX,
+)
 from .manager import PvmManager
 
 _LOGGER = logging.getLogger(__name__)
 
-# Geräte-Nummern je Rolle: (Schlüssel, Pfad im Geräte-Dict, min, max, step)
+# Geräte-Nummern je Rolle: (Schlüssel, Pfad, min, max, step, Einheit)
 DEVICE_NUMBERS = {
     ROLE_WALLBOX: [
         ("min_soc", "car.min_soc", 0.0, 100.0, 1.0, "%"),
         ("max_soc", "car.max_soc", 10.0, 100.0, 1.0, "%"),
         ("deadline_soc", "car.deadline_soc", 0.0, 100.0, 1.0, "%"),
+        ("power_limit", "limits.power_limit_w", 500.0, 22000.0, 100.0, "W"),
+        ("min_on_power", "limits.min_on_power_w", 100.0, 11000.0, 100.0, "W"),
     ],
     ROLE_WAERMEPUMPE: [
         ("comfort", "wp.comfort_c", 40.0, 70.0, 0.5, "°C"),
+        ("safety", "wp.safety_min_c", 20.0, 50.0, 1.0, "°C"),
     ],
-    "verbraucher": [],
+    ROLE_VERBRAUCHER: [
+        ("nominal", "limits.nominal_power_w", 50.0, 22000.0, 100.0, "W"),
+    ],
 }
 
 
@@ -35,7 +49,12 @@ async def async_setup_entry(
 ) -> None:
     """Richtet die Nummern-Entitäten ein."""
     manager: PvmManager = hass.data[DOMAIN][entry.entry_id]
-    entities: list[NumberEntity] = [PvmReserveNumber(manager)]
+    entities: list[NumberEntity] = [
+        PvmReserveNumber(manager),
+        PvmCycleNumber(manager),
+        PvmMinOnNumber(manager),
+        PvmMinOffNumber(manager),
+    ]
     for device in manager.config.get("devices", []):
         for kind, path, lo, hi, step, unit in DEVICE_NUMBERS.get(
             device.get("role"), []
@@ -90,6 +109,95 @@ class PvmReserveNumber(PvmNumber):
     async def async_set_native_value(self, value: float) -> None:
         self.manager.set_setting("reserve_w", float(value))
         self.async_write_ha_state()
+
+
+class _PvmSettingNumber(PvmNumber):
+    """Globale Zahlen-Einstellung (direkt im Store, ohne Umrechnung)."""
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        manager: PvmManager,
+        translation_key: str,
+        unique_suffix: str,
+        config_key: str,
+        lo: float,
+        hi: float,
+        step: float,
+        unit: str,
+        default: float,
+    ) -> None:
+        super().__init__(manager)
+        self._attr_translation_key = translation_key
+        self._attr_unique_id = f"{DOMAIN}_{unique_suffix}"
+        self._attr_native_min_value = lo
+        self._attr_native_max_value = hi
+        self._attr_native_step = step
+        self._attr_native_unit_of_measurement = unit
+        self._config_key = config_key
+        self._default = default
+
+    @property
+    def native_value(self) -> float:
+        return float(
+            self.manager.config.get("settings", {}).get(self._config_key, self._default)
+        )
+
+    async def async_set_native_value(self, value: float) -> None:
+        self.manager.set_setting(self._config_key, float(value))
+        self.async_write_ha_state()
+
+
+class PvmCycleNumber(_PvmSettingNumber):
+    """Zykluszeit: wie oft PVM neu entscheidet."""
+
+    def __init__(self, manager: PvmManager) -> None:
+        super().__init__(
+            manager,
+            translation_key="cycle",
+            unique_suffix="cycle",
+            config_key="cycle_s",
+            lo=10.0,
+            hi=300.0,
+            step=5.0,
+            unit="s",
+            default=DEFAULT_CYCLE_S,
+        )
+
+
+class PvmMinOnNumber(_PvmSettingNumber):
+    """Mindest-Einschaltdauer (Antiflackern)."""
+
+    def __init__(self, manager: PvmManager) -> None:
+        super().__init__(
+            manager,
+            translation_key="min_on",
+            unique_suffix="min_on",
+            config_key="min_on_s",
+            lo=30.0,
+            hi=600.0,
+            step=10.0,
+            unit="s",
+            default=DEFAULT_MIN_ON_S,
+        )
+
+
+class PvmMinOffNumber(_PvmSettingNumber):
+    """Mindest-Ausschaltdauer (Antiflackern)."""
+
+    def __init__(self, manager: PvmManager) -> None:
+        super().__init__(
+            manager,
+            translation_key="min_off",
+            unique_suffix="min_off",
+            config_key="min_off_s",
+            lo=10.0,
+            hi=300.0,
+            step=5.0,
+            unit="s",
+            default=DEFAULT_MIN_OFF_S,
+        )
 
 
 class PvmDeviceNumber(PvmNumber):

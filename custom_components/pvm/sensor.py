@@ -36,6 +36,7 @@ async def async_setup_entry(
     entities: list[SensorEntity] = [
         PvmSurplusSensor(manager),
         PvmStatusSensor(manager),
+        PvmSetupSensor(manager),
     ]
     for device in manager.config.get("devices", []):
         entities.append(PvmRankSensor(manager, device))
@@ -95,6 +96,34 @@ class PvmSurplusSensor(_PvmSensor):
             "pv_w": self.manager.pv_w,
             "house_w": self.manager.house_w,
             "reserve_w": self.manager.config.get("settings", {}).get("reserve_w", 0),
+        }
+
+
+class PvmSetupSensor(_PvmSensor):
+    """Einrichtungs-Fortschritt für Tutorial & Status (start/messungen/bereit)."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "setup"
+    _attr_icon = "mdi:school-outline"
+    _attr_unique_id = f"{DOMAIN}_setup"
+    _attr_entity_registry_enabled_default = True
+
+    @property
+    def native_value(self) -> str:
+        return self.manager.setup_stage_label()
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        config = self.manager.config
+        energy = config.get("energy", {})
+        return {
+            "stage": self.manager.setup_stage(),
+            "missing": self.manager.setup_missing(),
+            "device_count": len(config.get("devices", [])),
+            "energy": {
+                key: bool(energy.get(f"{key}_sensor"))
+                for key in ("pv", "grid", "house")
+            },
         }
 
 

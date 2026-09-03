@@ -5,10 +5,11 @@ Map-Dashboard): Die Dashboard-Definition wird über die Lovelace-Storage-
 Collection angelegt und die Karten über ``LovelaceStorage`` gespeichert.
 
 Wichtig:
-- Idempotent: Ein vorhandenes Dashboard wird nie ungefragt überschrieben.
+- Idempotent: Ein vorhandenes Dashboard wird nie ungefragt überschrieben –
+  nur bei Struktur-/Design-Änderungen („force_rebuild“) aktualisiert.
 - Fehlertolerant: Schlägt die Erstellung fehl, wird nur gewarnt – die
-  Integration läuft trotzdem weiter (Button „Dashboard aktualisieren“ im
-  Dashboard bzw. der Service ``pvm.rebuild_dashboard`` erstellen es nach).
+  Integration läuft trotzdem weiter (Button „Dashboard aktualisieren“ bzw.
+  der Service ``pvm.rebuild_dashboard`` erstellt es später neu).
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ from .const import (
     DASHBOARD_ICON,
     DASHBOARD_TITLE,
     DASHBOARD_URL_PATH,
+    DEFAULT_UI_THEME,
     DOMAIN,
 )
 from .dashboard_builder import DashboardModel, DeviceView, build_dashboard_config
@@ -40,10 +42,16 @@ LOVELACE_DOMAIN = "lovelace"
 GLOBAL_IDS = {
     "surplus": "pvm_surplus",
     "engine_status": "pvm_status",
+    "setup": "pvm_setup",
     "reserve": "pvm_reserve",
+    "cycle": "pvm_cycle",
+    "min_on": "pvm_min_on",
+    "min_off": "pvm_min_off",
     "mode": "pvm_mode",
+    "theme": "pvm_theme",
     "scan": "pvm_scan",
     "rebuild": "pvm_rebuild",
+    "group_global": "pvm_group_global",
 }
 
 DEVICE_PREFIXES = {
@@ -57,6 +65,10 @@ DEVICE_PREFIXES = {
     "grid_deadline": "pvm_grid_deadline",
     "grid_fallback": "pvm_grid_fallback",
     "comfort": "pvm_comfort",
+    "safety": "pvm_safety",
+    "nominal": "pvm_nominal",
+    "power_limit": "pvm_power_limit",
+    "min_on_power": "pvm_min_on_power",
     "min_soc": "pvm_min_soc",
     "max_soc": "pvm_max_soc",
     "deadline_soc": "pvm_deadline_soc",
@@ -64,19 +76,24 @@ DEVICE_PREFIXES = {
     "test_start": "pvm_wp_test_start",
     "test_abort": "pvm_wp_test_abort",
     "wp_test_result": "pvm_wp_test_result",
+    "options": "pvm_group",
 }
 
 
 def _entity_id_for(registry: er.EntityRegistry, platform: str, unique_id: str) -> str | None:
     """Ermittelt die entity_id einer bekannten unique_id."""
-    entity_id = registry.async_get_entity_id(platform, DOMAIN, unique_id)
-    return entity_id
+    return registry.async_get_entity_id(platform, DOMAIN, unique_id)
 
 
 def collect_model(manager: PvmManager) -> DashboardModel:
     """Sammelt die aktuellen Entitäten und baut das Dashboard-Modell."""
     registry = er.async_get(manager.hass)
     model = DashboardModel()
+    model.theme = manager.config.get("settings", {}).get("ui_theme", DEFAULT_UI_THEME)
+    model.setup = manager.setup_stage()
+    model.options_path = (
+        f"/config/config_entries/entry/{manager.entry.entry_id}"
+    )
 
     for key, unique in GLOBAL_IDS.items():
         entity_id = _entity_id_for(registry, _platform_of(key), unique)
@@ -112,12 +129,22 @@ def collect_model(manager: PvmManager) -> DashboardModel:
             if sensors.get(cfg_key):
                 view.source[source_key] = sensors[cfg_key]
         model.devices.append(view)
+
+    # Vorschläge aus dem letzten Scan (für die „Gefunden“-Karten)
+    scan = manager.last_scan or {}
+    model.suggestions = [
+        {
+            "role": found.get("role", ""),
+            "title": found.get("title", ""),
+        }
+        for found in scan.get("sets", [])
+    ][:5]
     return model
 
 
 def _kinds_for_role(role: str) -> set[str]:
     """Welche Entitäten-Kinds eine Rolle besitzt (Spiegel der Plattformen)."""
-    base = {"rank", "status", "up", "down", "auto"}
+    base = {"rank", "status", "up", "down", "auto", "options"}
     if role == "wallbox":
         base |= {
             "power_charge",
@@ -127,15 +154,20 @@ def _kinds_for_role(role: str) -> set[str]:
             "max_soc",
             "deadline_soc",
             "deadline_time",
+            "power_limit",
+            "min_on_power",
         }
     elif role == "waermepumpe":
         base |= {
             "grid_fallback",
             "comfort",
+            "safety",
             "test_start",
             "test_abort",
             "wp_test_result",
         }
+    elif role == "verbraucher":
+        base |= {"nominal"}
     return base
 
 
@@ -143,20 +175,31 @@ def _platform_of(kind: str) -> str:
     platforms = {
         "surplus": "sensor",
         "engine_status": "sensor",
+        "setup": "sensor",
         "scan": "button",
         "rebuild": "button",
         "mode": "select",
+        "theme": "select",
         "reserve": "number",
+        "cycle": "number",
+        "min_on": "number",
+        "min_off": "number",
+        "group_global": "switch",
         "rank": "sensor",
         "status": "sensor",
         "up": "button",
         "down": "button",
         "auto": "switch",
+        "options": "switch",
         "power_charge": "switch",
         "grid_min": "switch",
         "grid_deadline": "switch",
         "grid_fallback": "switch",
         "comfort": "number",
+        "safety": "number",
+        "nominal": "number",
+        "power_limit": "number",
+        "min_on_power": "number",
         "min_soc": "number",
         "max_soc": "number",
         "deadline_soc": "number",
@@ -214,7 +257,11 @@ async def async_ensure_dashboard(
         collection = ll_dashboard.DashboardsCollection(hass)
         await collection.async_load()
         item = next(
-            (it for it in collection.async_items() if it.get(CONF_URL_PATH) == DASHBOARD_URL_PATH),
+            (
+                it
+                for it in collection.async_items()
+                if it.get(CONF_URL_PATH) == DASHBOARD_URL_PATH
+            ),
             None,
         )
         if item is None:
@@ -258,6 +305,17 @@ async def async_ensure_dashboard(
             await store.async_save(config)
             result["updated"] = True
             result["views"] = len(config.get("views", []))
+            # Einmaliger Kurzhinweis direkt nach der Installation
+            if result["created"] and not result["errors"]:
+                manager.hass.components.persistent_notification.async_create(
+                    title="PV Manager ist bereit ☀️",
+                    message=(
+                        "Weitere Einrichtung und Einstellungen findest du im "
+                        "**PV-Manager-Dashboard** in der Seitenleiste "
+                        "(Start-Seite mit kurzer Anleitung)."
+                    ),
+                    notification_id=f"{DOMAIN}_dashboard_ready",
+                )
 
         _LOGGER.info(
             "PVM: Dashboard %s (%s)",
@@ -295,14 +353,16 @@ async def async_rebuild_dashboard(manager: PvmManager, notify: bool = False) -> 
             )
 
 
-def schedule_dashboard_creation(manager: PvmManager) -> None:
+def schedule_dashboard_creation(
+    manager: PvmManager, force_rebuild: bool = False
+) -> None:
     """Startet die Dashboard-Erstellung im Hintergrund (mit Wiederholungen)."""
 
     async def _create_with_retries() -> None:
         for _attempt in range(1, DASHBOARD_CREATE_RETRIES + 1):
             if manager.closing:
                 return
-            result = await async_ensure_dashboard(manager)
+            result = await async_ensure_dashboard(manager, force_rebuild=force_rebuild)
             if not result["errors"]:
                 return
             await asyncio.sleep(DASHBOARD_CREATE_RETRY_DELAY_S)

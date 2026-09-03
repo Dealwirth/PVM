@@ -7,7 +7,7 @@ Logik-Modulen und Tests.
 
 DOMAIN = "pvm"
 NAME = "PV Manager"
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 # Von der Integration bereitgestellte Plattformen.
 PLATFORMS = ["sensor", "number", "switch", "button", "select", "time"]
@@ -20,7 +20,28 @@ STORAGE_VERSION = 1
 DASHBOARD_URL_PATH = "pvm-dashboard"
 DASHBOARD_TITLE = "PV Manager"
 DASHBOARD_ICON = "mdi:solar-power"
-DASHBOARD_DEFAULT_VIEW = "Übersicht"
+
+# UI-Designs des Dashboards (umschaltbar im Dashboard)
+UI_THEME_SUNRISE = "sonnenaufgang"
+UI_THEME_NATURE = "natur"
+UI_THEME_COOL = "klar"
+UI_THEMES = (UI_THEME_SUNRISE, UI_THEME_NATURE, UI_THEME_COOL)
+UI_THEME_LABELS = {
+    UI_THEME_SUNRISE: "☀️ Sonnenaufgang",
+    UI_THEME_NATURE: "🌿 Natur-frisch",
+    UI_THEME_COOL: "🌊 Kühl & klar",
+}
+DEFAULT_UI_THEME = UI_THEME_SUNRISE
+
+# Einrichtungs-Stufen (Setup-Status-Sensor)
+SETUP_START = "start"       # noch keine Messungen/Geräte
+SETUP_MESSUNGEN = "messungen"  # Messungen da, noch keine Geräte
+SETUP_BEREIT = "bereit"     # Geräte konfiguriert
+SETUP_LABELS = {
+    SETUP_START: "Erste Schritte",
+    SETUP_MESSUNGEN: "Messungen – jetzt Geräte hinzufügen",
+    SETUP_BEREIT: "Bereit",
+}
 
 # ---------------------------------------------------------------------------
 # Geräte-Rollen
@@ -44,12 +65,16 @@ ROLE_ICONS = {
 }
 
 # Steuerungsarten pro Gerät
-CONTROL_SWITCH = "switch"                # Schalter an/aus
+CONTROL_SWITCH = "switch"                # Ein Schalter (an/aus)
 CONTROL_SWITCH_NUMBER = "switch_number"  # Schalter + Leistungs-/Strom-Limit
+CONTROL_BUTTONS = "buttons"              # Zwei Taster (Start/Stopp)
+
+CONTROL_TYPES = (CONTROL_SWITCH, CONTROL_SWITCH_NUMBER, CONTROL_BUTTONS)
 
 CONTROL_LABELS = {
-    CONTROL_SWITCH: "Schalter (an/aus)",
+    CONTROL_SWITCH: "Ein Schalter (An/Aus)",
     CONTROL_SWITCH_NUMBER: "Schalter + Leistungs-/Strom-Begrenzung",
+    CONTROL_BUTTONS: "Zwei Taster (Start/Stopp)",
 }
 
 # Energiesensor-Typen für den Netz-Sensor
@@ -57,8 +82,8 @@ GRID_KIND_NET = "net"             # Import positiv, Export negativ
 GRID_KIND_EXPORT = "export_only"  # nur Einspeisung, positiv = Export
 
 GRID_KIND_LABELS = {
-    GRID_KIND_NET: "Import/Export kombiniert (positiv = Bezug, negativ = Einspeisung)",
-    GRID_KIND_EXPORT: "Nur Einspeisung (positiv = Export)",
+    GRID_KIND_NET: "Kombiniert (Bezug +, Einspeisung −)",
+    GRID_KIND_EXPORT: "Nur Einspeisung (positiv = Einspeisung)",
 }
 
 # Betriebsmodi (globaler Select)
@@ -181,6 +206,7 @@ DEFAULT_CONFIG = {
         "wp_test_target_c": WP_TEST_TARGET_C,
         "wp_test_max_duration_min": WP_TEST_MAX_DURATION_MIN,
         "wp_test_disturbance_w": WP_TEST_DISTURBANCE_W,
+        "ui_theme": DEFAULT_UI_THEME,
     },
     "devices": [],
     # WP-Test-Ergebnisse (dauerhaft, damit nach Neustart noch abrufbar)
@@ -206,4 +232,11 @@ ENTITY_LABELS = {
     "test_start": "WP-Test starten",
     "test_abort": "WP-Test abbrechen",
     "wp_test_result": "Letzter WP-Test",
+    # Nummern-Zusätze (Feintuning im Dashboard)
+    "power_limit": "Max. Ladeleistung",
+    "min_on_power": "Mindest-Überschuss zum Laden",
+    "safety": "Notfall-Temperatur (Minimum)",
+    "nominal": "Leistung im Betrieb",
+    # UI-Gruppen-Schalter (Einstellungen auf-/zuklappen)
+    "options": "Optionen",
 }

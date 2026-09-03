@@ -1,7 +1,7 @@
 # ☀️ PVM – PV Manager
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.2.0+-blue.svg)](https://www.home-assistant.io)
-[![GitHub Release](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/Dealwirth/PVM/releases)
+[![GitHub Release](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/Dealwirth/PVM/releases)
 [![License](https://img.shields.io/github/license/Dealwirth/PVM)](LICENSE)
 **PVM** ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deinen PV-Überschuss automatisch an Wallboxen, Wärmepumpe, Waschmaschine und Co. – basierend auf einer **Prioritätenliste**, die du im Dashboard per Klick (▲/▼) festlegst.
 <p align="center">
@@ -189,18 +189,28 @@ Klick auf den großen Button oben – HACS öffnet sich und installiert PVM dire
 **Danach (in Home Assistant)**
 
 1. **Einstellungen → Geräte & Dienste → Integration hinzufügen** → „PV Manager“.
-2. Wizard: **„Automatische Einrichtung“** wählen – PVM füllt die Felder vor.
-3. **Energie-Sensoren** bestätigen (PV und/oder Netz – mindestens einer).
-4. **Geräte hinzufügen**: Wallbox/E-Auto, Wärmepumpe, Verbraucher – beliebig oft.
-5. **Fertig!** Das Dashboard „PV Manager“ erscheint in der Seitenleiste.
+   **Keine Fragen:** Die Installation ist in einem Klick erledigt.
+2. PVM erstellt sofort das **„PV Manager“-Dashboard** – mit Start-Seite und Mini-Tutorial.
+3. Im Start-Tab erklärt dir das Tutorial, wie du **Sensoren abliest** und **Geräte hinzufügst**:
+   PVM durchsucht alle deine Integrationen und schlägt passende Sensoren/Geräte vor.
+   Du bestätigst nur noch („Ja, das ist meiner“) – bei mehreren Treffern fragt PVM nach.
+4. Danach verwaltest du alles **im Dashboard**: Ziele, Prioritäten, Einstellungen –
+   inklusive Design-Wechsel zwischen ☀️ Sonnenaufgang, 🌿 Natur-frisch und 🌊 Kühl & klar.
 
 ### Bedienung
 
+- **Sensoren ablesen** – Kacheln unter ☀️ **Übersicht** zeigen live, was PV erzeugt,
+  was das Netz liefert/abnimmt, was das Haus verbraucht und wie viel Überschuss frei ist.
+  Antippen öffnet den Verlauf.
+- **Geräte hinzufügen** – PVM findet deine Wallbox, Wärmepumpe und Verbraucher selbst
+  und schlägt sie dir zum Bestätigen vor (auch per „Geräte suchen“-Button).
+- **Steuerung** – pro Gerät ein Schalter, zwei Start/Stopp-Taster oder Schalter + Leistungs-Limit.
 - **Prioritäten** – Geräte mit **▲/▼-Buttons** verschieben: oben = zuerst Strom.
 - **Power Charge** – Schalter antippen, Auto lädt mit voller Leistung, Stopp automatisch.
 - **Ziele setzen** – Mindest-/Max-SOC und Frist-Ziel (Uhrzeit + Ziel) direkt im Dashboard.
 - **WP-Test** – „WP-Test starten“: heizt bis 70 °C, misst und speichert den Verbrauch.
-- **Geräte suchen** – findet neue Sensoren und Wallboxen automatisch.
+- **Design wechseln** – in 🎨 **Einstellungen** zwischen ☀️ Sonnenaufgang,
+  🌿 Natur-frisch und 🌊 Kühl & klar umschalten; jede Gruppe lässt sich separat aufklappen.
 
 > **Kein YAML nötig – alles geht per Klick.**
 
@@ -227,7 +237,8 @@ PVM entscheidet **alle 30 Sekunden neu**, wer deinen PV-Überschuss bekommt:
 | Frage | Antwort |
 | :--- | :--- |
 | Wird nur mit PV-Überschuss geladen? | Standardmäßig ja. Netzstrom nur für Mindest-SOC, Frist-Ziele oder Power Charge – per Schalter abschaltbar. |
-| Welche Wallboxen werden unterstützt? | Alle, die in HA als Entität sichtbar sind (Schalter, optional Leistungs-Nummer). |
+| Welche Wallboxen werden unterstützt? | Alle, die in HA Entitäten haben: Ein Schalter, zwei Start/Stopp-Taster oder Schalter + Leistungs-/Strom-Limit. |
+| Gibt es noch einen Setup-Wizard? | Nein – Installation in einem Klick; alles Weitere passiert im Dashboard (Start-Tutorial). |
 | Warum lädt mein Auto bei 500 W Überschuss nicht? | Unterhalb der Mindest-Ladeleistung (Standard 1,4 kW) startet PVM bewusst nicht. |
 | Was passiert gerade? | Status-Sensoren je Gerät, „PVM Status“ global und Service `pvm.run_self_test`. |
 | Fehler melden? | [GitHub Issues](https://github.com/Dealwirth/PVM/issues) mit Log (Filter `pvm`) und Diagnose. |
@@ -273,7 +284,7 @@ Ich brauche Hilfe bei der Home Assistant-Integration „PVM – PV Manager“
 custom_components/pvm/
 ├── engine.py              Prioritäts-Engine (reine Logik)
 ├── manager.py             Steuerzyklus & Service-Aufrufe
-├── config_flow.py         Setup-Wizard & Optionen
+├── config_flow.py         Verwaltung (kein Wizard; kurze Dialoge)
 ├── dashboard_creator.py   Dashboard-Erstellung
 ├── sensor.py … time.py    Entitäten-Plattformen
 └── translations/          de + en

@@ -1,7 +1,10 @@
 # Konfiguration
 
-Alles wird **ohne YAML** über den Setup-Wizard, die Options-Seite
-(**Geräte & Dienste → PV Manager → Optionen**) und das Dashboard konfiguriert.
+Alles wird **ohne YAML** über das **Dashboard** konfiguriert (Installation in
+ einem Klick ohne Wizard). Verwaltungs-Dialoge (Messungen, Geräte, gefundene
+ Sensoren/Geräte übernehmen) erreichst du aus dem Dashboard heraus über
+ **Geräte & Dienste → PV Manager → Optionen** – sie sind bewusst kurz und
+ auf einen Zweck beschränkt.
 
 ## Energie-Messung
 
@@ -89,20 +92,40 @@ PVM berücksichtigt das automatisch und lädt nicht blind weiter.
 
 ## Gerätesuche (Auto-Erkennung)
 
-Der Button **„PVM Geräte suchen“** (Dashboard → Einstellungen) oder der Service
-`pvm.scan_devices` durchsucht Home Assistant nach passenden Sensoren
-(Wallboxen, SoC, Wärmepumpen, PV/Netz) und zeigt Vorschläge als Benachrichtigung.
-Übernehmen kannst du sie in den **Optionen** (Gerät hinzufügen – die Felder sind
-dann vorbefüllt). Nichts wird jemals ohne deine Bestätigung konfiguriert.
+Der Button **„PVM Geräte suchen“** (Dashboard → Einstellungen), der Service
+`pvm.scan_devices` oder der automatische Scan beim Start durchsucht die
+**Entity- UND Device-Registry** aller Integrationen – inklusive
+Hersteller-/Modell-Informationen (z. B. SMA, go-e, openWB, Vaillant).
+Gefundene Messungen und Geräte werden **mit Begründung und aktuellem
+Messwert** vorgeschlagen; mehrere Treffer fragt PVM ab. Übernehmen geht über
+**Optionen → „Gefunden“** – nichts wird ohne deine Bestätigung konfiguriert.
+
+### Steuerungsarten (dynamische Felder)
+
+Pro Gerät wählst du, wie es gesteuert wird – PVM zeigt danach nur die passenden
+Felder:
+
+| Steuerung | Felder | Wofür? |
+| --- | --- | --- |
+| **Ein Schalter (An/Aus)** | 1 Schalter | Meiste Wallboxen/Verbraucher |
+| **Zwei Taster (Start/Stopp)** | Start- + Stopp-Taster (+ Leistung nötig) | Wallboxen mit getrennten Tastern |
+| **Schalter + Leistungs-/Strom-Limit** (Wallbox) | Schalter + Limit-Entität (A/kW) | Ladung mit PV-Leistungsregelung |
 
 ## Dashboard
 
-- Wird bei der Einrichtung automatisch erstellt und in der Seitenleiste angezeigt.
-- Zeigt: Übersicht (PV, Netz, Haus, Überschuss, Verlauf), Prioritäten
-  (▲/▼), Geräte (SoC-/Temperatur-Anzeige, Ziele, Buttons) und Einstellungen.
-- **„Dashboard aktualisieren“** (Button/Service `pvm.rebuild_dashboard`) erzeugt
-  die PVM-Karten nach Geräte-Änderungen neu (überschreibt dabei eigene
-  Anpassungen an den PVM-Karten).
+- Wird direkt nach der Installation automatisch erstellt (auch ohne Geräte)
+  und in der Seitenleiste angezeigt; fünf Ansichten: **Start & Tutorial**,
+  ☀️ **Übersicht**, 🔌 **Geräte**, ⬆️ **Reihenfolge**, 🎨 **Einstellungen**.
+- **Start/Tutorial** erklärt, wie Sensoren abgelesen, Geräte hinzugefügt und
+  Dinge eingestellt werden; gefundene Geräte erscheinen dort ebenfalls.
+- **Einstellungen** sind in Gruppen mit eigenem Aufklapp-Schalter organisiert
+  (Globale Regeln standardmäßig offen, Geräte-Gruppen zugeklappt).
+- **3 Designs** per Select umschaltbar: ☀️ Sonnenaufgang (Standard),
+  🌿 Natur-frisch, 🌊 Kühl & klar.
+- **„Dashboard aktualisieren“** (Button/Service `pvm.rebuild_dashboard`)
+  aktualisiert die PVM-Karten; nach Messungs-/Geräte-/Design-Änderungen
+  passiert das automatisch (überschreibt dabei eigene Anpassungen an den
+  PVM-Karten).
 
 ## Services (für Automationen)
 

@@ -2,6 +2,22 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.1.0] – 2026-09-03
+
+### Geändert (Dashboard-Zentrale statt Setup-Wizard)
+- Kein Installations-Wizard mehr: PVM wird in **einem Klick ohne Fragen** eingerichtet.
+- Alles Weitere läuft im **Dashboard**: Start-/Tutorial-Ansicht (Sensoren ablesen, Geräte hinzufügen, Einstellungen), Übersicht, Geräte, Reihenfolge, Einstellungen.
+- **Stark verbesserte Auto-Erkennung**: durchsucht Entity- UND Device-Registry aller Integrationen, nutzt Hersteller-/Integrations-Signale (SMA, go-e, openWB, Vaillant …), liefert Kandidaten mit Begründung und fragt bei mehreren Treffern nach.
+- **Hybrid-Verwaltung**: Gefundene Sensoren/Geräte werden im Dialog mit Live-Messwert bestätigt und übernommen; manuelle Auswahl bleibt möglich.
+- **3 umschaltbare Designs** (☀️ Sonnenaufgang = Standard, 🌿 Natur-frisch, 🌊 Kühl & klar) über einen Design-Select im Dashboard.
+- **Steuerung per zwei Tastern** (Start/Stopp) für Wallbox/Wärmepumpe/Verbraucher; Zustand wird über die Ladeleistung erkannt.
+- Einstellungen im Dashboard als **aufklappbare Gruppen** (Globale Regeln + je Gerät) mit Schiebereglern; neue Regler (Zykluszeit, Mindestzeiten, Leistungsgrenzen, Notfall-Temperatur).
+- **Fehlerfix** „expected (sensor)“: Mess-/Limit-Felder akzeptieren jetzt alle sinnvollen Entitätenarten (sensor/number/input_number, Taster button/switch) mit verständlichen deutschen Meldungen.
+- Setup-Status-Sensor (start → messungen → bereit) für das Tutorial.
+
+### Behoben
+- Prüfung im Selbsttest berücksichtigt Zwei-Taster-Steuerung.
+
 ## [1.0.0] – 2026-09-03
 
 ### Hinzugefügt

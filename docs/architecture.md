@@ -27,7 +27,7 @@ PVM/
 │       ├── manifest.json              Manifest (Domain, Version, Anforderungen)
 │       ├── const.py                   Konstanten, Standardwerte, Beschriftungen
 │       ├── config_model.py            Geräte- und Integrations-Datenmodell (pure Logik)
-│       ├── config_flow.py             Setup-Wizard & Options-Flow (de/en)
+│       ├── config_flow.py             Verwaltung (kein Wizard): Messungen, Geräte, Erkennung
 │       ├── store.py                   JSON-Persistenz (speichert alle Einstellungen)
 │       ├── manager.py                 Herzstück: Steuerzyklus, Service-Aufrufe, WP-Test, Scan
 │       ├── engine.py                  Prioritäts-Engine (reine Logik, keine HA-Importe)
@@ -37,9 +37,9 @@ PVM/
 │       ├── dashboard_creator.py       Dashboard-Erstellung über Lovelace-API
 │       ├── sensor.py                  Sensor-Plattform (PVM-Status, Geräte-Sensoren)
 │       ├── number.py                  Zahlen-Plattform (SOC-Ziele, Leistungs-Limits)
-│       ├── switch.py                  Schalter-Plattform (Ein/Aus je Gerät)
+│       ├── switch.py                  Schalter-Plattform (Ein/Aus + UI-Gruppen)
 │       ├── button.py                  Button-Plattform (Scan, Dashboard-Neubau, WP-Test)
-│       ├── select.py                  Auswahl-Plattform (Betriebsmodus, Reserve-Stufe)
+│       ├── select.py                  Auswahl-Plattform (Betriebsmodus, Design)
 │       ├── time.py                    Zeit-Plattform (Frist-Ziele)
 │       ├── services.py                Service-Handler (9 Services)
 │       ├── services.yaml              Service-Definitionen (deutsch, für HA-UI)
@@ -87,7 +87,7 @@ Vorteil: Die kritischen Entscheidungen (wer bekommt wann wie viel Strom) sind **
 | `manifest.json` | HACS-/HA-Manifest: `domain: pvm`, Version, Anforderungen (2025.2+). |
 | `const.py` | Alle Konstanten: Standardwerte (Mindest-Ladeleistung 1,4 kW, Reserve, Zyklus 30 s), Geräte-Rollen, Entitäts-Kataloge, Übersetzungs-Schlüssel. |
 | `config_model.py` | Datenmodell: normalisiert gespeicherte Geräte, liefert Standardwerte, validiert. Reine Logik. |
-| `config_flow.py` | Setup-Wizard (deutsch, mit englischem Fallback): Menü „Automatische Einrichtung / Manuell“, Energie-Sensoren mit Erkennungs-Vorschlägen, Geräte-Assistent in Schleife, komplette Options-Verwaltung. |
+| `config_flow.py` | Kein Installations-Wizard: Eintrag entsteht in einem Klick. Options-Flow mit kurzen Einzel-Dialogen: Messungen („habe ich / habe ich nicht“), Geräte (dynamische Felder je Steuerungsart inkl. Zwei-Taster), Übernahme gefundener Sensoren/Geräte, erweiterte Werte. |
 | `store.py` | JSON-Persistenz im HA-Store (`.storage/pvm`). Jede Änderung wird sofort gespeichert. |
 
 ### Steuerung (Herzstück)
@@ -97,21 +97,21 @@ Vorteil: Die kritischen Entscheidungen (wer bekommt wann wie viel Strom) sind **
 | `manager.py` | **Der Steuerzyklus**: alle 30 Sekunden Energie lesen → Engine aufrufen → Befehle ausführen. Verwaltet außerdem WP-Test, Geräte-Scan, Frist-Ziele, Fehler-Backoff (3 Fehler → Pause → Neustart) und die letzten gültigen Messwerte. |
 | `engine.py` | **Die Prioritäts-Engine** (pure Logik): verteilt Überschuss nach Prioritätsliste, beachtet Mindest-Ladeleistung, Leistungs-Limits, Hysterese, Mindest-Ein-/Ausschaltzeiten, Frist-Ziele, Mindest-/Max-SOC und Power Charge. |
 | `wp_test.py` | WP-Kalibrierung als Zustandsmaschine (pure Logik): heizt auf Soll-Temperatur, misst Leistung/Temperatur, filtert Störungen (z. B. Waschmaschine) heraus, speichert Ergebnis (Dauer, Verbrauch, Ø-Leistung). |
-| `detector.py` | Automatische Geräteerkennung (pure Logik): bewertet Entitäten nach Name, Geräteklasse und Einheit, schlägt Rollen vor – der Benutzer bestätigt. Erkennt Wallboxen, Wärmepumpen, E-Autos (SoC) und PV-/Netz-Sensoren. |
+| `detector.py` | Automatische Erkennung (pure Logik): bewertet Entitäten nach Name, Geräteklasse, Einheit, Domain sowie Hersteller-/Modell- und Integrations-Signalen (Wortgrenzen statt „irgendwo im Namen“), gruppiert Geräte-Sets (z. B. Wallbox mit Leistung + Start-/Stopp-Tastern) und liefert Kandidaten mit Begründung und Live-Wert. Der Benutzer bestätigt immer. |
 
 ### Dashboard
 
 | Datei | Beschreibung |
 | :--- | :--- |
-| `dashboard_builder.py` | Baut die Dashboard-Struktur als reine Datenstruktur: Energiefluss-Kopf, Geräte-Karten, Prioritäten, Einstellungen. |
-| `dashboard_creator.py` | Überträgt die Struktur in Home Assistant über die offizielle Lovelace-Speicher-API, registriert das Dashboard in der Seitenleiste, wiederholt im Hintergrund bei Fehlern, überschreibt nie ohne Erlaubnis. |
+| `dashboard_builder.py` | Baut die Dashboard-Struktur als reine Datenstruktur: 5 Ansichten (Start & Tutorial, Übersicht, Geräte, Reihenfolge, Einstellungen), aufklappbare Einstellungs-Gruppen (conditional-Karten) und drei umschaltbare Design-Pakete (Sonnenaufgang/Natur-frisch/Kühl & klar). |
+| `dashboard_creator.py` | Überträgt die Struktur über die offizielle Lovelace-Speicher-API in HA, registriert das Dashboard in der Seitenleiste, wiederholt im Hintergrund bei Fehlern und aktualisiert nur bei Struktur-/Design-Änderungen (Marker „dashboard_rebuild“). |
 
 ### Entitäten-Plattformen
 
 | Datei | Stellt bereit | Beispiele |
 | :--- | :--- | :--- |
 | `sensor.py` | Sensoren | PV-Überschuss, PVM-Status, Geräte-Status, WP-Test-Ergebnis |
-| `number.py` | Zahlen | Mindest-/Max-SOC, Leistungs-Limits, WP-Solltemperatur |
+| `number.py` | Zahlen | Mindest-/Max-SOC, Frist-Ziel, Leistungs-Limits, Soll-/Notfall-Temperatur, Zyklus- und Mindestzeiten |
 | `switch.py` | Schalter | Gerät ein/aus, Power Charge, Netzstrom-Freigabe |
 | `button.py` | Buttons | Geräte suchen, Dashboard neu bauen, WP-Test starten/abbrechen |
 | `select.py` | Auswahl | Betriebsmodus (Auto/Nur Überschuss/Aus), Reserve-Stufe |
@@ -124,7 +124,7 @@ Vorteil: Die kritischen Entscheidungen (wer bekommt wann wie viel Strom) sind **
 | `services.py` | Implementiert die 9 Services: `set_priority`, `power_charge`, `set_deadline`, `clear_deadline`, `scan_devices`, `rebuild_dashboard`, `set_energy_sensors`, `set_device_state`, `run_self_test`. |
 | `services.yaml` | Service-Definitionen mit deutschen Beschreibungen – für die Service-UI in Home Assistant. |
 | `diagnostics.py` | Strukturierter Diagnose-Export (Einstellungen, Geräte, Fehlerzähler, Store-Status). |
-| `translations/de.json`, `en.json` | Alle Texte des Wizards, der Optionen und Entitäten – deutsch primär, englisch als Fallback, vollständig abgestimmt. |
+| `translations/de.json`, `en.json` | Alle Texte der Optionen und Entitäten – deutsch primär, englisch als Fallback, vollständig abgestimmt. |
 
 ---
 
@@ -166,7 +166,7 @@ store.py: Zustand sichern                            ──► Fehler? → Backo
 
 ## 🔌 Neue Geräte & Erweiterungen
 
-1. **Neue Rolle/Steuerung** → Wizard-Felder in `config_flow.py`, Katalog in `dashboard_creator.py`/`dashboard_builder.py`, Verhalten in `engine.py`, Ausführung in `manager.py`.
+1. **Neue Rolle/Steuerung** → Dialog-Felder in `config_flow.py`, Entitäten-Katalog in `dashboard_creator.py`/`dashboard_builder.py`, Verhalten in `engine.py`, Ausführung in `manager.py`.
 2. **Neue Übersetzung** → `translations/de.json` und `en.json` parallel erweitern.
 3. **Tests** → Tests in `tests/` ergänzen, `ruff` + `pytest` lokal ausführen.
 

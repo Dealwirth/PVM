@@ -165,11 +165,19 @@ async def _async_handle_self_test(hass: HomeAssistant, call: ServiceCall) -> Non
     for device in config.get("devices", []):
         control = device.get("control", {})
         name = device.get("name", "?")
-        if not control.get("switch_entity"):
-            issues.append(f"{name}: kein Schalter konfiguriert.")
+        control_entities = [
+            control.get(key)
+            for key in ("switch_entity", "on_entity", "off_entity", "number_entity")
+            if control.get(key)
+        ]
+        if not control_entities:
+            issues.append(f"{name}: keine Steuer-Entität konfiguriert.")
         else:
-            if hass.states.get(control["switch_entity"]) is None:
-                issues.append(f"{name}: Schalter-Entität nicht gefunden ({control['switch_entity']}).")
+            for entity_id in control_entities:
+                if hass.states.get(entity_id) is None:
+                    issues.append(
+                        f"{name}: Steuer-Entität nicht gefunden ({entity_id})."
+                    )
         sensors = device.get("sensors", {})
         for role_key, label in (("soc", "SoC"), ("temp", "Temperatur"), ("power", "Leistung")):
             if sensors.get(role_key) and hass.states.get(sensors[role_key]) is None:

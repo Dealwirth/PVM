@@ -1,159 +1,52 @@
 {
   "config": {
     "abort": {
-      "already_configured": "PV Manager is already set up. Use the options (gear icon) to change it."
-    },
-    "error": {
-      "need_energy_sensor": "Please select at least one PV or grid sensor."
-    },
-    "step": {
-      "user": {
-        "title": "PV Manager – Setup"
-      },
-      "auto": {
-        "title": "Automatic setup (recommended)",
-        "description": "PVM searches Home Assistant for matching sensors and devices. You confirm the suggestions in the next steps."
-      },
-      "manual": {
-        "title": "Manual setup",
-        "description": "You choose all sensors and devices yourself."
-      },
-      "energy": {
-        "title": "Energy sensors",
-        "description": "Choose where PVM measures the power.",
-        "data": {
-          "pv_sensor": "PV power (generation)",
-          "grid_sensor": "Grid sensor",
-          "house_sensor": "House consumption (optional)",
-          "grid_kind": "Grid sensor type"
-        },
-        "data_description": {
-          "pv_sensor": "For example your inverter or PV meter.",
-          "grid_sensor": "Only needed if PVM should derive the surplus from the grid connection (recommended).",
-          "grid_kind": "Combined: import positive, export negative (e.g. Shelly EM). Or export only if your sensor only knows the feed-in.",
-          "house_sensor": "Only used without a grid sensor to compute the surplus."
-        }
-      },
-      "role": {
-        "title": "Add device",
-        "description": "Choose the kind of the next device – or finish the setup."
-      },
-      "wallbox": {
-        "title": "Wallbox / EV",
-        "description": "How is your wallbox controlled and which sensors do you measure?",
-        "data": {
-          "name": "Name",
-          "control_type": "Control",
-          "switch_entity": "Switch (on/off)",
-          "number_entity": "Power/current limit (number)",
-          "power_sensor": "Charging power (sensor)",
-          "soc_sensor": "Car SOC sensor",
-          "capacity_kwh": "Battery capacity",
-          "max_power_kw": "Maximum charging power",
-          "min_soc": "Minimum SOC",
-          "max_soc": "Maximum SOC (charge stop)",
-          "phases": "Phases",
-          "number_unit": "Unit of the limit value",
-          "grid_min": "Allow grid power for minimum SOC",
-          "grid_deadline": "Allow grid power for deadlines",
-          "another": "Add another device"
-        },
-        "data_description": {
-          "control_type": "Only on/off – or additionally limit the power (e.g. via an ampere number).",
-          "number_unit": "In which unit does your number entity report the value?"
-        }
-      },
-      "waermepumpe": {
-        "title": "Heat pump",
-        "description": "Which temperature do you measure and what switches the heat pump?",
-        "data": {
-          "name": "Name",
-          "switch_entity": "Switch (allow heating)",
-          "temp_sensor": "Temperature sensor",
-          "power_sensor": "Power (optional)",
-          "est_power_kw": "Estimated heating power",
-          "another": "Add another device"
-        }
-      },
-      "verbraucher": {
-        "title": "Consumer",
-        "description": "A switchable device (washing machine, ventilation, pool pump, …).",
-        "data": {
-          "name": "Name",
-          "switch_entity": "Switch",
-          "power_sensor": "Power (optional)",
-          "nominal_kw": "Power while running",
-          "another": "Add another device"
-        }
-      },
-      "finish": {
-        "title": "Done!",
-        "description": "PV Manager is set up. The dashboard will be created automatically."
-      }
+      "already_configured": "PV Manager is already set up. Open the PV Manager dashboard – everything is managed there."
     }
   },
   "options": {
     "error": {
-      "need_energy_sensor": "Please select at least one PV or grid sensor."
+      "buttons_need_both": "Please choose both a start and a stop button.",
+      "buttons_need_power": "With „two buttons“ PVM needs a power sensor to know whether the device is currently running."
     },
     "step": {
       "init": {
-        "title": "PV Manager – Options"
+        "title": "PV Manager – Management",
+        "description": "What would you like to do? (Most actions are also available directly from the dashboard.)"
       },
-      "energy": {
-        "title": "Energy sensors",
+      "messungen": {
+        "title": "Measurements (PV / grid / house)",
+        "description": "Only enable what you actually have. PVM needs at least one PV or grid sensor – you can also add it later.",
         "data": {
-          "pv_sensor": "PV power",
-          "grid_sensor": "Grid sensor",
-          "house_sensor": "House consumption (optional)",
-          "grid_kind": "Grid sensor type"
+          "pv_enabled": "I have a PV power sensor",
+          "pv_sensor": "PV power (currently generated)",
+          "grid_enabled": "I have a grid sensor",
+          "grid_sensor": "Grid import / feed-in",
+          "grid_kind": "Grid sensor type",
+          "house_enabled": "I have a house consumption sensor",
+          "house_sensor": "House consumption"
+        },
+        "data_description": {
+          "pv_sensor": "Example: sensor.inverter_power or sensor.pv_yield – shows what your system currently produces.",
+          "grid_sensor": "Example: sensor.shelly_grid_power – your meter at the grid connection.",
+          "grid_kind": "Combined: import positive, export negative (common, e.g. Shelly 3EM). Export only: if only feed-in is measured.",
+          "house_sensor": "Example: sensor.house_consumption. Only needed if no grid sensor exists."
         }
       },
-      "devices": {
+      "geraete": {
         "title": "Manage devices"
       },
       "add": {
-        "title": "Add device"
-      },
-      "add_wallbox": {
-        "title": "Add wallbox / EV",
+        "title": "Add device",
+        "description": "What kind of device do you want to add?",
         "data": {
-          "name": "Name",
-          "control_type": "Control",
-          "switch_entity": "Switch (on/off)",
-          "number_entity": "Power/current limit",
-          "power_sensor": "Charging power",
-          "soc_sensor": "SOC sensor",
-          "capacity_kwh": "Battery capacity",
-          "max_power_kw": "Maximum charging power",
-          "min_soc": "Minimum SOC",
-          "max_soc": "Maximum SOC",
-          "phases": "Phases",
-          "number_unit": "Unit of the limit value",
-          "grid_min": "Allow grid power for minimum SOC",
-          "grid_deadline": "Allow grid power for deadlines",
-          "another": "Add another device"
+          "role": "Device type"
         }
       },
-      "add_wp": {
-        "title": "Add heat pump",
+      "edit": {
+        "title": "Edit device",
         "data": {
-          "name": "Name",
-          "switch_entity": "Switch",
-          "temp_sensor": "Temperature sensor",
-          "power_sensor": "Power (optional)",
-          "est_power_kw": "Estimated heating power",
-          "another": "Add another device"
-        }
-      },
-      "add_consumer": {
-        "title": "Add consumer",
-        "data": {
-          "name": "Name",
-          "switch_entity": "Switch",
-          "power_sensor": "Power (optional)",
-          "nominal_kw": "Power while running",
-          "another": "Add another device"
+          "device": "Which device do you want to change?"
         }
       },
       "remove": {
@@ -162,8 +55,76 @@
           "device": "Which device should be removed?"
         }
       },
-      "settings": {
-        "title": "Settings",
+      "device_basics": {
+        "title": "Device – basics",
+        "description": "How do you control this device? PVM will only show the matching fields in the next step.",
+        "data": {
+          "name": "Device name",
+          "control_type": "Control"
+        },
+        "data_description": {
+          "name": "For example „wallbox garage“ or „heat pump“.",
+          "control_type": "One switch (on/off) – or two separate buttons for start and stop. Wallboxes can additionally limit the charging power."
+        }
+      },
+      "device_fields": {
+        "title": "Device – entities & goals",
+        "description": "Assign the matching sensors. Leave fields empty if you have no matching entity.",
+        "data": {
+          "name": "Name",
+          "switch_entity": "Switch (on/off)",
+          "on_entity": "Start button",
+          "off_entity": "Stop button",
+          "number_entity": "Power/current limit value",
+          "number_unit": "Unit of the limit value",
+          "phases": "Phases",
+          "power_sensor": "Power (while running)",
+          "soc_sensor": "Car SOC (state of charge)",
+          "temp_sensor": "Temperature sensor",
+          "capacity_kwh": "Battery capacity",
+          "max_power_kw": "Maximum power",
+          "min_soc": "Minimum SOC",
+          "max_soc": "Maximum SOC (charge stop)",
+          "est_power_kw": "Estimated heating power",
+          "comfort_c": "Target temperature",
+          "nominal_kw": "Power while running",
+          "grid_min": "Allow grid power for minimum SOC",
+          "grid_deadline": "Allow grid power for deadlines"
+        },
+        "data_description": {
+          "switch_entity": "Example: switch.wallbox_release – turns charging on/off.",
+          "on_entity": "Example: button.wallbox_start_charging.",
+          "off_entity": "Example: button.wallbox_stop_charging.",
+          "number_entity": "Example: number.wallbox_max_current (in A or kW) – PVM limits the power with it.",
+          "power_sensor": "Example: sensor.wallbox_power (in W/kW). Required with „two buttons“.",
+          "soc_sensor": "Example: sensor.car_charge_level (in %).",
+          "temp_sensor": "Example: sensor.heatpump_flow_temp (in °C).",
+          "capacity_kwh": "How many kWh fit into the car (example: 60).",
+          "max_soc": "Up to which level the car may charge (default 80 %).",
+          "min_soc": "Safety target: if it is undercut, PVM also charges from grid power."
+        }
+      },
+      "found": {
+        "title": "Found – what do you want to adopt?",
+        "description": "PVM detected sensors and devices. Choose an entry – multiple hits can be reviewed one by one.",
+        "data": {
+          "entry": "Suggestion"
+        }
+      },
+      "found_empty": {
+        "title": "Nothing new found",
+        "description": "There are no new suggestions. You can still add measurements and devices manually (menu „Measurements“ / „Devices“)."
+      },
+      "adopt_measure": {
+        "title": "Confirm sensor",
+        "description": "Is one of these sensors yours? The current value is shown in brackets so you can check whether it is the right one.",
+        "data": {
+          "entity": "My sensor is …"
+        }
+      },
+      "erweitert": {
+        "title": "Advanced settings",
+        "description": "Global values – most of them can also be adjusted directly in the dashboard.",
         "data": {
           "mode": "Operation mode",
           "reserve_w": "Grid reserve",
@@ -175,11 +136,10 @@
         },
         "data_description": {
           "reserve_w": "Power kept as reserve (e.g. for passing clouds).",
-          "cycle_s": "Interval between two control decisions (recommended: 30 s)."
+          "cycle_s": "Interval between two control decisions (recommended: 30 s).",
+          "min_on_s": "How long a device stays on at minimum after turning on (anti-flicker).",
+          "min_off_s": "How long a device stays off at minimum after turning off."
         }
-      },
-      "done": {
-        "title": "Done"
       }
     }
   },
@@ -190,16 +150,36 @@
       },
       "engine_status": {
         "name": "PVM status"
+      },
+      "setup": {
+        "name": "PVM setup"
       }
     },
     "number": {
       "reserve": {
         "name": "PVM grid reserve"
+      },
+      "cycle": {
+        "name": "PVM cycle time"
+      },
+      "min_on": {
+        "name": "PVM minimum on-time"
+      },
+      "min_off": {
+        "name": "PVM minimum off-time"
       }
     },
     "select": {
       "mode": {
         "name": "PVM mode"
+      },
+      "theme": {
+        "name": "PVM design"
+      }
+    },
+    "switch": {
+      "global_rules": {
+        "name": "PVM global rules"
       }
     },
     "button": {

@@ -1,5 +1,27 @@
 # FAQ & Fehlerbehebung
 
+## Meine Wallbox hat zwei getrennte Taster (Start/Stopp)
+
+Wähle beim Gerät die Steuerungsart **„Zwei Taster (Start/Stopp)“** und ordne die
+beiden Taster-Entitäten zu. PVM braucht dann zusätzlich den
+**Ladeleistungs-Sensor** (Pflicht), um zu erkennen, ob das Laden läuft – und
+drückt die Taster nur bei echten Zustandswechseln (kein Doppel-Start/-Stopp).
+
+## Fehler „expected (sensor)“ beim Anlegen
+
+Dieser kryptische Hinweis kam von zu eng gefassten Entitäten-Feldern. Seit
+Version 1.1.0 akzeptieren alle Messfelder sowohl `sensor` als auch
+`number`/`input_number`; Limit-Felder `number`/`input_number`; Taster
+`button`/`switch`. Falls trotzdem ein Hinweis erscheint, steht inzwischen eine
+verständliche deutsche Meldung dabei (z. B. „Bitte wähle einen Start- und einen
+Stopp-Taster“).
+
+## Wie wechsle ich das Design?
+
+Im Dashboard unter 🎨 **Einstellungen** oben auf den Select **„PVM Design“**
+tippen: ☀️ Sonnenaufgang (Standard), 🌿 Natur-frisch oder 🌊 Kühl & klar.
+Das Dashboard wird sofort neu aufgebaut.
+
 ## Das Dashboard „PV Manager“ fehlt in der Seitenleiste
 
 1. Öffne **Einstellungen → Geräte & Dienste → PV Manager**.
