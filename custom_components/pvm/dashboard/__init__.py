@@ -1,1 +1,1 @@
-?
+"""Init für dashboard."""
