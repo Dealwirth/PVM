@@ -11,6 +11,7 @@ from .device_types.registry import DeviceRegistry
 from .logic.auto_detector import AutoDetector
 from .dashboard.dashboard_creator import DashboardCreator
 
+
 class PVMConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Config Flow für PVM."""
 
@@ -88,16 +89,15 @@ class PVMConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_priorities(self, user_input=None):
         """Vierter Schritt: Prioritätenliste (Drag & Drop)."""
         if user_input is not None:
-            # Prioritäten speichern
             # Dashboard erstellen
-            dashboard_creator = DashboardCreator(self.hass, ErrorHandler(self.hass))
+            error_handler = ErrorHandler(self.hass)
+            dashboard_creator = DashboardCreator(self.hass, error_handler)
             await dashboard_creator.async_create_dashboard()
 
             return self.async_create_entry(
                 title="PV Manager",
                 data={
                     "devices": self._devices,
-                    "autos": user_input.get("autos", {}),
                     "priorities": user_input.get("priorities", DEFAULT_PRIORITIES)
                 }
             )
