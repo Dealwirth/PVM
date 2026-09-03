@@ -2,14 +2,14 @@
 
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.2.0+-blue.svg)](https://www.home-assistant.io)
-[![GitHub Release](https://img.shields.io/github/v/release/Dealwirth/PVM)](https://github.com/Dealwirth/PVM/releases)
+[![GitHub Release](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/Dealwirth/PVM/releases)
 [![License](https://img.shields.io/github/license/Dealwirth/PVM)](LICENSE)
 
 **PVM** ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deinen PV-Überschuss automatisch an Wallboxen, Wärmepumpe, Waschmaschine und Co. – basierend auf einer **Prioritätenliste**, die du per Drag & Drop festlegst.
 
-<p align="center" style="width:100%;">
-  <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Dealwirth&repository=PVM&category=integration" style="display:block;width:100%;">
-    <img src="https://img.shields.io/badge/Integration_hinzufügen-41BDF5?style=for-the-badge&logo=homeassistant&logoColor=white" alt="Integration hinzufügen" style="width:100%;max-width:100%;">
+<p align="center">
+  <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Dealwirth&repository=PVM&category=integration">
+    <img src="https://img.shields.io/badge/Integration_hinzufügen-41BDF5?style=for-the-badge&logo=homeassistant&logoColor=white" alt="Integration hinzufügen" width="100%">
   </a>
   <br>
   <em>Klick auf den Button – HACS öffnet sich automatisch.</em>
@@ -18,50 +18,50 @@
 <br>
 
 <div align="center">
-  <table style="border-collapse:collapse;border:none;width:100%;max-width:800px;background:#1a1a2e;border-radius:12px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,sans-serif;">
+  <table style="border-collapse:collapse;border:none;width:100%;max-width:750px;background:#1a1a2e;border-radius:16px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
     <tr style="background:#16213e;">
-      <td colspan="3" style="padding:15px 20px;text-align:left;color:#ffffff;font-size:14px;border:none;">
-        <span style="color:#4CAF50;">☀️ 4.2 kW</span> &nbsp;|&nbsp; <span style="color:#FFC107;">🏠 0.6 kW</span> &nbsp;|&nbsp; <span style="color:#e94560;">🔌 -0.1 kW</span> &nbsp;|&nbsp; <span style="color:#41BDF5;">⏰ 14:32</span>
+      <td colspan="3" style="padding:12px 18px;text-align:center;color:#ffffff;font-size:13px;border:none;">
+        <span style="color:#4CAF50;">☀️ PV: 4.2 kW</span> &nbsp;•&nbsp; <span style="color:#FFC107;">🏠 Haus: 0.6 kW</span> &nbsp;•&nbsp; <span style="color:#e94560;">🔌 Netz: -0.1 kW</span> &nbsp;•&nbsp; <span style="color:#41BDF5;">⏰ 14:32</span>
       </td>
     </tr>
     <tr>
-      <td style="padding:20px;width:33%;background:#16213e;border:none;vertical-align:top;">
-        <div style="background:#1a1a3e;border-radius:8px;padding:15px;margin-bottom:10px;">
-          <div style="color:#41BDF5;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Auto 1</div>
-          <div style="color:#ffffff;font-size:24px;font-weight:bold;">45%</div>
-          <div style="background:#0f3460;height:6px;border-radius:3px;margin:10px 0;">
-            <div style="background:#e94560;width:45%;height:6px;border-radius:3px;"></div>
+      <td style="padding:16px;width:33%;background:#16213e;border:none;vertical-align:top;">
+        <div style="background:#1a1a3e;border-radius:10px;padding:14px;">
+          <div style="color:#41BDF5;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Auto 1</div>
+          <div style="color:#ffffff;font-size:22px;font-weight:bold;">45%</div>
+          <div style="background:#0f3460;height:5px;border-radius:3px;margin:8px 0;">
+            <div style="background:#e94560;width:45%;height:5px;border-radius:3px;"></div>
           </div>
-          <div style="color:#aaaaaa;font-size:12px;">Mindest: ✅ erreicht</div>
-          <div style="color:#aaaaaa;font-size:12px;">Max: 80% (noch 7.7 kWh)</div>
-          <div style="color:#4CAF50;font-size:12px;margin-top:8px;">⚡ 2.3 kW (PV)</div>
+          <div style="color:#aaaaaa;font-size:11px;">Mindest: ✅ erreicht</div>
+          <div style="color:#aaaaaa;font-size:11px;">Max: 80% (noch 7.7 kWh)</div>
+          <div style="color:#4CAF50;font-size:11px;margin-top:6px;">⚡ 2.3 kW (PV)</div>
         </div>
       </td>
-      <td style="padding:20px;width:33%;background:#16213e;border:none;vertical-align:top;">
-        <div style="background:#1a1a3e;border-radius:8px;padding:15px;margin-bottom:10px;">
-          <div style="color:#41BDF5;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Auto 2</div>
-          <div style="color:#ffffff;font-size:24px;font-weight:bold;">60%</div>
-          <div style="background:#0f3460;height:6px;border-radius:3px;margin:10px 0;">
-            <div style="background:#2196F3;width:60%;height:6px;border-radius:3px;"></div>
+      <td style="padding:16px;width:33%;background:#16213e;border:none;vertical-align:top;">
+        <div style="background:#1a1a3e;border-radius:10px;padding:14px;">
+          <div style="color:#41BDF5;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Auto 2</div>
+          <div style="color:#ffffff;font-size:22px;font-weight:bold;">60%</div>
+          <div style="background:#0f3460;height:5px;border-radius:3px;margin:8px 0;">
+            <div style="background:#2196F3;width:60%;height:5px;border-radius:3px;"></div>
           </div>
-          <div style="color:#aaaaaa;font-size:12px;">Mindest: ✅ erreicht</div>
-          <div style="color:#aaaaaa;font-size:12px;">Max: 100% (noch 28.8 kWh)</div>
-          <div style="color:#4CAF50;font-size:12px;margin-top:8px;">⚡ 1.3 kW (PV)</div>
+          <div style="color:#aaaaaa;font-size:11px;">Mindest: ✅ erreicht</div>
+          <div style="color:#aaaaaa;font-size:11px;">Max: 100% (noch 28.8 kWh)</div>
+          <div style="color:#4CAF50;font-size:11px;margin-top:6px;">⚡ 1.3 kW (PV)</div>
         </div>
       </td>
-      <td style="padding:20px;width:33%;background:#16213e;border:none;vertical-align:top;">
-        <div style="background:#1a1a3e;border-radius:8px;padding:15px;margin-bottom:10px;">
-          <div style="color:#41BDF5;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Wärmepumpe</div>
-          <div style="color:#ffffff;font-size:24px;font-weight:bold;">62 °C</div>
-          <div style="color:#aaaaaa;font-size:12px;">Soll: 60 °C</div>
-          <div style="color:#aaaaaa;font-size:12px;">Status: Aus</div>
-          <div style="color:#aaaaaa;font-size:12px;margin-top:8px;">⚡ 0.0 kW</div>
+      <td style="padding:16px;width:33%;background:#16213e;border:none;vertical-align:top;">
+        <div style="background:#1a1a3e;border-radius:10px;padding:14px;">
+          <div style="color:#41BDF5;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Wärmepumpe</div>
+          <div style="color:#ffffff;font-size:22px;font-weight:bold;">62 °C</div>
+          <div style="color:#aaaaaa;font-size:11px;">Soll: 60 °C</div>
+          <div style="color:#aaaaaa;font-size:11px;">Status: Aus</div>
+          <div style="color:#aaaaaa;font-size:11px;margin-top:6px;">⚡ 0.0 kW</div>
         </div>
       </td>
     </tr>
     <tr>
-      <td colspan="3" style="padding:10px 20px;background:#16213e;border:none;text-align:center;color:#888888;font-size:12px;">
-        ⚡ Energiefluss: ☀️ PV (4.2 kW) → 🏠 Haus (0.6 kW) → 🔌 Netz (-0.1 kW) | 🚗 Auto 1 (2.3 kW) 🚗 Auto 2 (1.3 kW)
+      <td colspan="3" style="padding:8px 18px;background:#16213e;border:none;text-align:center;color:#888888;font-size:11px;border-top:1px solid #1a1a3e;">
+        ⚡ Energiefluss: ☀️ PV 4.2 kW → 🏠 Haus 0.6 kW → 🔌 Netz -0.1 kW &nbsp;|&nbsp; 🚗 Auto 1 2.3 kW &nbsp;•&nbsp; 🚗 Auto 2 1.3 kW
       </td>
     </tr>
   </table>
@@ -119,13 +119,13 @@ Klicke auf den großen Button oben – HACS öffnet sich automatisch und du kann
 Du brauchst Hilfe bei der Installation oder Einrichtung? Kopiere den folgenden Prompt in deine KI. Sie wird sich zuerst das gesamte Projekt auf GitHub anschauen und sich dann als PVM Assistant vorstellen.
 
 **So funktioniert es:**
-1. Klicke auf den Kopierknopf unter dem Prompt.
+1. Klicke auf den **Prompt kopieren**-Button.
 2. Füge den Prompt in deine KI ein.
 3. Die KI fragt dich nach deinem konkreten Problem.
 4. Gemeinsam findet ihr eine Lösung.
 
-<div style="background:#f0f0f0;padding:15px;border-radius:8px;border:1px solid #ccc;position:relative;margin:10px 0;">
-  <pre style="margin:0;white-space:pre-wrap;word-wrap:break-word;font-family:monospace;font-size:14px;color:#333;" id="ki-prompt">
+**📋 KI-Prompt:**
+
 Ich brauche Hilfe bei der Home Assistant-Integration "PVM – PV Manager" von GitHub (https://github.com/Dealwirth/PVM).
 
 Bitte lies dir zuerst das README und das gesamte Projekt durch, um es vollständig zu verstehen.
@@ -134,9 +134,6 @@ Die Integration ist ein modularer Energiemanager für PV-Überschuss. Sie kann W
 
 Stell dich als "PVM Assistant" vor und frage mich: "Ich bin dein PVM Assistant. Wie kann ich dir helfen?"
 Antworte danach immer kurz, klar und verständlich. Keine langen Erklärungen. Wenn du etwas nicht weißt, frage einfach kurz nach.
-  </pre>
-  <button onclick="navigator.clipboard.writeText(document.getElementById('ki-prompt').textContent)" style="position:absolute;top:8px;right:8px;background:#41BDF5;color:white;border:none;border-radius:4px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:bold;">📋 Prompt kopieren</button>
-</div>
 
 ---
 
