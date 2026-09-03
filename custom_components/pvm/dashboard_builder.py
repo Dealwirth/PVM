@@ -172,7 +172,7 @@ def build_dashboard_config(model: DashboardModel) -> dict:
             if power:
                 tiles.append(_tile(power, "mdi:ev-station", "Ladeleistung"))
             for kind, icon, label in (
-                ("charge_switch", "mdi:lightning-bolt", "Power Charge"),
+                ("power_charge", "mdi:lightning-bolt", "Power Charge"),
                 ("status", "mdi:information-outline", "Status"),
             ):
                 if dev.entities.get(kind):

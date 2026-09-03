@@ -1,0 +1,214 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "PV Manager ist bereits eingerichtet. Öffne die Optionen (⚙) zum Ändern."
+    },
+    "error": {
+      "need_energy_sensor": "Bitte wähle mindestens einen PV- oder einen Netz-Sensor aus."
+    },
+    "step": {
+      "user": {
+        "title": "PV Manager – Einrichtung"
+      },
+      "auto": {
+        "title": "Automatische Einrichtung (empfohlen)",
+        "description": "PVM durchsucht Home Assistant nach passenden Sensoren und Geräten. Du bestätigst die Vorschläge in den nächsten Schritten."
+      },
+      "manual": {
+        "title": "Manuelle Einrichtung",
+        "description": "Du wählst alle Sensoren und Geräte selbst aus."
+      },
+      "energy": {
+        "title": "Energie-Sensoren",
+        "description": "Wähle, wo PVM den Strom misst.",
+        "data": {
+          "pv_sensor": "PV-Leistung (Erzeugung)",
+          "grid_sensor": "Netz-Sensor",
+          "house_sensor": "Hausverbrauch (optional)",
+          "grid_kind": "Art des Netz-Sensors"
+        },
+        "data_description": {
+          "pv_sensor": "Zum Beispiel dein Wechselrichter oder PV-Zähler.",
+          "grid_sensor": "Nur nötig, wenn PVM den Überschuss über den Netzanschluss ermitteln soll (empfohlen).",
+          "grid_kind": "Kombiniert: Import positiv, Export negativ (z. B. Shelly EM). Oder nur Einspeisung, wenn dein Sensor nur den Export kennt.",
+          "house_sensor": "Wird nur ohne Netz-Sensor für die Überschuss-Berechnung benötigt."
+        }
+      },
+      "role": {
+        "title": "Gerät hinzufügen",
+        "description": "Wähle die Art des nächsten Geräts – oder schließe die Einrichtung ab."
+      },
+      "wallbox": {
+        "title": "Wallbox / E-Auto",
+        "description": "Wie wird deine Wallbox gesteuert und welche Sensoren misst du?",
+        "data": {
+          "name": "Name",
+          "control_type": "Steuerung",
+          "switch_entity": "Schalter (an/aus)",
+          "number_entity": "Leistungs-/Strom-Limit (Nummer)",
+          "power_sensor": "Ladeleistung (Sensor)",
+          "soc_sensor": "SoC-Sensor des Autos",
+          "capacity_kwh": "Batteriekapazität",
+          "max_power_kw": "Maximale Ladeleistung",
+          "min_soc": "Mindest-SOC",
+          "max_soc": "Max-SOC (Ladestopp)",
+          "phases": "Phasen",
+          "number_unit": "Einheit des Limit-Werts",
+          "grid_min": "Netzstrom für Mindest-SOC erlauben",
+          "grid_deadline": "Netzstrom für Frist-Ziele erlauben",
+          "another": "Weiteres Gerät hinzufügen"
+        },
+        "data_description": {
+          "control_type": "Nur an/aus – oder zusätzlich Leistung begrenzen (z. B. über eine Ampere-Nummer).",
+          "number_unit": "In welcher Einheit gibt deine Nummern-Entität den Wert an?"
+        }
+      },
+      "waermepumpe": {
+        "title": "Wärmepumpe",
+        "description": "Welche Temperatur misst du und womit schaltest du die WP?",
+        "data": {
+          "name": "Name",
+          "switch_entity": "Schalter (Heizbetrieb erlauben)",
+          "temp_sensor": "Temperatur-Sensor",
+          "power_sensor": "Leistung (optional)",
+          "est_power_kw": "Geschätzte Heizleistung",
+          "another": "Weiteres Gerät hinzufügen"
+        }
+      },
+      "verbraucher": {
+        "title": "Verbraucher",
+        "description": "Ein schaltbares Gerät (Waschmaschine, Lüftung, Poolpumpe, …).",
+        "data": {
+          "name": "Name",
+          "switch_entity": "Schalter",
+          "power_sensor": "Leistung (optional)",
+          "nominal_kw": "Leistung im Betrieb",
+          "another": "Weiteres Gerät hinzufügen"
+        }
+      },
+      "finish": {
+        "title": "Fertig!",
+        "description": "PV Manager ist eingerichtet. Das Dashboard wird automatisch erstellt."
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "need_energy_sensor": "Bitte wähle mindestens einen PV- oder einen Netz-Sensor aus."
+    },
+    "step": {
+      "init": {
+        "title": "PV Manager – Optionen"
+      },
+      "energy": {
+        "title": "Energie-Sensoren",
+        "data": {
+          "pv_sensor": "PV-Leistung",
+          "grid_sensor": "Netz-Sensor",
+          "house_sensor": "Hausverbrauch (optional)",
+          "grid_kind": "Art des Netz-Sensors"
+        }
+      },
+      "devices": {
+        "title": "Geräte verwalten"
+      },
+      "add": {
+        "title": "Gerät hinzufügen"
+      },
+      "add_wallbox": {
+        "title": "Wallbox / E-Auto hinzufügen",
+        "data": {
+          "name": "Name",
+          "control_type": "Steuerung",
+          "switch_entity": "Schalter (an/aus)",
+          "number_entity": "Leistungs-/Strom-Limit",
+          "power_sensor": "Ladeleistung",
+          "soc_sensor": "SoC-Sensor",
+          "capacity_kwh": "Batteriekapazität",
+          "max_power_kw": "Maximale Ladeleistung",
+          "min_soc": "Mindest-SOC",
+          "max_soc": "Max-SOC",
+          "phases": "Phasen",
+          "number_unit": "Einheit des Limit-Werts",
+          "grid_min": "Netzstrom für Mindest-SOC erlauben",
+          "grid_deadline": "Netzstrom für Frist-Ziele erlauben",
+          "another": "Weiteres Gerät hinzufügen"
+        }
+      },
+      "add_wp": {
+        "title": "Wärmepumpe hinzufügen",
+        "data": {
+          "name": "Name",
+          "switch_entity": "Schalter",
+          "temp_sensor": "Temperatur-Sensor",
+          "power_sensor": "Leistung (optional)",
+          "est_power_kw": "Geschätzte Heizleistung",
+          "another": "Weiteres Gerät hinzufügen"
+        }
+      },
+      "add_consumer": {
+        "title": "Verbraucher hinzufügen",
+        "data": {
+          "name": "Name",
+          "switch_entity": "Schalter",
+          "power_sensor": "Leistung (optional)",
+          "nominal_kw": "Leistung im Betrieb",
+          "another": "Weiteres Gerät hinzufügen"
+        }
+      },
+      "remove": {
+        "title": "Gerät entfernen",
+        "data": {
+          "device": "Welches Gerät soll entfernt werden?"
+        }
+      },
+      "settings": {
+        "title": "Einstellungen",
+        "data": {
+          "mode": "Betriebsmodus",
+          "reserve_w": "Einspeise-Reserve",
+          "cycle_s": "Zykluszeit",
+          "min_on_s": "Mindest-Einschaltdauer",
+          "min_off_s": "Mindest-Ausschaltdauer",
+          "wp_test_target_c": "WP-Test-Zieltemperatur",
+          "wp_test_max_duration_min": "WP-Test: maximale Dauer"
+        },
+        "data_description": {
+          "reserve_w": "Leistung, die als Reserve bleibt (z. B. für kurzzeitige Wolken).",
+          "cycle_s": "Abstand zwischen zwei Steuer-Entscheidungen (empfohlen: 30 s)."
+        }
+      },
+      "done": {
+        "title": "Fertig"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "surplus": {
+        "name": "PVM Überschuss (verfügbar)"
+      },
+      "engine_status": {
+        "name": "PVM Status"
+      }
+    },
+    "number": {
+      "reserve": {
+        "name": "PVM Einspeise-Reserve"
+      }
+    },
+    "select": {
+      "mode": {
+        "name": "PVM Modus"
+      }
+    },
+    "button": {
+      "scan": {
+        "name": "PVM Geräte suchen"
+      },
+      "rebuild_dashboard": {
+        "name": "PVM Dashboard aktualisieren"
+      }
+    }
+  }
+}

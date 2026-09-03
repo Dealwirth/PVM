@@ -1,0 +1,125 @@
+power_charge:
+  name: Power Charge
+  description: >-
+    Startet oder stoppt "Power Charge" für ein E-Auto: Es lädt mit voller
+    Leistung (auch aus dem Netz), bis der Max-SOC erreicht ist.
+  fields:
+    entity_id:
+      name: Gerät
+      description: Eine Entität des Autos/Wallbox (z. B. der SoC-Sensor oder der Power-Charge-Schalter).
+      required: true
+      example: "switch.auto1_power_charge"
+      selector:
+        entity:
+          integration: pvm
+          multiple: false
+    charge:
+      name: Laden
+      description: "True = Power Charge starten, False = stoppen."
+      default: true
+      selector:
+        boolean:
+
+set_priority:
+  name: Priorität setzen
+  description: Setzt die Priorität eines Geräts (1 = wird zuerst versorgt).
+  fields:
+    entity_id:
+      name: Gerät
+      description: Eine Entität des Geräts.
+      required: true
+      selector:
+        entity:
+          integration: pvm
+          multiple: false
+    position:
+      name: Position
+      description: Neue Position in der Prioritätenliste (1 = höchste).
+      required: true
+      selector:
+        number:
+          mode: box
+          min: 1
+          max: 50
+          step: 1
+
+set_deadline:
+  name: Frist-Ziel setzen
+  description: >-
+    Setzt ein zeitliches Ladeziel ("bis zur Uhrzeit X soll der SoC erreicht
+    sein"). Das Auto darf dafür nötigenfalls Netzstrom nutzen.
+  fields:
+    entity_id:
+      name: Gerät
+      description: Eine Entität des Autos/Wallbox.
+      required: true
+      selector:
+        entity:
+          integration: pvm
+          multiple: false
+    time:
+      name: Uhrzeit
+      description: Bis wann das Ziel erreicht sein soll (z. B. "18:00").
+      example: "18:00"
+      selector:
+        time:
+    target_soc:
+      name: Ziel-SoC
+      description: Ziel-Ladezustand in Prozent (z. B. 80).
+      selector:
+        number:
+          mode: box
+          min: 10
+          max: 100
+          step: 1
+
+clear_deadline:
+  name: Frist-Ziel löschen
+  description: Entfernt das zeitliche Ladeziel eines Autos.
+  fields:
+    entity_id:
+      name: Gerät
+      description: Eine Entität des Autos/Wallbox.
+      required: true
+      selector:
+        entity:
+          integration: pvm
+          multiple: false
+
+wp_test_start:
+  name: WP-Test starten
+  description: Startet den Kalibrierungstest einer Wärmepumpe (Aufheizen bis 70 °C mit Messung).
+  fields:
+    entity_id:
+      name: Wärmepumpe
+      description: Eine Entität der Wärmepumpe.
+      required: true
+      selector:
+        entity:
+          integration: pvm
+          multiple: false
+
+wp_test_abort:
+  name: WP-Test abbrechen
+  description: Bricht einen laufenden WP-Kalibrierungstest ab.
+  fields:
+    entity_id:
+      name: Wärmepumpe
+      description: Eine Entität der Wärmepumpe.
+      required: true
+      selector:
+        entity:
+          integration: pvm
+          multiple: false
+
+scan_devices:
+  name: Geräte suchen
+  description: Startet die automatische Geräteerkennung und zeigt Vorschläge an.
+
+rebuild_dashboard:
+  name: Dashboard aktualisieren
+  description: Erstellt das "PV Manager"-Dashboard neu (überschreibt eigene Anpassungen an den PVM-Karten).
+
+run_self_test:
+  name: Selbsttest
+  description: Prüft die Konfiguration (Sensoren, Schalter, Engine) und meldet Probleme.

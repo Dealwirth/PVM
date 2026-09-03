@@ -1,0 +1,214 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "PV Manager is already set up. Use the options (gear icon) to change it."
+    },
+    "error": {
+      "need_energy_sensor": "Please select at least one PV or grid sensor."
+    },
+    "step": {
+      "user": {
+        "title": "PV Manager – Setup"
+      },
+      "auto": {
+        "title": "Automatic setup (recommended)",
+        "description": "PVM searches Home Assistant for matching sensors and devices. You confirm the suggestions in the next steps."
+      },
+      "manual": {
+        "title": "Manual setup",
+        "description": "You choose all sensors and devices yourself."
+      },
+      "energy": {
+        "title": "Energy sensors",
+        "description": "Choose where PVM measures the power.",
+        "data": {
+          "pv_sensor": "PV power (generation)",
+          "grid_sensor": "Grid sensor",
+          "house_sensor": "House consumption (optional)",
+          "grid_kind": "Grid sensor type"
+        },
+        "data_description": {
+          "pv_sensor": "For example your inverter or PV meter.",
+          "grid_sensor": "Only needed if PVM should derive the surplus from the grid connection (recommended).",
+          "grid_kind": "Combined: import positive, export negative (e.g. Shelly EM). Or export only if your sensor only knows the feed-in.",
+          "house_sensor": "Only used without a grid sensor to compute the surplus."
+        }
+      },
+      "role": {
+        "title": "Add device",
+        "description": "Choose the kind of the next device – or finish the setup."
+      },
+      "wallbox": {
+        "title": "Wallbox / EV",
+        "description": "How is your wallbox controlled and which sensors do you measure?",
+        "data": {
+          "name": "Name",
+          "control_type": "Control",
+          "switch_entity": "Switch (on/off)",
+          "number_entity": "Power/current limit (number)",
+          "power_sensor": "Charging power (sensor)",
+          "soc_sensor": "Car SOC sensor",
+          "capacity_kwh": "Battery capacity",
+          "max_power_kw": "Maximum charging power",
+          "min_soc": "Minimum SOC",
+          "max_soc": "Maximum SOC (charge stop)",
+          "phases": "Phases",
+          "number_unit": "Unit of the limit value",
+          "grid_min": "Allow grid power for minimum SOC",
+          "grid_deadline": "Allow grid power for deadlines",
+          "another": "Add another device"
+        },
+        "data_description": {
+          "control_type": "Only on/off – or additionally limit the power (e.g. via an ampere number).",
+          "number_unit": "In which unit does your number entity report the value?"
+        }
+      },
+      "waermepumpe": {
+        "title": "Heat pump",
+        "description": "Which temperature do you measure and what switches the heat pump?",
+        "data": {
+          "name": "Name",
+          "switch_entity": "Switch (allow heating)",
+          "temp_sensor": "Temperature sensor",
+          "power_sensor": "Power (optional)",
+          "est_power_kw": "Estimated heating power",
+          "another": "Add another device"
+        }
+      },
+      "verbraucher": {
+        "title": "Consumer",
+        "description": "A switchable device (washing machine, ventilation, pool pump, …).",
+        "data": {
+          "name": "Name",
+          "switch_entity": "Switch",
+          "power_sensor": "Power (optional)",
+          "nominal_kw": "Power while running",
+          "another": "Add another device"
+        }
+      },
+      "finish": {
+        "title": "Done!",
+        "description": "PV Manager is set up. The dashboard will be created automatically."
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "need_energy_sensor": "Please select at least one PV or grid sensor."
+    },
+    "step": {
+      "init": {
+        "title": "PV Manager – Options"
+      },
+      "energy": {
+        "title": "Energy sensors",
+        "data": {
+          "pv_sensor": "PV power",
+          "grid_sensor": "Grid sensor",
+          "house_sensor": "House consumption (optional)",
+          "grid_kind": "Grid sensor type"
+        }
+      },
+      "devices": {
+        "title": "Manage devices"
+      },
+      "add": {
+        "title": "Add device"
+      },
+      "add_wallbox": {
+        "title": "Add wallbox / EV",
+        "data": {
+          "name": "Name",
+          "control_type": "Control",
+          "switch_entity": "Switch (on/off)",
+          "number_entity": "Power/current limit",
+          "power_sensor": "Charging power",
+          "soc_sensor": "SOC sensor",
+          "capacity_kwh": "Battery capacity",
+          "max_power_kw": "Maximum charging power",
+          "min_soc": "Minimum SOC",
+          "max_soc": "Maximum SOC",
+          "phases": "Phases",
+          "number_unit": "Unit of the limit value",
+          "grid_min": "Allow grid power for minimum SOC",
+          "grid_deadline": "Allow grid power for deadlines",
+          "another": "Add another device"
+        }
+      },
+      "add_wp": {
+        "title": "Add heat pump",
+        "data": {
+          "name": "Name",
+          "switch_entity": "Switch",
+          "temp_sensor": "Temperature sensor",
+          "power_sensor": "Power (optional)",
+          "est_power_kw": "Estimated heating power",
+          "another": "Add another device"
+        }
+      },
+      "add_consumer": {
+        "title": "Add consumer",
+        "data": {
+          "name": "Name",
+          "switch_entity": "Switch",
+          "power_sensor": "Power (optional)",
+          "nominal_kw": "Power while running",
+          "another": "Add another device"
+        }
+      },
+      "remove": {
+        "title": "Remove device",
+        "data": {
+          "device": "Which device should be removed?"
+        }
+      },
+      "settings": {
+        "title": "Settings",
+        "data": {
+          "mode": "Operation mode",
+          "reserve_w": "Grid reserve",
+          "cycle_s": "Cycle time",
+          "min_on_s": "Minimum on-time",
+          "min_off_s": "Minimum off-time",
+          "wp_test_target_c": "Heat pump test target temperature",
+          "wp_test_max_duration_min": "Heat pump test: max duration"
+        },
+        "data_description": {
+          "reserve_w": "Power kept as reserve (e.g. for passing clouds).",
+          "cycle_s": "Interval between two control decisions (recommended: 30 s)."
+        }
+      },
+      "done": {
+        "title": "Done"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "surplus": {
+        "name": "PVM available surplus"
+      },
+      "engine_status": {
+        "name": "PVM status"
+      }
+    },
+    "number": {
+      "reserve": {
+        "name": "PVM grid reserve"
+      }
+    },
+    "select": {
+      "mode": {
+        "name": "PVM mode"
+      }
+    },
+    "button": {
+      "scan": {
+        "name": "PVM find devices"
+      },
+      "rebuild_dashboard": {
+        "name": "PVM update dashboard"
+      }
+    }
+  }
+}

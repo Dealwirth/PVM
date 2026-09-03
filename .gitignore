@@ -19,6 +19,9 @@ Thumbs.db
 .vscode/
 *.swp
 
+# Freebuff workspace metadata
+.freebuff/
+
 # Home Assistant / local test data
 config/
 .storage/
