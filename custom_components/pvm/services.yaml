@@ -79,3 +79,43 @@ scan_devices:
   name: Neue Geräte suchen
   description: Startet die automatische Geräteerkennung
   fields: {}
+
+# Zusätzliche Services für die WP-Kalibrierung (vorbereitet)
+start_wp_test:
+  name: WP-Test starten
+  description: Startet den WP-Kalibrierungstest
+  fields:
+    device_id:
+      name: Gerät-ID
+      description: ID der Wärmepumpe
+      required: true
+      example: "wp_1"
+      selector:
+        text:
+
+stop_wp_test:
+  name: WP-Test stoppen
+  description: Stoppt den laufenden WP-Test
+  fields: {}
+
+start_test:
+  name: Verbraucher-Test starten
+  description: Startet einen Test für einen Verbraucher
+  fields:
+    device_id:
+      name: Gerät-ID
+      description: ID des Geräts
+      required: true
+      example: "verbraucher_1"
+      selector:
+        text:
+    duration:
+      name: Dauer
+      description: Dauer des Tests in Minuten
+      required: false
+      example: 10
+      selector:
+        number:
+          min: 1
+          max: 60
+          step: 1
