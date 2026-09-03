@@ -2,14 +2,10 @@
 
 import os
 import json
-import importlib
 import sys
 from homeassistant.core import HomeAssistant
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers import entity_registry as er
-
 from .const import DOMAIN
-from .logic.error_handler import ErrorHandler
 
 class PVMDiagnostics:
     """Führt eine umfassende Diagnose der Integration durch."""
@@ -29,6 +25,7 @@ class PVMDiagnostics:
         self._check_manifest()
         self._check_const()
         self._check_config_flow()
+        self._check_init()
         self._check_device_types()
         self._check_logic()
         self._check_dashboard()
@@ -67,7 +64,6 @@ class PVMDiagnostics:
             if not os.path.exists(path):
                 self.errors.append("❌ const.py nicht gefunden!")
                 return
-            # Prüfe, ob DOMAIN definiert ist
             with open(path, "r") as f:
                 content = f.read()
                 if 'DOMAIN = "pvm"' not in content:
@@ -83,7 +79,6 @@ class PVMDiagnostics:
             if not os.path.exists(path):
                 self.errors.append("❌ config_flow.py nicht gefunden!")
                 return
-            # Prüfe auf wichtige Imports
             with open(path, "r") as f:
                 content = f.read()
                 if "import voluptuous as vol" not in content:
@@ -95,6 +90,23 @@ class PVMDiagnostics:
                 self.infos.append("✅ config_flow.py ist vorhanden")
         except Exception as e:
             self.errors.append(f"❌ Fehler beim Lesen der config_flow.py: {e}")
+
+    def _check_init(self):
+        """Prüft die __init__.py."""
+        try:
+            path = self.hass.config.path("custom_components/pvm/__init__.py")
+            if not os.path.exists(path):
+                self.errors.append("❌ __init__.py nicht gefunden!")
+                return
+            with open(path, "r") as f:
+                content = f.read()
+                if "async_setup_entry" not in content:
+                    self.errors.append("❌ async_setup_entry() nicht in __init__.py implementiert")
+                if "async_unload_entry" not in content:
+                    self.errors.append("❌ async_unload_entry() nicht in __init__.py implementiert")
+                self.infos.append("✅ __init__.py ist vorhanden")
+        except Exception as e:
+            self.errors.append(f"❌ Fehler beim Lesen der __init__.py: {e}")
 
     def _check_device_types(self):
         """Prüft die device_types."""
@@ -129,8 +141,14 @@ class PVMDiagnostics:
     async def _check_entities(self):
         """Prüft, ob die Integration Entitäten erstellt hat."""
         try:
+            # Prüfe, ob es eine Config-Entry gibt
+            entries = self.hass.config_entries.async_entries(DOMAIN)
+            if not entries:
+                self.warnings.append("⚠️ Keine Config-Entry gefunden – Integration wurde nicht korrekt eingerichtet")
+                return
+            entry = entries[0]
             entity_registry = er.async_get(self.hass)
-            entities = er.async_entries_for_config_entry(entity_registry, self.hass.data.get(DOMAIN, {}).get("entry_id", ""))
+            entities = er.async_entries_for_config_entry(entity_registry, entry.entry_id)
             if not entities:
                 self.warnings.append("⚠️ Keine Entitäten gefunden – Integration wurde möglicherweise nicht korrekt initialisiert")
             else:
