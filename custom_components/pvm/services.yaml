@@ -119,3 +119,7 @@ start_test:
           min: 1
           max: 60
           step: 1
+run_diagnostics:
+  name: Diagnose ausführen
+  description: Führt eine umfassende Diagnose der PVM-Integration durch
+  fields: {}
