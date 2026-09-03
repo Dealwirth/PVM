@@ -9,6 +9,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from .const import DOMAIN, SENSOR_MAPPING
 from .logic.error_handler import ErrorHandler
 
+
 async def async_setup_platform(
     hass: HomeAssistant,
     config: ConfigType,
@@ -20,20 +21,26 @@ async def async_setup_platform(
     sensors = []
 
     # Sensoren aus der Registry erstellen
-    registry = hass.data[DOMAIN].get("registry")
+    registry = hass.data.get(DOMAIN, {}).get("registry")
     if registry:
-        for device in registry.get_all_devices():
-            if device.device_type == "pv":
-                sensors.append(PVSensor(device))
-            elif device.device_type == "wp":
-                sensors.append(WPSensor(device))
-            elif device.device_type == "auto":
-                sensors.append(CarSensor(device))
-            elif device.device_type == "verbraucher":
-                sensors.append(ConsumerSensor(device))
+        try:
+            for device in registry.get_all_devices():
+                if device.device_type == "pv":
+                    sensors.append(PVSensor(device))
+                elif device.device_type == "wp":
+                    sensors.append(WPSensor(device))
+                elif device.device_type == "auto":
+                    sensors.append(CarSensor(device))
+                elif device.device_type == "verbraucher":
+                    sensors.append(ConsumerSensor(device))
+        except Exception as e:
+            error_handler.log_error("sensor", "Fehler beim Erstellen der Sensoren", e)
 
-    async_add_entities(sensors, True)
-    error_handler.log_info("sensor", f"{len(sensors)} Sensoren geladen")
+    if sensors:
+        async_add_entities(sensors, True)
+        error_handler.log_info("sensor", f"{len(sensors)} Sensoren geladen")
+    else:
+        error_handler.log_warning("sensor", "Keine Sensoren gefunden")
 
 class PVSensor(SensorEntity):
     """Sensor für PV-Anlage."""
@@ -47,10 +54,16 @@ class PVSensor(SensorEntity):
 
     @property
     def native_value(self):
-        return self._device.power
+        try:
+            return self._device.power
+        except Exception:
+            return 0
 
     async def async_update(self):
-        await self._device.async_update()
+        try:
+            await self._device.async_update()
+        except Exception:
+            pass
 
 class WPSensor(SensorEntity):
     """Sensor für Wärmepumpe."""
@@ -64,10 +77,16 @@ class WPSensor(SensorEntity):
 
     @property
     def native_value(self):
-        return getattr(self._device, "temperature", 0)
+        try:
+            return getattr(self._device, "temperature", 0)
+        except Exception:
+            return 0
 
     async def async_update(self):
-        await self._device.async_update()
+        try:
+            await self._device.async_update()
+        except Exception:
+            pass
 
 class CarSensor(SensorEntity):
     """Sensor für Auto (SoC)."""
@@ -81,10 +100,16 @@ class CarSensor(SensorEntity):
 
     @property
     def native_value(self):
-        return getattr(self._device, "soc", 0)
+        try:
+            return getattr(self._device, "soc", 0)
+        except Exception:
+            return 0
 
     async def async_update(self):
-        await self._device.async_update()
+        try:
+            await self._device.async_update()
+        except Exception:
+            pass
 
 class ConsumerSensor(SensorEntity):
     """Sensor für Verbraucher."""
@@ -98,7 +123,13 @@ class ConsumerSensor(SensorEntity):
 
     @property
     def native_value(self):
-        return self._device.power
+        try:
+            return self._device.power
+        except Exception:
+            return 0
 
     async def async_update(self):
-        await self._device.async_update()
+        try:
+            await self._device.async_update()
+        except Exception:
+            pass
