@@ -1,1 +1,30 @@
-?
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: "actions/checkout@v4"
+      - uses: "actions/create-release@v1"
+        id: create_release
+        with:
+          draft: false
+          prerelease: false
+          release_name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          body_path: "CHANGELOG.md"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: "actions/upload-release-asset@v1"
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: "./custom_components/pvm"
+          asset_name: "pvm.zip"
+          asset_content_type: "application/zip"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
