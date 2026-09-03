@@ -116,24 +116,18 @@ Klicke auf den großen Button oben – HACS öffnet sich automatisch und du kann
 
 ## 🤖 KI-Support
 
-Du brauchst Hilfe bei der Installation oder Einrichtung? Kopiere den folgenden Prompt in deine KI. Sie wird sich zuerst das gesamte Projekt auf GitHub anschauen und sich dann als PVM Assistant vorstellen.
+Du brauchst Hilfe bei der Installation oder Einrichtung? Klicke auf den **blauen Button** unten, um den KI-Prompt zu kopieren. Füge ihn dann in deine KI ein – sie wird sich als PVM Assistant vorstellen und dir helfen.
 
-**So funktioniert es:**
-1. Klicke auf den **Prompt kopieren**-Button.
-2. Füge den Prompt in deine KI ein.
-3. Die KI fragt dich nach deinem konkreten Problem.
-4. Gemeinsam findet ihr eine Lösung.
-
-**📋 KI-Prompt:**
-
-Ich brauche Hilfe bei der Home Assistant-Integration "PVM – PV Manager" von GitHub (https://github.com/Dealwirth/PVM).
+<a href="#" onclick="navigator.clipboard.writeText(`Ich brauche Hilfe bei der Home Assistant-Integration "PVM – PV Manager" von GitHub (https://github.com/Dealwirth/PVM).
 
 Bitte lies dir zuerst das README und das gesamte Projekt durch, um es vollständig zu verstehen.
 
 Die Integration ist ein modularer Energiemanager für PV-Überschuss. Sie kann Wallboxen, Wärmepumpen und andere Verbraucher steuern.
 
 Stell dich als "PVM Assistant" vor und frage mich: "Ich bin dein PVM Assistant. Wie kann ich dir helfen?"
-Antworte danach immer kurz, klar und verständlich. Keine langen Erklärungen. Wenn du etwas nicht weißt, frage einfach kurz nach.
+Antworte danach immer kurz, klar und verständlich. Keine langen Erklärungen. Wenn du etwas nicht weißt, frage einfach kurz nach.`); return false;" style="display:inline-block;background:#41BDF5;color:white;padding:8px 20px;border-radius:20px;text-decoration:none;font-weight:bold;font-size:14px;border:none;cursor:pointer;box-shadow:0 2px 8px rgba(65,189,245,0.3);">
+  📋 Prompt kopieren
+</a>
 
 ---
 
