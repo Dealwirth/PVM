@@ -20,28 +20,30 @@ class AutoDetector:
 
     async def async_detect(self):
         """Führt die automatische Erkennung durch."""
-        # Alle Wallboxen abfragen
         wallboxes = self.registry.get_devices_by_type("wallbox")
         autos = self.registry.get_devices_by_type("auto")
 
-        for wallbox in wallboxes:
-            wallbox_power = await wallbox.async_get_power()
-            if wallbox_power > 0:
-                # Suche nach passendem Auto
-                for auto in autos:
-                    if await self._matches(wallbox, auto, wallbox_power):
-                        self._mapping[wallbox.device_id] = auto.device_id
-                        self.error_handler.log_info(
-                            "AutoDetector",
-                            f"Auto {auto.name} erkannt an Wallbox {wallbox.name}"
-                        )
-                        break
+        if not wallboxes or not autos:
+            return
 
-    async def _matches(self, wallbox, auto, wallbox_power) -> bool:
-        """Prüft, ob ein Auto an der Wallbox hängt."""
-        # Platzhalter: Leistungsabgleich
-        # Später: SoC-Anstieg mit Ladeleistung vergleichen
-        return True
+        for wallbox in wallboxes:
+            try:
+                wallbox_power = await wallbox.async_get_power()
+                if wallbox_power > 0.1:  # Wallbox lädt
+                    for auto in autos:
+                        # Prüfe, ob das Auto lädt (SoC steigt)
+                        old_soc = getattr(auto, "_old_soc", 0)
+                        current_soc = getattr(auto, "soc", 0)
+                        if current_soc > old_soc + 0.5:  # SoC ist gestiegen
+                            self._mapping[wallbox.device_id] = auto.device_id
+                            self.error_handler.log_info(
+                                "AutoDetector",
+                                f"Auto {auto.name} erkannt an Wallbox {wallbox.name}"
+                            )
+                            break
+                        auto._old_soc = current_soc
+            except Exception as e:
+                self.error_handler.log_warning("AutoDetector", f"Fehler bei Wallbox {wallbox.device_id}: {e}")
 
     def get_auto_for_wallbox(self, wallbox_id: str) -> str:
         """Gibt die Auto-ID für eine Wallbox zurück."""
