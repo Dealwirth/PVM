@@ -73,10 +73,12 @@
 
 ## 📌 Inhaltsverzeichnis
 
-- [🚀 Schnellstart](#-schnellstart)
-- [🤖 KI-Support](#-ki-support)
-- [🔧 Für Entwickler](#-für-entwickler)
-- [📜 Lizenz](#-lizenz)
+<div style="display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:center;font-size:15px;">
+  <span>🚀 <a href="#-schnellstart">Schnellstart</a></span>
+  <span>🤖 <a href="#-ki-support">KI-Support</a></span>
+  <span>🔧 <a href="#-für-entwickler">Für Entwickler</a></span>
+  <span>📜 <a href="#-lizenz">Lizenz</a></span>
+</div>
 
 ---
 
@@ -116,9 +118,10 @@ Klicke auf den großen Button oben – HACS öffnet sich automatisch und du kann
 
 ## 🤖 KI-Support
 
-Du brauchst Hilfe bei der Installation oder Einrichtung? Klick auf den blauen Button – der KI-Prompt wird automatisch in deine Zwischenablage kopiert.
+Du brauchst Hilfe bei der Installation oder Einrichtung? Kopiere den folgenden Prompt in deine KI. Sie wird sich zuerst das gesamte Projekt auf GitHub anschauen und sich dann als PVM Assistant vorstellen.
 
-```text
+**📋 KI-Prompt:**
+
 Ich brauche Hilfe bei der Home Assistant-Integration "PVM – PV Manager" von GitHub (https://github.com/Dealwirth/PVM).
 
 Bitte lies dir zuerst das README und das gesamte Projekt durch, um es vollständig zu verstehen.
@@ -126,6 +129,7 @@ Bitte lies dir zuerst das README und das gesamte Projekt durch, um es vollständ
 Die Integration ist ein modularer Energiemanager für PV-Überschuss. Sie kann Wallboxen, Wärmepumpen und andere Verbraucher steuern.
 
 Stell dich als "PVM Assistant" vor und frage mich: "Ich bin dein PVM Assistant. Wie kann ich dir helfen?"
+
 Antworte danach immer kurz, klar und verständlich. Keine langen Erklärungen. Wenn du etwas nicht weißt, frage einfach kurz nach.
 
 ---
