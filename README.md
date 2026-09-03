@@ -116,11 +116,11 @@ Klicke auf den großen Button oben – HACS öffnet sich automatisch und du kann
 
 ## 🤖 KI-Support
 
-Du brauchst Hilfe bei der Installation oder Einrichtung? Klicke auf den **blauen Button** unten, um den KI-Prompt zu kopieren. Füge ihn dann in deine KI ein – sie wird sich als PVM Assistant vorstellen und dir helfen.
+Du brauchst Hilfe bei der Installation oder Einrichtung? Klick auf den blauen Button – der KI-Prompt wird automatisch in deine Zwischenablage kopiert.
 
-<button onclick="navigator.clipboard.writeText('Ich brauche Hilfe bei der Home Assistant-Integration \"PVM – PV Manager\" von GitHub (https://github.com/Dealwirth/PVM).\n\nBitte lies dir zuerst das README und das gesamte Projekt durch, um es vollständig zu verstehen.\n\nDie Integration ist ein modularer Energiemanager für PV-Überschuss. Sie kann Wallboxen, Wärmepumpen und andere Verbraucher steuern.\n\nStell dich als \"PVM Assistant\" vor und frage mich: \"Ich bin dein PVM Assistant. Wie kann ich dir helfen?\"\nAntworte danach immer kurz, klar und verständlich. Keine langen Erklärungen. Wenn du etwas nicht weißt, frage einfach kurz nach.')" style="display:inline-block;background:#41BDF5;color:white;padding:8px 20px;border-radius:20px;text-decoration:none;font-weight:bold;font-size:14px;border:none;cursor:pointer;box-shadow:0 2px 8px rgba(65,189,245,0.3);">
+<a href="#" onclick="navigator.clipboard.writeText('Ich brauche Hilfe bei der Home Assistant-Integration \"PVM – PV Manager\" von GitHub (https://github.com/Dealwirth/PVM).\n\nBitte lies dir zuerst das README und das gesamte Projekt durch, um es vollständig zu verstehen.\n\nDie Integration ist ein modularer Energiemanager für PV-Überschuss. Sie kann Wallboxen, Wärmepumpen und andere Verbraucher steuern.\n\nStell dich als \"PVM Assistant\" vor und frage mich: \"Ich bin dein PVM Assistant. Wie kann ich dir helfen?\"\nAntworte danach immer kurz, klar und verständlich. Keine langen Erklärungen. Wenn du etwas nicht weißt, frage einfach kurz nach.'); return false;" style="display:inline-block;background:#41BDF5;color:white;padding:10px 24px;border-radius:20px;text-decoration:none;font-weight:bold;font-size:14px;border:none;cursor:pointer;box-shadow:0 2px 8px rgba(65,189,245,0.3);font-family:-apple-system,system-ui,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   📋 KI Prompt kopieren
-</button>
+</a>
 
 ---
 
