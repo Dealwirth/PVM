@@ -65,93 +65,161 @@
 </div>
 ---
 ## 📌 Inhaltsverzeichnis
-<div style="display:flex;flex-wrap:nowrap;gap:12px 24px;justify-content:center;font-size:clamp(0.9rem, 1.2vw, 1.1rem);margin:10px 0;">
-<span>🚀 <a href="#-schnellstart">Schnellstart</a></span>
-<span>🤖 <a href="#-ki-support">KI-Support</a></span>
-<span>🔧 <a href="#-für-entwickler">Für Entwickler</a></span>
-<span>📜 <a href="#-lizenz">Lizenz</a></span>
-</div>
+- [🚀 Schnellstart](#-schnellstart)
+- [⚙️ Funktionsweise](#-funktionsweise)
+- [❓ Häufige Fragen](#-häufige-fragen)
+- [🤖 KI-Support](#-ki-support)
+- [🔧 Für Entwickler](#-für-entwickler)
+- [📚 Dokumentation](#-dokumentation)
+- [📜 Lizenz](#-lizenz)
 ---
 ## 🚀 Schnellstart
 ### Was kann PVM?
 PVM ist ein **modulares System** – du musst nicht alle Funktionen nutzen. Es funktioniert genauso gut, wenn du nur eine Wallbox hast oder nur eine Wärmepumpe. Je nachdem, welche Geräte du in Home Assistant integriert hast, stehen dir entsprechende Funktionen zur Verfügung.
+
 - **Automatische PV-Überschussverteilung** an alle deine Verbraucher.
-- **E-Auto-Laden** mit Mindest-SOC, Max-SOC und Zeit-Zielen (z.B. "bis 18:00 auf 80 %").
-- **Power Charge** – per Klick mit voller Leistung laden, automatischer Stopp bei Erreichen des Max-SOC.
-- **Wärmepumpen-Steuerung** inkl. automatischem Testlauf zur Verbrauchsmessung (Kalibrierung).
+- **E-Auto-Laden** mit Mindest-SOC, Max-SOC und Zeit-Zielen (z. B. „bis 18:00 auf 80 %“).
+- **Power Charge** – per Klick mit voller Leistung laden, automatischer Stopp beim Max-SOC.
+- **Wärmepumpen-Steuerung** inkl. Testlauf zur Verbrauchsmessung (Kalibrierung).
 - **Waschmaschine, Lüftung, Poolpumpe** – alles, was du mit Home Assistant schalten kannst.
 - **Automatische Geräteerkennung** – PVM schlägt passende Sensoren vor, du bestätigst per Klick.
-- **Fertiges Dashboard** – wird bei Installation automatisch erstellt und erscheint in der Seitenleiste.
-- **Herstellerunabhängig** – jede Entität in HA kann gesteuert werden (z. B. auch über evcc, openWB, Shelly & Co.).
+- **Fertiges Dashboard** – wird bei der Installation automatisch erstellt und erscheint in der Seitenleiste.
+- **Herstellerunabhängig** – jede in HA sichtbare Entität kann gesteuert werden (z. B. auch über evcc, openWB oder Shelly).
+
 ### Installation
-#### Variante 1: Per Button (empfohlen)
+
+**Variante 1: Per Button (empfohlen)**
+
 Klicke auf den großen Button oben – HACS öffnet sich automatisch und du kannst die Integration direkt installieren.
-#### Variante 2: Manuell in HACS
-1. **HACS öffnen** → Drei-Punkte-Menü → **"Custom repositories"**.
-2. URL eingeben: `https://github.com/Dealwirth/PVM` → Typ: **"Integration"**.
-3. In HACS nach **"PV Manager"** suchen → **Installieren**.
-4. **Home Assistant neustarten**.
-5. Der **Setup-Wizard** öffnet sich beim Hinzufügen – einfach den Anweisungen folgen (automatische Einrichtung empfohlen).
-6. **Fertig!** Das Dashboard "PV Manager" erscheint in deiner Seitenleiste.
+
+**Variante 2: Manuell in HACS**
+
+1. **HACS öffnen** → Drei-Punkte-Menü → **„Custom repositories“**.
+2. URL eingeben: `https://github.com/Dealwirth/PVM` → Typ: **„Integration“**.
+3. In HACS nach **„PV Manager“** suchen → **Installieren**.
+4. **Home Assistant neu starten**.
+
+**Danach (in Home Assistant)**
+
+1. **Einstellungen → Geräte & Dienste → Integration hinzufügen** → „PV Manager“.
+2. Im Wizard **„Automatische Einrichtung“** wählen (empfohlen) – PVM füllt die Felder mit Vorschlägen.
+3. **Energie-Sensoren** bestätigen (PV und/oder Netz – mindestens einer).
+4. **Geräte hinzufügen**: Wallbox/E-Auto, Wärmepumpe, Verbraucher – beliebig oft wiederholen.
+5. **Fertig!** Das Dashboard „PV Manager“ erscheint in deiner Seitenleiste.
+
 ### Bedienung
-- **Prioritäten**: Im Dashboard-Bereich "Prioritäten" verschiebst du Geräte per **▲/▼-Buttons** – was oben steht, bekommt zuerst Strom.
-- **Power Charge**: Klick auf den Power-Charge-Schalter eines Autos – es lädt mit voller Leistung und stoppt automatisch beim Max-SOC.
-- **Ziele setzen**: Stelle Mindest-/Max-SOC sowie "Frist-Ziel" (Uhrzeit + Ziel-SoC) direkt im Dashboard ein.
-- **WP-Test**: Klick auf "WP-Test starten" – die WP heizt einmal auf 70 °C hoch, misst und speichert den Verbrauch.
-- **Geräte suchen**: Button "PVM Geräte suchen" erkennt neue Sensoren/Wallboxen automatisch.
+
+- **Prioritäten**: Im Dashboard-Bereich „Prioritäten“ verschiebst du Geräte mit den **▲/▼-Buttons** – was oben steht, bekommt zuerst Strom.
+- **Power Charge**: Schalter am Auto antippen – es lädt mit voller Leistung und stoppt automatisch beim Max-SOC.
+- **Ziele setzen**: Mindest-/Max-SOC und „Frist-Ziel“ (Uhrzeit + Ziel-SoC) direkt im Dashboard einstellen.
+- **WP-Test**: „WP-Test starten“ – die WP heizt einmal bis 70 °C, misst und speichert den Verbrauch.
+- **Geräte suchen**: „PVM Geräte suchen“ erkennt neue Sensoren und Wallboxen automatisch.
+
 > **Du musst kein YAML schreiben. Alles geht per Klick.**
+
+---
+## ⚙️ Funktionsweise
+
+PVM entscheidet alle 30 Sekunden neu, wer deinen PV-Überschuss bekommt:
+
+1. **Überschuss messen** – über den Netz-Sensor (Import/Export) oder PV minus Hausverbrauch, abzüglich einer kleinen Reserve.
+2. **Garantien zuerst** – Power Charge, dringende Frist-Ziele, Mindest-SOC und der WP-Notfall laufen nötigenfalls auch mit Netzstrom.
+3. **Überschuss nach Priorität verteilen** – das oberste Gerät zuerst; Leistungs-Limits und Mindest-Ladeleistungen werden beachtet.
+4. **Sauber schalten** – Mindest-Ein-/Ausschaltzeiten und Hysterese verhindern Flackern; ungültige Messwerte führen zum Halten statt zum Raten.
+5. **Ziele automatisch beenden** – Frist erreicht, Max-SOC erreicht oder Überschuss weg → Gerät wird gestoppt und der Strom geht an das nächste Gerät.
+
+Damit bleibt das System **ausfallsicher**: Ein einzelner Sensorausfall blockiert nichts, nach drei Fehlern pausiert die Engine kurz und startet selbstständig wieder.
+
+---
+## ❓ Häufige Fragen
+
+| Frage | Antwort |
+| --- | --- |
+| Wird nur mit PV-Überschuss geladen? | Standardmäßig ja. Netzstrom fließt nur für Mindest-SOC, Frist-Ziele oder Power Charge – alles per Schalter abschaltbar, Modus „Nur Überschuss“ erzwingt reine PV-Nutzung. |
+| Welche Wallboxen werden unterstützt? | Alle, die in Home Assistant als Entität sichtbar sind (Schalter, optional Leistungs-/Strom-Nummer). |
+| Warum lädt mein Auto nicht bei 500 W Überschuss? | Unterhalb der Mindest-Ladeleistung (Standard 1,4 kW) startet PVM bewusst nicht. |
+| Wie finde ich heraus, was gerade passiert? | Status-Sensoren je Gerät, „PVM Status“ global und der Service `pvm.run_self_test`. |
+| Wo kann ich Fehler melden? | [GitHub Issues](https://github.com/Dealwirth/PVM/issues) mit Log (Filter `pvm`) und Diagnose (PV Manager → ⚙ → Diagnose). |
+
+Weitere Details und Lösungen: [docs/faq.md](docs/faq.md).
+
 ---
 ## 🤖 KI-Support
+
 Du brauchst Hilfe bei der Installation oder Einrichtung? Kopiere den folgenden Prompt in deine KI. Sie wird sich zuerst das gesamte Projekt auf GitHub anschauen und sich dann als PVM Assistant vorstellen.
-<div style="background:#f0f8ff;border-left:4px solid #41BDF5;border-radius:8px;padding:16px 20px;margin:12px 0;font-family:monospace;font-size:14px;white-space:pre-wrap;word-wrap:break-word;color:#1a1a2e;">
-📋 <strong>KI-Prompt:</strong>
-Ich brauche Hilfe bei der Home Assistant-Integration "PVM – PV Manager" von GitHub (https://github.com/Dealwirth/PVM).
-Bitte lies dir zuerst das README und das gesamte Projekt durch, um es vollständig zu verstehen.
-Die Integration ist ein modularer Energiemanager für PV-Überschuss. Sie kann Wallboxen, Wärmepumpen und andere Verbraucher steuern.
-Stell dich als "PVM Assistant" vor und frage mich: "Ich bin dein PVM Assistant. Wie kann ich dir helfen?"
-Antworte danach immer kurz, klar und verständlich. Keine langen Erklärungen. Wenn du etwas nicht weißt, frage einfach kurz nach.
-</div>
+
+> **KI-Prompt:**
+>
+> Ich brauche Hilfe bei der Home Assistant-Integration „PVM – PV Manager“ von GitHub (https://github.com/Dealwirth/PVM).
+> Bitte lies dir zuerst das README und das gesamte Projekt durch, um es vollständig zu verstehen.
+> Die Integration ist ein modularer Energiemanager für PV-Überschuss. Sie kann Wallboxen, Wärmepumpen und andere Verbraucher steuern.
+> Stell dich als „PVM Assistant“ vor und frage mich: „Ich bin dein PVM Assistant. Wie kann ich dir helfen?“
+> Antworte danach immer kurz, klar und verständlich. Keine langen Erklärungen. Wenn du etwas nicht weißt, frage einfach kurz nach.
+
 ---
 ## 🔧 Für Entwickler
+
 | Thema | Details |
 | :--- | :--- |
 | **Sprache** | Python 3.11+ |
 | **Framework** | Home Assistant Core (Async/Await) |
 | **Abhängigkeiten** | HACS (für Installation), keine weiteren externen Libs |
-| **Daten** | JSON-Store (`.storage/pvm`) – kein YAML, keine Eingriffe in configuration.yaml |
-| **Erweiterung** | Neue Geräte-Rollen/Steuerungen über Wizard + Engine (siehe `docs/development.md`) |
+| **Daten** | JSON-Store (`.storage/pvm`) – kein YAML, keine Eingriffe in `configuration.yaml` |
+| **Erweiterung** | Neue Geräte-Rollen/Steuerungen über Wizard + Engine (siehe [docs/development.md](docs/development.md)) |
 | **Qualität** | `ruff` + `pytest` (ohne HA-Installation) + `hassfest` in CI |
+
+### Struktur
+
+```
+custom_components/pvm/
+├── engine.py            Prioritäts-Engine (reine Logik)
+├── manager.py           Steuerzyklus, Service-Aufrufe, WP-Test, Scan
+├── wp_test.py           WP-Kalibrierung (Zustandsmaschine)
+├── detector.py          Automatische Geräteerkennung
+├── config_flow.py       Setup-Wizard & Optionen
+├── dashboard_creator.py Automatische Dashboard-Erstellung
+├── sensor.py … time.py  Entitäten-Plattformen
+├── translations/        de + en
+└── …
+```
+
 ### Neue Geräte-/Steuerungsprofile
+
 1. Formularfelder im Wizard ergänzen (`config_flow.py`).
 2. Entitäten- und Dashboard-Katalog erweitern (`dashboard_creator.py`, `dashboard_builder.py`).
 3. Verhalten in der Engine (`engine.py`) bzw. Ausführung (`manager.py`) ergänzen.
-### Wichtige Dateien
-| Datei | Zweck |
-| :--- | :--- |
-| `config_flow.py` | Setup-Wizard & Options (Konfiguration) |
-| `const.py` / `config_model.py` | Konstanten, Defaults, Datenmodell |
-| `engine.py` | Prioritäts-Engine, Fristen, Mindest-SOC (reine Logik) |
-| `manager.py` | Steuerzyklus, Service-Aufrufe, WP-Test, Scan |
-| `wp_test.py` | WP-Kalibrierung (Zustandsmaschine) |
-| `detector.py` | Automatische Geräteerkennung |
-| `dashboard_creator.py` | Automatische Dashboard-Erstellung |
-| `sensor.py` … `time.py` | Entitäten-Plattformen |
+
 ### Code-Stil
+
 - **Async/Await** für alle I/O-Operationen.
 - **Type Hints** für alle Funktionen.
 - **Docstrings** in Google-Style (kurz, präzise).
 - Keine externen Abhängigkeiten außer Home Assistant Core.
+
 ### Testen
-- Lokale Tests mit `pytest` (Tests im `tests/`-Ordner) – ohne HA-Installation.
+
+- Lokale Tests mit `pytest` (Tests im `tests/`-Ordner) – **ohne HA-Installation**.
 - CI/CD über GitHub Actions (siehe `.github/workflows/validate.yml`).
+
 ### Pull Requests
-- Branche von `main` abzweigen.
-- Änderungen dokumentieren (in dieser README und/oder `docs/`, falls relevant).
-- Sicherstellen, dass alle Tests durchlaufen.
+
+- Branch von `main` abzweigen.
+- Änderungen in dieser README und/oder `docs/` dokumentieren, falls relevant.
+- Sicherstellen, dass `ruff` und alle Tests durchlaufen.
+
+---
+## 📚 Dokumentation
+
+- [Installation](docs/installation.md)
+- [Konfiguration](docs/configuration.md)
+- [FAQ & Fehlerbehebung](docs/faq.md)
+- [Für Entwickler](docs/development.md)
+
 ---
 ## 📜 Lizenz
+
 MIT – siehe [LICENSE](LICENSE).
+
 ---
-<p align="center">
-<sub>Made with ❤️ by Dealwirth</sub>
-</p>
+
+*Made with ❤️ by Dealwirth*
