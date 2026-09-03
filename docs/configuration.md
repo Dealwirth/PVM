@@ -1,14 +1,31 @@
 # Konfiguration
 
-Alles wird **ohne YAML** über das **Dashboard** konfiguriert (Installation in
- einem Klick ohne Wizard). Verwaltungs-Dialoge (Messungen, Geräte, gefundene
- Sensoren/Geräte übernehmen) erreichst du aus dem Dashboard heraus über
- **Geräte & Dienste → PV Manager → Optionen** – sie sind bewusst kurz und
- auf einen Zweck beschränkt.
+Alles wird **ohne YAML** auf der eigenen **PV-Manager-Seite** konfiguriert
+(Seitenleiste). Die Installation selbst ist ein Klick ohne Fragen; Messungen,
+Geräte, Reihenfolge und Einstellungen verwaltest du ausschließlich dort –
+auf einer **eigenständigen Seite**, die PVM selbst mitbringt (kein Lovelace,
+keine HA-Dialoge, kein Options-Flow).
+
+Die Seite hat sechs Reiter:
+
+| Reiter | Zweck |
+| --- | --- |
+| **Erste Schritte** | Mini-Tutorial: Sensoren ablesen → Geräte hinzufügen → einstellen. Zeigt den aktuellen Stand und leitet dich zum nächsten Schritt. |
+| **☀️ Übersicht** | Live-Energiefluss: PV, Haus, Netz, Überschuss und jedes Gerät mit aktuellem Wert – animiert und farbcodiert. |
+| **🔌 Geräte** | Alle Geräte ansehen, hinzufügen, bearbeiten, entfernen und einzeln steuern. |
+| **⬆️ Reihenfolge** | Prioritätenliste per ▲/▼-Buttons (oben = bekommt zuerst Strom). |
+| **🔍 Gefunden** | Vorschläge der Auto-Erkennung mit Begründung und Live-Messwert – per Klick übernehmen. |
+| **🎨 Einstellungen** | Globale Regeln und Design – aufklappbare Gruppen, Schieberegler für Laien. |
+
+Jede Änderung wird sofort über die PVM-WebSocket-Kommandos gespeichert und
+wirkt ab dem nächsten Steuerzyklus (30 s).
 
 ## Energie-Messung
 
-PVM braucht mindestens **einen** der beiden Wege, um den Überschuss zu kennen:
+PVM braucht mindestens **einen** der beiden Wege, um den Überschuss zu kennen.
+Unter **Erste Schritte → Sensoren ablesen** wählst du pro Sensor einfach aus,
+ob du ihn hast und welche Entität es ist („habe ich nicht“ ist immer eine
+Option – PVM fährt dann mit dem anderen Weg fort):
 
 | Sensor | Wofür? | Empfohlen |
 | --- | --- | --- |
@@ -17,9 +34,16 @@ PVM braucht mindestens **einen** der beiden Wege, um den Überschuss zu kennen:
 | **PV-Leistung** | Erzeugung des Wechselrichters. | Für PV-ohne-Netz-Setups |
 | **Hausverbrauch** (optional) | Nur nötig, wenn kein Netz-Sensor vorhanden ist (Überschuss = PV − Haus). | – |
 
-**Einspeise-Reserve** (Nummer „PVM Einspeise-Reserve“): Leistung in Watt, die
-PVM als Puffer zurückhält (Standard 100 W). So werden kurzzeitige Wolken oder
-Messschwankungen nicht sofort an die Verbraucher weitergereicht.
+Die Auswahlfelder akzeptieren **alle passenden Entitätenarten** (Sensor-,
+Zähler- und Zahlen-Entitäten) und zeigen verständliche Namen mit Beispielen –
+der alte kryptische Fehler „expected (sensor)“ ist damit behoben. Findet PVM
+deine Sensoren selbst, erscheinen sie unter **🔍 Gefunden** und du übernimmst
+sie mit einem Klick.
+
+**Einspeise-Reserve:** Leistung in Watt, die PVM als Puffer zurückhält
+(Standard 100 W). So werden kurzzeitige Wolken oder Messschwankungen nicht
+sofort an die Verbraucher weitergereicht. Einstellbar unter **Einstellungen →
+Globale Regeln**.
 
 > **Hinweis:** Ohne Haus-Sensor und ohne Netz-Sensor wird die komplette
 > PV-Leistung als Überschuss behandelt – dann sollte der Hausverbrauch klein
@@ -27,34 +51,41 @@ Messschwankungen nicht sofort an die Verbraucher weitergereicht.
 
 ## Geräte
 
-Jedes Gerät hat eine **Rolle**, eine **Steuerung** und optionale **Sensoren**.
+Unter **🔌 Geräte → „Gerät hinzufügen“** öffnet sich ein eigenes, übersichtliches
+Formular. Es kennt alle gängigen Geräte und zeigt **nur die Felder, die zu
+deiner Auswahl passen** – nichts Kompliziertes nebenher.
 
 | Rolle | Steuerung | Optionale Sensoren | Besonderheiten |
 | --- | --- | --- | --- |
-| **Wallbox (E-Auto)** | Schalter an/aus und/oder Leistungs-/Strom-Limit (Nummer) | Ladeleistung, SoC | Mindest-/Max-SOC, Frist-Ziele, Power Charge, Netz-Freigaben |
+| **Wallbox (E-Auto)** | Schalter an/aus, zwei Taster oder Schalter + Leistungs-/Strom-Limit | Ladeleistung, SoC | Mindest-/Max-SOC, Frist-Ziele, Power Charge, Netz-Freigaben |
 | **Wärmepumpe** | Schalter (Heizbetrieb erlauben) | Temperatur (Pflicht), Leistung | Soll-Temperatur, Sicherheits-Minimum, Kalibrierungstest |
 | **Verbraucher** | Schalter | Leistung | Nennleistung für die Entscheidung |
 
-**Steuerungsarten**
+**Steuerungsarten – du wählst eine, die Felder erscheinen automatisch:**
 
-- **Schalter (an/aus):** PVM schaltet die Entität. Die Leistung ist nicht regelbar
-  (Gerät läuft mit seiner normalen Leistung oder gar nicht).
+- **Ein Schalter (An/Aus):** PVM schaltet die Entität. Das Gerät läuft mit
+  seiner normalen Leistung oder gar nicht.
+- **Zwei Taster (Start/Stopp):** Für Geräte mit getrennten Tastern (z. B.
+  manche Wallboxen: ein Taster für Start, einer für Stopp). Dazu wird der
+  **Ladeleistungs-Sensor** als Pflichtfeld abgefragt – an ihm erkennt PVM,
+  ob das Gerät wirklich läuft, und drückt die Taster nur bei echten
+  Zustandswechseln (kein Doppel-Start/-Stopp).
 - **Schalter + Leistungs-/Strom-Begrenzung:** Zusätzlich setzt PVM einen
-  Sollwert an eine Nummern-Entität (z. B. „Max-Strom“ einer Wallbox). Damit kann
-  der Überschuss fein verteilt werden. Einheit (`W`, `kW`, `A`, `mA`) und
-  Phasenzahl werden beim Hinzufügen abgefragt und bei der Umrechnung
-  (Watt ↔ Ampere) verwendet.
+  Sollwert an eine Nummern-Entität (z. B. „Max-Strom“ einer Wallbox). Damit
+  kann der Überschuss fein verteilt werden. Einheit (`W`, `kW`, `A`, `mA`) und
+  Phasenzahl fragt das Formular ab und rechnet Watt ↔ Ampere selbst um.
 
 **Automatik-Schalter:** Jedes Gerät hat einen Schalter
 „**Automatik (Überschuss)**“. Nur wenn er an ist, steuert PVM das Gerät.
-Ausgeschaltete, noch laufende Geräte werden sanft gestoppt.
+Ausgeschaltete, noch laufende Geräte werden sanft gestoppt. Du kannst den
+Schalter auch in Home Assistant direkt nutzen – er ist eine normale Entität.
 
 ## Prioritäten
 
 Die Reihenfolge der Geräte bestimmt, **wer zuerst Überschuss bekommt**
-(1 = höchste Priorität). Ändern kannst du sie im Dashboard-Bereich
-**„Prioritäten“** über die ▲/▼-Buttons jedes Geräts oder über den Service
-`pvm.set_priority`.
+(1 = höchste Priorität). Im Reiter **⬆️ Reihenfolge** verschiebst du Geräte
+mit **▲/▼-Buttons** – das Ergebnis wird sofort gespeichert und animiert
+angezeigt. Alternativ geht es über den Service `pvm.set_priority`.
 
 ## E-Autos
 
@@ -63,7 +94,7 @@ Die Reihenfolge der Geräte bestimmt, **wer zuerst Überschuss bekommt**
 | **Mindest-SOC** | Garantierter Ladezustand. Ist er unterschritten, lädt PVM (Netzstrom erlaubt) mit begrenzter Leistung, bis der Mindestwert erreicht ist. |
 | **Max-SOC** | Ladestopp (Überschuss- und Power-Charge-Laden). |
 | **Frist-Ziel-SOC + Frist-Zeit** | „Bis 18:00 sollen 80 % erreicht sein.“ PVM berechnet, wann der Garantie-Ladevorgang spätestens starten muss, und lädt dann nötigenfalls mit Netzstrom. |
-| **Power Charge** | Manueller Knopf/Schalter: lädt mit voller Leistung (Netzstrom erlaubt) bis zum Max-SOC und schaltet danach automatisch ab. |
+| **Power Charge** | Manueller Schalter: lädt mit voller Leistung (Netzstrom erlaubt) bis zum Max-SOC und schaltet danach automatisch ab. |
 | **Netz für Mindest-SOC / Frist** | Schalter, ob für diese Garantien Netzstrom genutzt werden darf. |
 
 Die Batteriekapazität (kWh) wird benötigt, um aus dem SoC (Prozent) den
@@ -72,16 +103,19 @@ PVM berücksichtigt das automatisch und lädt nicht blind weiter.
 
 ## Wärmepumpe
 
-- **Soll-Temperatur** (Nummer): Bei Unterschreitung + Überschuss heizt die WP.
-- **Netz im Notfall**: Fällt die Temperatur unter das Sicherheits-Minimum
+- **Soll-Temperatur:** Bei Unterschreitung + Überschuss heizt die WP.
+- **Netz im Notfall:** Fällt die Temperatur unter das Sicherheits-Minimum
   (Standard 40 °C), heizt die WP auch ohne Überschuss – Frostschutz.
 - **WP-Test (Kalibrierung):** Heizt bis zur Zieltemperatur (Standard 70 °C),
   misst alle 10 s Leistung und Temperatur, erkennt und entfernt Störungen
   (z. B. laufende Waschmaschine) und speichert Dauer, Verbrauch und
-  Durchschnittsleistung. Start/Stopp über die Buttons im Dashboard oder die
-  Services `pvm.wp_test_start` / `pvm.wp_test_abort`.
+  Durchschnittsleistung. Start/Stopp über die Buttons im Geräte-Dialog oder
+  die Services `pvm.wp_test_start` / `pvm.wp_test_abort`.
 
 ## Modus (global)
+
+Der Betriebsmodus sitzt oben auf der Seite (und existiert zusätzlich als
+Entität `select.pvm_mode`):
 
 | Modus | Verhalten |
 | --- | --- |
@@ -92,40 +126,26 @@ PVM berücksichtigt das automatisch und lädt nicht blind weiter.
 
 ## Gerätesuche (Auto-Erkennung)
 
-Der Button **„PVM Geräte suchen“** (Dashboard → Einstellungen), der Service
-`pvm.scan_devices` oder der automatische Scan beim Start durchsucht die
-**Entity- UND Device-Registry** aller Integrationen – inklusive
-Hersteller-/Modell-Informationen (z. B. SMA, go-e, openWB, Vaillant).
-Gefundene Messungen und Geräte werden **mit Begründung und aktuellem
-Messwert** vorgeschlagen; mehrere Treffer fragt PVM ab. Übernehmen geht über
-**Optionen → „Gefunden“** – nichts wird ohne deine Bestätigung konfiguriert.
+Beim Start sucht PVM automatisch einmal nach passenden Sensoren und Geräten;
+jederzeit wiederholbar über den Button **„Jetzt suchen“** (Reiter **🔍 Gefunden**)
+oder den Service `pvm.scan_devices`. Die Suche durchsucht die **Entity- UND
+Device-Registry** aller Integrationen – inklusive Hersteller-/Modell-
+Informationen (z. B. SMA, go-e, openWB, Vaillant). Gefundene Messungen und
+Geräte werden **mit Begründung und aktuellem Messwert** vorgeschlagen; bei
+mehreren Treffern fragt PVM nach. Übernehmen heißt: Klick auf „Übernehmen“ –
+bei Geräten öffnet sich das **vorausgefüllte Formular** zum Bestätigen.
+Nichts wird ohne deine Bestätigung konfiguriert.
 
-### Steuerungsarten (dynamische Felder)
+## Design & Darstellung
 
-Pro Gerät wählst du, wie es gesteuert wird – PVM zeigt danach nur die passenden
-Felder:
-
-| Steuerung | Felder | Wofür? |
-| --- | --- | --- |
-| **Ein Schalter (An/Aus)** | 1 Schalter | Meiste Wallboxen/Verbraucher |
-| **Zwei Taster (Start/Stopp)** | Start- + Stopp-Taster (+ Leistung nötig) | Wallboxen mit getrennten Tastern |
-| **Schalter + Leistungs-/Strom-Limit** (Wallbox) | Schalter + Limit-Entität (A/kW) | Ladung mit PV-Leistungsregelung |
-
-## Dashboard
-
-- Wird direkt nach der Installation automatisch erstellt (auch ohne Geräte)
-  und in der Seitenleiste angezeigt; fünf Ansichten: **Start & Tutorial**,
-  ☀️ **Übersicht**, 🔌 **Geräte**, ⬆️ **Reihenfolge**, 🎨 **Einstellungen**.
-- **Start/Tutorial** erklärt, wie Sensoren abgelesen, Geräte hinzugefügt und
-  Dinge eingestellt werden; gefundene Geräte erscheinen dort ebenfalls.
-- **Einstellungen** sind in Gruppen mit eigenem Aufklapp-Schalter organisiert
-  (Globale Regeln standardmäßig offen, Geräte-Gruppen zugeklappt).
-- **3 Designs** per Select umschaltbar: ☀️ Sonnenaufgang (Standard),
-  🌿 Natur-frisch, 🌊 Kühl & klar.
-- **„Dashboard aktualisieren“** (Button/Service `pvm.rebuild_dashboard`)
-  aktualisiert die PVM-Karten; nach Messungs-/Geräte-/Design-Änderungen
-  passiert das automatisch (überschreibt dabei eigene Anpassungen an den
-  PVM-Karten).
+- Unter **🎨 Einstellungen → Design** wechselst du zwischen drei Designs:
+  ☀️ **Sonnenaufgang** (Standard, warme Gelb-/Orange-Töne), 🌿 **Natur-frisch**
+  (Grün) und 🌊 **Kühl & klar** (Blau). Der Wechsel gilt sofort.
+- Auch als Entität vorhanden: `select.pvm_theme` – nützlich für Automatisierungen
+  (z. B. abends automatisch das Abend-Design).
+- Die Übersichts-Seite zeigt einen **animierten Energiefluss** (PV → Haus →
+  Netz → Geräte) mit Live-Werten und Statusfarben; jede Kachel ist verlinkt
+  (keine kryptischen IDs, sondern klickbare Namen).
 
 ## Services (für Automationen)
 
@@ -137,7 +157,7 @@ Felder:
 | `pvm.clear_deadline` | Frist-Ziel löschen. |
 | `pvm.wp_test_start` / `pvm.wp_test_abort` | WP-Kalibrierungstest. |
 | `pvm.scan_devices` | Gerätesuche starten. |
-| `pvm.rebuild_dashboard` | Dashboard neu erzeugen. |
+| `pvm.rebuild_dashboard` | Seite in der Seitenleiste neu registrieren (nach Problemen). |
 | `pvm.run_self_test` | Selbsttest (Meldung mit Problemen). |
 
 **Tipp:** Bei den Services wählst du im Feld „Gerät“ einfach eine beliebige

@@ -2,6 +2,30 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.2.0] – 2026-09-03
+
+### Hinzugefügt – eigene PV-Manager-Seite (kein Lovelace mehr)
+- **Komplett selbst gebaute Oberfläche** (`panel/panel.js`, ~1.900 Zeilen HTML/CSS/JS):
+  ersetzt das Lovelace-Dashboard vollständig durch eine eigene Seitenleisten-Seite
+  (Mechanik wie HACS: Custom-Panel mit `embed_iframe`, statische Dateien ohne Cache).
+- Sechs Reiter: **Erste Schritte** (Mini-Tutorial), **☀️ Übersicht** (animierter
+  Energiefluss PV → Haus → Netz → Geräte), **🔌 Geräte**, **⬆️ Reihenfolge**,
+  **🔍 Gefunden** (Vorschläge mit Begründung + Live-Wert), **🎨 Einstellungen**
+  (aufklappbare Gruppen, Schieberegler, Design-Wechsel mit Animation).
+- **Eigene Geräte-Dialoge**: Geräte hinzufügen/bearbeiten/entfernen läuft komplett
+  in der Seite – dynamische Felder je Steuerungsart, keine HA-Formulare.
+- WebSocket-Kommandos `pvm/get_config`, `pvm/save_config`, `pvm/scan`,
+  `pvm/list_entities` für die Seite; jede Speicherung wird validiert.
+- Altes Lovelace-Dashboard (`pvm-dashboard`) wird beim ersten Start automatisch
+  entfernt; kein Options-Flow und kein Dashboard-Builder/Creator mehr im Code.
+- Alle Entitäten bleiben normale HA-Entitäten (für Automationen nutzbar).
+
+### Behoben
+- Kryptische Entity-IDs/Nummern in „Links“: Die Seite verlinkt über das
+  Entitäten-Mapping (unique_id → entity_id) und zeigt verständliche Namen.
+- „expected (sensor)“-Fehler endgültig beseitigt: Auswahlfelder der Seite
+  akzeptieren alle passenden Entitätenarten.
+
 ## [1.1.0] – 2026-09-03
 
 ### Geändert (Dashboard-Zentrale statt Setup-Wizard)

@@ -117,8 +117,8 @@ scan_devices:
   description: Startet die automatische Geräteerkennung und zeigt Vorschläge an.
 
 rebuild_dashboard:
-  name: Dashboard aktualisieren
-  description: Erstellt das "PV Manager"-Dashboard neu (überschreibt eigene Anpassungen an den PVM-Karten).
+  name: Seite aktualisieren
+  description: Registriert die "PV Manager"-Seite in der Seitenleiste neu (nach Updates oder Problemen).
 
 run_self_test:
   name: Selbsttest

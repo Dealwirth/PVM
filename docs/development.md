@@ -5,7 +5,8 @@
 PVM ist modular aufgebaut. Wichtigster Grundsatz: **Alle Entscheidungs-Logik ist
 reines Python ohne Home-Assistant-Importe** und damit vollständig unit-testbar.
 Die Home-Assistant-Schicht ist dünn und kümmert sich nur um Zustände,
-Service-Aufrufe und Entitäten.
+Service-Aufrufe und Entitäten. Die Oberfläche ist eine **komplett eigene
+HTML/JS/CSS-Seite** (`panel/panel.js`), kein Lovelace.
 
 | Bereich | Dateien | Abhängigkeiten |
 | --- | --- | --- |
@@ -13,11 +14,11 @@ Service-Aufrufe und Entitäten.
 | Steuer-Engine (Logik) | `engine.py` | nur Python |
 | WP-Test (Zustandsmaschine) | `wp_test.py` | nur Python |
 | Geräteerkennung | `detector.py` | nur Python |
-| Dashboard-Aufbau | `dashboard_builder.py` | nur Python |
+| Panel-Daten (Mapping/Payload) | `panel_data.py` | nur Python (Registry wird reingereicht) |
 | Laufzeit + Zyklus | `manager.py`, `store.py` | Home Assistant |
 | Entitäten | `sensor.py`, `number.py`, `switch.py`, `button.py`, `select.py`, `time.py` | Home Assistant |
-| Verwaltung (Options) | `config_flow.py` | Home Assistant |
-| Dashboard-Erstellung | `dashboard_creator.py` | Home Assistant |
+| Ein-Klick-Installation | `config_flow.py` | Home Assistant |
+| Panel-Registrierung + Seite | `panel.py`, `websocket.py`, `panel/panel.js` | Home Assistant (bzw. Browser) |
 | Services/Diagnose | `services.py`, `services.yaml`, `diagnostics.py` | Home Assistant |
 | Einstieg | `__init__.py`, `manifest.json` | Home Assistant |
 
@@ -36,14 +37,35 @@ Alle `cycle_s` Sekunden (Standard 30 s):
 5. Sensoren werden benachrichtigt; bei Fehlern zählt ein Zähler, nach 3 Fehlern
    pausiert der Zyklus kurz und startet selbstständig wieder.
 
+## Die eigene Seite (Panel)
+
+- **Registrierung** (`panel.py`): statische Dateien unter `/pvm_panel`
+  (`async_register_static_paths`), Seitenleisten-Panel über
+  `async_register_built_in_panel` mit `component_name="custom"`,
+  `_panel_custom` + `embed_iframe: true` (identisch zum HACS-Mechanismus).
+  Die Seite läuft als Same-Origin-iframe und bekommt das authentifizierte
+  `hass`-Objekt.
+- **Daten** (`panel_data.py`): `build_panel_payload(manager)` liefert
+  Konfiguration + Entitäten-Mapping + Scan-Ergebnis + Setup-Stufe.
+  `build_entity_map(registry, config)` bildet unique_id → entity_id ab.
+- **Kommunikation** (`websocket.py`): die Seite liest/schreibt **nur** über
+  die vier Kommandos `pvm/get_config`, `pvm/save_config`, `pvm/scan`,
+  `pvm/list_entities`. Neue Daten → neues Kommando hier ergänzen.
+- **UI** (`panel/panel.js`): eine einzige Datei (HTML-Template + CSS + JS,
+  kein Build-Schritt, keine Frameworks). Reiter, Dialoge und Animationen sind
+  reines DOM-Handling; Texte sind deutsch. Nach Änderungen: `node --check`
+  ausführen (JS-Syntax).
+
 ## Neue Geräte-/Steuerungsprofile
 
-Eine neue *Rolle* braucht in der Regel **keinen Code**:
+Eine neue *Rolle* braucht in der Regel **keinen Code in der Engine**:
 
-1. Im Options-Flow (kurze Dialoge, kein Install-Wizard) Formularfelder ergänzen (`config_flow.py`).
-2. Entitäten-Katalog und Dashboard-Karten für die Rolle ergänzen
-   (`dashboard_creator.py::_kinds_for_role`, `dashboard_builder.py`).
-3. Engine-Verhalten erweitern (`engine.py::_need_forced_on` / `_surplus_want`).
+1. Entitäten-Katalog erweitern: `panel_data.py` → `_kinds_for_role()` und
+   `DEVICE_PREFIXES` (Spiegel der Plattform-Module).
+2. Geräte-Formular im Panel erweitern: `panel/panel.js` (Felder je Rolle/
+   Steuerungsart – erscheinen dynamisch).
+3. Engine-Verhalten erweitern (`engine.py::_need_forced_on` /
+   `_surplus_want`), falls die Rolle besondere Regeln braucht.
 
 Eine neue *Steuerungsart* (z. B. Service-basiert statt Schalter) wird im Manager
 in `_execute_action` ergänzt – dort laufen alle Service-Aufrufe mit Timeout und
@@ -55,11 +77,14 @@ Fehlerbehandlung zusammen.
 pip install -r requirements-test.txt
 ruff check custom_components tests
 pytest
+node --check custom_components/pvm/panel/panel.js   # JS-Syntax (falls Node vorhanden)
 ```
 
 Die Tests laufen **ohne Home-Assistant-Installation** (`tests/conftest.py`
-stellt harmlose Platzhalter für die HA-Importe bereit – nur für die reinen
-Logik-Module; die HA-Schicht wird in einer echten Instanz geprüft).
+stellt harmlose Platzhalter für die HA-Importe bereit). `test_imports.py`
+lädt alle Module der Integration als Smoke-Test; `test_panel_data.py` prüft
+das Entitäten-Mapping mit einem Registry-Stub. Die HA-Schicht wird in einer
+echten Instanz geprüft.
 
 ## Code-Stil
 
@@ -67,6 +92,7 @@ Logik-Module; die HA-Schicht wird in einer echten Instanz geprüft).
 - Type Hints, Google-Docstrings.
 - Keine externen Abhängigkeiten außer Home Assistant Core.
 - Deutscher UI-Text, englische Schlüssel/IDs.
+- `panel/panel.js`: keine externen Libraries, ES2017+, klare Sektionen.
 
 ## CI/CD
 

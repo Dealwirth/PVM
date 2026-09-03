@@ -7,33 +7,37 @@ beiden Taster-Entitäten zu. PVM braucht dann zusätzlich den
 **Ladeleistungs-Sensor** (Pflicht), um zu erkennen, ob das Laden läuft – und
 drückt die Taster nur bei echten Zustandswechseln (kein Doppel-Start/-Stopp).
 
-## Fehler „expected (sensor)“ beim Anlegen
+## Fehler „expected (sensor)“ beim Einrichten
 
-Dieser kryptische Hinweis kam von zu eng gefassten Entitäten-Feldern. Seit
-Version 1.1.0 akzeptieren alle Messfelder sowohl `sensor` als auch
-`number`/`input_number`; Limit-Felder `number`/`input_number`; Taster
-`button`/`switch`. Falls trotzdem ein Hinweis erscheint, steht inzwischen eine
-verständliche deutsche Meldung dabei (z. B. „Bitte wähle einen Start- und einen
-Stopp-Taster“).
+Dieser kryptische Hinweis kam früher von zu eng gefassten Entitäten-Feldern.
+Inzwischen akzeptieren alle Messfelder **alle passenden Entitätenarten**
+(Sensor-, Zähler- und Zahlen-Entitäten), Limit-Felder `number`/`input_number`
+und Taster `button`/`switch`. Falls doch einmal ein Hinweis erscheint, steht
+immer eine verständliche deutsche Meldung dabei (z. B. „Bitte wähle einen
+Start- und einen Stopp-Taster“).
 
 ## Wie wechsle ich das Design?
 
-Im Dashboard unter 🎨 **Einstellungen** oben auf den Select **„PVM Design“**
-tippen: ☀️ Sonnenaufgang (Standard), 🌿 Natur-frisch oder 🌊 Kühl & klar.
-Das Dashboard wird sofort neu aufgebaut.
+Auf der PV-Manager-Seite unter 🎨 **Einstellungen → Design** zwischen
+☀️ Sonnenaufgang (Standard), 🌿 Natur-frisch und 🌊 Kühl & klar umschalten –
+die Seite übernimmt das Design sofort. Alternativ gibt es die Entität
+`select.pvm_theme` (z. B. für Automatisierungen).
 
-## Das Dashboard „PV Manager“ fehlt in der Seitenleiste
+## Die PV-Manager-Seite fehlt in der Seitenleiste
 
-1. Öffne **Einstellungen → Geräte & Dienste → PV Manager**.
-2. Dort gibt es einen Button/Service **„Dashboard aktualisieren“**
-   (`pvm.rebuild_dashboard`).
-3. Falls weiterhin nichts passiert: **Home Assistant neu starten** und nochmals
-   ausführen. PVM versucht die Erstellung beim Start automatisch mehrfach;
-   Details stehen im Log (`Logs → pvm`).
+1. Öffne **Einstellungen → Geräte & Dienste → PV Manager** – ist der Eintrag
+   wirklich da („1 Gerät/Entitäten“)? Falls nicht, Integration einmal
+   **entfernen und neu hinzufügen** (ein Klick, keine Fragen).
+2. Starte den Service **„Seite aktualisieren“** (`pvm.rebuild_dashboard`) –
+   er registriert die Seitenleisten-Seite neu.
+3. Falls weiterhin nichts passiert: **Home Assistant neu starten** und die
+   Browser-Seite einmal neu laden (Strg+F5). PVM versucht die Registrierung
+   beim Start automatisch; Details stehen im Log (`Logs → pvm`).
 
-> Das Dashboard wird wie HA-interne Dashboards im `.storage`-Bereich abgelegt
-> (`lovelace_dashboards`, `lovelace.pvm-dashboard`). Es verwendet nur
-> Standard-Karten – es ist keine YAML- oder Custom-Card-Konfiguration nötig.
+> Die Seite ist ein eigenes Seitenleisten-Panel (`/pvm`) mit komplett
+> selbst gebauter Oberfläche – kein Lovelace-Dashboard, kein YAML. Ein
+> früher (vor 1.2.0) erzeugtes Lovelace-Dashboard wird beim ersten Start
+> automatisch entfernt.
 
 ## Es wird nichts geschaltet
 

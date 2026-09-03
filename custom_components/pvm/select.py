@@ -119,7 +119,5 @@ class PvmThemeSelect(SelectEntity):
             return
         self.manager.set_setting("ui_theme", theme)
         self.async_write_ha_state()
-        # Dashboard sofort im neuen Look neu aufbauen
-        from .dashboard_creator import async_rebuild_dashboard
-
-        self.hass.async_create_task(async_rebuild_dashboard(self.manager))
+        # Das Panel liest das Design beim nächsten Aktualisieren aus der
+        # Konfiguration – kein Dashboard-Neuaufbau mehr nötig.

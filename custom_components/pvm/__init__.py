@@ -8,8 +8,9 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, PLATFORMS
-from .dashboard_creator import schedule_dashboard_creation
 from .manager import PvmManager
+from .panel import async_register_panel
+from .websocket import async_register_websocket
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -20,20 +21,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     manager = await PvmManager.async_create(hass, entry)
     hass.data[DOMAIN][entry.entry_id] = manager
 
-    # Plattformen (Entitäten) zuerst, danach Engine + Dashboard
+    # Plattformen (Entitäten) zuerst, danach Engine
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     await manager.async_start()
 
     await async_setup_services(hass)
+    await async_register_websocket(hass)
 
-    # Nach Verwaltungs-Änderungen (Options-Flow) das Dashboard neu aufbauen
-    settings = manager.config.setdefault("settings", {})
-    force_rebuild = bool(settings.pop("dashboard_rebuild", False))
-    if force_rebuild:
-        manager.schedule_save()  # Marker aus dem Store entfernen
-        schedule_dashboard_creation(manager, force_rebuild=True)
-    else:
-        schedule_dashboard_creation(manager)
+    # Eigene Seitenleisten-Seite (ersetzt das Lovelace-Dashboard)
+    await async_register_panel(hass, manager)
 
     entry.async_on_unload(entry.add_update_listener(async_update_entry))
     return True
@@ -59,8 +55,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Aufräumen, wenn die Integration komplett entfernt wird."""
-    # Konfigurationsdaten liegen in einem eigenen Store, der mit entfernt wird,
-    # sobald der letzte Config-Eintrag weg ist (Single-Instance-Integration).
     manager: PvmManager | None = hass.data.get(DOMAIN, {}).get(entry.entry_id)
     if manager is not None:
         await manager.async_stop()

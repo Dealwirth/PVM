@@ -17,7 +17,10 @@ MODULES = [
     "custom_components.pvm.services",
     "custom_components.pvm.diagnostics",
     "custom_components.pvm.store",
-    "custom_components.pvm.dashboard_creator",
+    "custom_components.pvm.manager",
+    "custom_components.pvm.panel_data",
+    "custom_components.pvm.panel",
+    "custom_components.pvm.websocket",
     "custom_components.pvm.__init__",
 ]
 
@@ -27,8 +30,9 @@ def test_all_modules_importable():
         importlib.import_module(name)
 
 
-def test_flow_classes_exist():
-    from custom_components.pvm.config_flow import PVMConfigFlow, PVMOptionsFlow
+def test_flow_class_exists():
+    from custom_components.pvm.config_flow import PVMConfigFlow
 
     assert PVMConfigFlow.__name__ == "PVMConfigFlow"
-    assert PVMOptionsFlow.__name__ == "PVMOptionsFlow"
+    # Bewusst kein Options-Flow: Alle Verwaltung läuft im eigenen Panel.
+    assert PVMConfigFlow.VERSION == 1

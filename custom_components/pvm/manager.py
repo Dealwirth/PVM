@@ -30,6 +30,7 @@ from .config_model import (
     deadline_next_ts,
     energy_configured,
     find_device,
+    normalize_config,
     setup_stage,
 )
 from .const import (
@@ -752,6 +753,13 @@ class PvmManager:
         self.schedule_save()
         self.request_cycle()
 
+    async def async_replace_config(self, config: dict) -> None:
+        """Ersetzt die komplette Konfiguration (aus dem Panel) und lädt neu."""
+        normalized = normalize_config(config)
+        await self._store.async_save(normalized)
+        self.config = normalized
+        self.hass.config_entries.async_schedule_reload(self.entry.entry_id)
+
     # ------------------------------------------------------------------
     # Sensoren lesen
     # ------------------------------------------------------------------
@@ -787,8 +795,8 @@ class PvmManager:
     # ------------------------------------------------------------------
     # Geräte-Scan + Korrelation
     # ------------------------------------------------------------------
-    async def scan_devices(self) -> dict[str, Any]:
-        """Scannt alle Entitäten/Geräte und schlägt Kandidaten vor."""
+    def collect_entities(self) -> list[dict[str, Any]]:
+        """Liest alle relevanten Entitäten inkl. Geräte-/Hersteller-Infos."""
         from homeassistant.helpers import device_registry as device_dr
         from homeassistant.helpers import entity_registry as er
 
@@ -834,7 +842,11 @@ class PvmManager:
                     "integration": str(entry.platform or ""),
                 }
             )
+        return entities
 
+    async def scan_devices(self) -> dict[str, Any]:
+        """Scannt alle Entitäten/Geräte und schlägt Kandidaten vor."""
+        entities = self.collect_entities()
         sets = suggest_sets(entities)
         configured_entities = {
             sensor
@@ -896,7 +908,7 @@ class PvmManager:
             }.get(role, role)
             lines.append(f"**{label}:** {title}")
         lines.append(
-            "Öffne **Einstellungen → Geräte & Dienste → PV Manager → Optionen**, "
+            "Öffne die **PV-Manager-Seite** in der Seitenleiste → **Gefunden**, "
             "um die Vorschläge zu übernehmen."
         )
         return "\n".join(lines)

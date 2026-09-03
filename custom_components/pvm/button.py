@@ -65,7 +65,7 @@ class PvmScanButton(PvmButton):
 
 
 class PvmRebuildDashboardButton(PvmButton):
-    """Erstellt das Dashboard neu bzw. aktualisiert es."""
+    """Registriert die PVM-Seite neu bzw. aktualisiert sie."""
 
     _attr_has_entity_name = True
     _attr_translation_key = "rebuild_dashboard"
@@ -76,9 +76,9 @@ class PvmRebuildDashboardButton(PvmButton):
         super().__init__(manager)
 
     async def async_press(self) -> None:
-        from .dashboard_creator import async_rebuild_dashboard
+        from .panel import async_rebuild_panel
 
-        await async_rebuild_dashboard(self.manager, notify=True)
+        await async_rebuild_panel(self.hass, self.manager)
 
 
 class PvmPriorityButton(PvmButton):

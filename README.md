@@ -1,9 +1,9 @@
 # ☀️ PVM – PV Manager
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.2.0+-blue.svg)](https://www.home-assistant.io)
-[![GitHub Release](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/Dealwirth/PVM/releases)
+[![GitHub Release](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/Dealwirth/PVM/releases)
 [![License](https://img.shields.io/github/license/Dealwirth/PVM)](LICENSE)
-**PVM** ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deinen PV-Überschuss automatisch an Wallboxen, Wärmepumpe, Waschmaschine und Co. – basierend auf einer **Prioritätenliste**, die du im Dashboard per Klick (▲/▼) festlegst.
+**PVM** ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deinen PV-Überschuss automatisch an Wallboxen, Wärmepumpe, Waschmaschine und Co. – basierend auf einer **Prioritätenliste**, die du in der eigenen **PV-Manager-Seite** per Klick (▲/▼) festlegst.
 <p align="center">
 <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Dealwirth&repository=PVM&category=integration">
 <img src="https://img.shields.io/badge/Integration_hinzufügen-41BDF5?style=for-the-badge&logo=homeassistant&logoColor=white" alt="Integration hinzufügen" width="100%">
@@ -61,7 +61,7 @@
 </tr>
 </table>
 <br>
-<em>Das PVM-Dashboard – sauber, übersichtlich und sofort einsatzbereit.</em>
+<em>Die PV-Manager-Seite – sauber, übersichtlich und sofort einsatzbereit.</em>
 </div>
 ---
 ## 📌 Inhaltsverzeichnis
@@ -156,8 +156,8 @@
 <tr>
 <td style="padding:10px;border:none;background:#16213e;vertical-align:top;">
 <div style="background:#1a1a3e;border-radius:10px;padding:12px;">
-<div style="color:#41BDF5;font-size:13px;font-weight:600;">📊 Fertiges Dashboard</div>
-<div style="color:#aaaaaa;font-size:12px;margin-top:4px;">Automatisch erstellt – sofort nutzbar.</div>
+<div style="color:#41BDF5;font-size:13px;font-weight:600;">📊 Eigene Seite</div>
+<div style="color:#aaaaaa;font-size:12px;margin-top:4px;">Kein Lovelace: eine komplett eigene, automatisch erstellte Seite.</div>
 </div>
 </td>
 <td style="padding:10px;border:none;background:#16213e;vertical-align:top;">
@@ -190,12 +190,14 @@ Klick auf den großen Button oben – HACS öffnet sich und installiert PVM dire
 
 1. **Einstellungen → Geräte & Dienste → Integration hinzufügen** → „PV Manager“.
    **Keine Fragen:** Die Installation ist in einem Klick erledigt.
-2. PVM erstellt sofort das **„PV Manager“-Dashboard** – mit Start-Seite und Mini-Tutorial.
-3. Im Start-Tab erklärt dir das Tutorial, wie du **Sensoren abliest** und **Geräte hinzufügst**:
-   PVM durchsucht alle deine Integrationen und schlägt passende Sensoren/Geräte vor.
-   Du bestätigst nur noch („Ja, das ist meiner“) – bei mehreren Treffern fragt PVM nach.
-4. Danach verwaltest du alles **im Dashboard**: Ziele, Prioritäten, Einstellungen –
-   inklusive Design-Wechsel zwischen ☀️ Sonnenaufgang, 🌿 Natur-frisch und 🌊 Kühl & klar.
+2. PVM erstellt sofort die **„PV Manager“-Seite** in der Seitenleiste – eine komplett
+   eigene Oberfläche (kein Lovelace), direkt nutzbar mit Start-Tutorial.
+3. Die Start-Seite erklärt dir Schritt für Schritt, wie du **Sensoren abliest** und
+   **Geräte hinzufügst**: PVM durchsucht alle deine Integrationen und schlägt passende
+   Sensoren/Geräte vor. Du bestätigst nur noch („Ja, das ist meiner“).
+4. Danach verwaltest du alles **in der PV-Manager-Seite**: Messungen, Geräte,
+   Reihenfolge, Ziele und Einstellungen – inklusive Design-Wechsel zwischen
+   ☀️ Sonnenaufgang, 🌿 Natur-frisch und 🌊 Kühl & klar.
 
 ### Bedienung
 
@@ -203,11 +205,11 @@ Klick auf den großen Button oben – HACS öffnet sich und installiert PVM dire
   was das Netz liefert/abnimmt, was das Haus verbraucht und wie viel Überschuss frei ist.
   Antippen öffnet den Verlauf.
 - **Geräte hinzufügen** – PVM findet deine Wallbox, Wärmepumpe und Verbraucher selbst
-  und schlägt sie dir zum Bestätigen vor (auch per „Geräte suchen“-Button).
+  und schlägt sie dir zum Bestätigen vor (auch per „Jetzt suchen“-Button).
 - **Steuerung** – pro Gerät ein Schalter, zwei Start/Stopp-Taster oder Schalter + Leistungs-Limit.
 - **Prioritäten** – Geräte mit **▲/▼-Buttons** verschieben: oben = zuerst Strom.
 - **Power Charge** – Schalter antippen, Auto lädt mit voller Leistung, Stopp automatisch.
-- **Ziele setzen** – Mindest-/Max-SOC und Frist-Ziel (Uhrzeit + Ziel) direkt im Dashboard.
+- **Ziele setzen** – Mindest-/Max-SOC und Frist-Ziel (Uhrzeit + Ziel) direkt auf der Seite.
 - **WP-Test** – „WP-Test starten“: heizt bis 70 °C, misst und speichert den Verbrauch.
 - **Design wechseln** – in 🎨 **Einstellungen** zwischen ☀️ Sonnenaufgang,
   🌿 Natur-frisch und 🌊 Kühl & klar umschalten; jede Gruppe lässt sich separat aufklappen.
@@ -238,7 +240,7 @@ PVM entscheidet **alle 30 Sekunden neu**, wer deinen PV-Überschuss bekommt:
 | :--- | :--- |
 | Wird nur mit PV-Überschuss geladen? | Standardmäßig ja. Netzstrom nur für Mindest-SOC, Frist-Ziele oder Power Charge – per Schalter abschaltbar. |
 | Welche Wallboxen werden unterstützt? | Alle, die in HA Entitäten haben: Ein Schalter, zwei Start/Stopp-Taster oder Schalter + Leistungs-/Strom-Limit. |
-| Gibt es noch einen Setup-Wizard? | Nein – Installation in einem Klick; alles Weitere passiert im Dashboard (Start-Tutorial). |
+| Gibt es noch einen Setup-Wizard? | Nein – Installation in einem Klick; alles Weitere passiert in der PV-Manager-Seite (Start-Tutorial). |
 | Warum lädt mein Auto bei 500 W Überschuss nicht? | Unterhalb der Mindest-Ladeleistung (Standard 1,4 kW) startet PVM bewusst nicht. |
 | Was passiert gerade? | Status-Sensoren je Gerät, „PVM Status“ global und Service `pvm.run_self_test`. |
 | Fehler melden? | [GitHub Issues](https://github.com/Dealwirth/PVM/issues) mit Log (Filter `pvm`) und Diagnose. |
@@ -284,8 +286,11 @@ Ich brauche Hilfe bei der Home Assistant-Integration „PVM – PV Manager“
 custom_components/pvm/
 ├── engine.py              Prioritäts-Engine (reine Logik)
 ├── manager.py             Steuerzyklus & Service-Aufrufe
-├── config_flow.py         Verwaltung (kein Wizard; kurze Dialoge)
-├── dashboard_creator.py   Dashboard-Erstellung
+├── config_flow.py         Ein-Klick-Installation (keine Fragen)
+├── panel_data.py          Entitäten-Mapping für die Seite
+├── websocket.py           WebSocket-Kommandos (get/save/scan)
+├── panel.py               Seitenleisten-Panel-Registrierung
+├── panel/panel.js         Eigene Oberfläche (HTML/CSS/JS)
 ├── sensor.py … time.py    Entitäten-Plattformen
 └── translations/          de + en
 ```
@@ -294,7 +299,7 @@ custom_components/pvm/
 
 **Weitere Infos:**
 
-- **Erweiterung** – neue Rollen über Wizard + Engine: [docs/development.md](docs/development.md)
+- **Erweiterung** – neue Rollen über Engine + Panel-Dialoge: [docs/development.md](docs/development.md)
 - **Code-Stil** – Async/Await, Type Hints, Google-Docstrings.
 - **Tests** – `pytest` im `tests/`-Ordner, ohne HA-Installation.
 - **PRs** – Branch von `main`, `ruff` + Tests grün, Doku aktualisieren.

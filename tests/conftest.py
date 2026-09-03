@@ -1,7 +1,7 @@
 """Stub für Home-Assistant-Module in reinen Unit-Tests.
 
 Die Logik-Tests importieren nur reines Python (engine, wp_test, detector,
-config_model, dashboard_builder). Da aber ``custom_components/pvm/__init__``
+config_model, panel_data). Da aber ``custom_components/pvm/__init__``
 beim Paket-Import Home-Assistant-Module lädt, werden hier harmlose Platzhalter
 in ``sys.modules`` registriert. Für den Import-Smoke-Test der HA-seitigen
 Module gibt es zusätzlich echte Basisklassen. Die echte Integration läuft
@@ -30,6 +30,8 @@ _NEEDED = [
     "homeassistant.components.lovelace.dashboard",
     "homeassistant.components.lovelace.const",
     "homeassistant.components.frontend",
+    "homeassistant.components.websocket_api",
+    "homeassistant.components.http",
     "homeassistant.util",
     "homeassistant.util.dt",
     "homeassistant.helpers",
@@ -65,6 +67,21 @@ def _install_stubs() -> None:
 
         module.__getattr__ = _attr_getter
         sys.modules[name] = module
+
+    # voluptuous: aufrufbare Bausteine (Schema-Semantik wird nicht gebraucht)
+    vol = sys.modules["voluptuous"]
+    vol.Required = lambda value: value
+    vol.Optional = lambda value, **kwargs: value
+    vol.Schema = lambda value: value
+    vol.All = lambda *args, **kwargs: (args[0] if args else None)
+    vol.In = lambda *args, **kwargs: (args[0] if args else None)
+    vol.Any = lambda *args, **kwargs: (args[0] if args else None)
+    vol.Coerce = lambda func: func
+    vol.Range = lambda *args, **kwargs: None
+    vol.Length = lambda *args, **kwargs: None
+    vol.Match = lambda *args, **kwargs: None
+    vol.Number = float
+    vol.UNDEFINED = object()
 
     const = sys.modules["homeassistant.const"]
     for key, value in {
@@ -138,6 +155,19 @@ def _install_stubs() -> None:
             return _known.get(_name, object())
 
         module.__getattr__ = _getter
+
+    # WebSocket-API: funktionierende Decorator (ignorieren Schema/Handler)
+    ws = sys.modules["homeassistant.components.websocket_api"]
+    ws.websocket_command = lambda *_a, **_k: (lambda func: func)
+    ws.async_response = lambda func: func
+    ws.async_register_command = lambda *_a, **_k: None
+    ws.ActiveConnection = _plain_class("ActiveConnection")
+    ws.result_message = lambda _id, result: result
+    ws.error_message = lambda _id, _code, _msg: {}
+
+    # HTTP-Komponente: StaticPathConfig für Panel-/Asset-Registrierung
+    http = sys.modules["homeassistant.components.http"]
+    http.StaticPathConfig = _plain_class("StaticPathConfig")
 
 
 _install_stubs()

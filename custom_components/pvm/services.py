@@ -143,13 +143,21 @@ async def _async_handle_scan(hass: HomeAssistant, call: ServiceCall) -> None:
 
 
 async def _async_handle_rebuild_dashboard(hass: HomeAssistant, call: ServiceCall) -> None:
-    """Erstellt/aktualisiert das Dashboard."""
-    from .dashboard_creator import async_rebuild_dashboard
+    """Registriert die PVM-Seite neu (nach Updates/Fehlern)."""
+    from .panel import async_rebuild_panel
 
     manager = _get_manager(hass)
     if manager is None:
         return
-    await async_rebuild_dashboard(manager, notify=True)
+    await async_rebuild_panel(hass, manager)
+    hass.components.persistent_notification.async_create(
+        title="PVM – Seite",
+        message=(
+            "Die **PV-Manager-Seite** wurde neu registriert. "
+            "Öffne sie über die Seitenleiste."
+        ),
+        notification_id=f"{DOMAIN}_dashboard",
+    )
 
 
 async def _async_handle_self_test(hass: HomeAssistant, call: ServiceCall) -> None:

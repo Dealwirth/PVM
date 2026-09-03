@@ -7,7 +7,7 @@ Logik-Modulen und Tests.
 
 DOMAIN = "pvm"
 NAME = "PV Manager"
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 # Von der Integration bereitgestellte Plattformen.
 PLATFORMS = ["sensor", "number", "switch", "button", "select", "time"]
@@ -15,11 +15,6 @@ PLATFORMS = ["sensor", "number", "switch", "button", "select", "time"]
 # Speicher (JSON-Store) für die gesamte Konfiguration.
 STORAGE_KEY = DOMAIN
 STORAGE_VERSION = 1
-
-# Dashboard
-DASHBOARD_URL_PATH = "pvm-dashboard"
-DASHBOARD_TITLE = "PV Manager"
-DASHBOARD_ICON = "mdi:solar-power"
 
 # UI-Designs des Dashboards (umschaltbar im Dashboard)
 UI_THEME_SUNRISE = "sonnenaufgang"
@@ -150,10 +145,6 @@ CYCLE_TIMEOUT_S = 30
 MAX_CONSECUTIVE_ERRORS = 3
 ENGINE_RESTART_DELAY_S = 300
 
-# Dashboard-Erstellung: Versuche + Abstand
-DASHBOARD_CREATE_RETRIES = 12
-DASHBOARD_CREATE_RETRY_DELAY_S = 15
-
 # ---------------------------------------------------------------------------
 # Gründe (Reason-Codes) der Steuer-Engine – deutsch für das UI
 # ---------------------------------------------------------------------------
@@ -237,6 +228,4 @@ ENTITY_LABELS = {
     "min_on_power": "Mindest-Überschuss zum Laden",
     "safety": "Notfall-Temperatur (Minimum)",
     "nominal": "Leistung im Betrieb",
-    # UI-Gruppen-Schalter (Einstellungen auf-/zuklappen)
-    "options": "Optionen",
 }
