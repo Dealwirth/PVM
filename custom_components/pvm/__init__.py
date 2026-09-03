@@ -14,6 +14,7 @@ from .logic.wp_calibration import WpCalibration
 from .logic.test_runner import TestRunner
 from .device_types.registry import DeviceRegistry
 from .dashboard.dashboard_creator import DashboardCreator
+from .services import async_setup_services
 
 PLATFORMS = ["sensor", "switch"]
 
@@ -44,10 +45,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN]["scheduler"] = scheduler
     hass.data[DOMAIN]["wp_calibration"] = wp_calibration
     hass.data[DOMAIN]["test_runner"] = test_runner
+    hass.data[DOMAIN]["entry_id"] = entry.entry_id
 
     # Dashboard erstellen (falls noch nicht vorhanden)
     dashboard_creator = DashboardCreator(hass, error_handler)
     await dashboard_creator.async_create_dashboard()
+
+    # Services registrieren
+    await async_setup_services(hass)
 
     # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -73,6 +78,3 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok:
         hass.data.pop(DOMAIN, None)
     return unload_ok
-# Services registrieren
-from .services import async_setup_services
-await async_setup_services(hass)
