@@ -1,0 +1,2 @@
+# PVM – PV Manager
+# Keine externen Abhängigkeiten erforderlich
