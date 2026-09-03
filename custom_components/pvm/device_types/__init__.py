@@ -1,1 +1,1 @@
-?
+"""Init für device_types."""
