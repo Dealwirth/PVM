@@ -23,7 +23,7 @@ class DashboardCreator:
         # Lovelace-Karten laden
         cards = await self._load_cards()
 
-        # Dashboard erstellen
+        # Dashboard-Daten
         dashboard_data = {
             "title": "PV Manager",
             "icon": "mdi:solar-power",
@@ -41,7 +41,16 @@ class DashboardCreator:
 
     async def _dashboard_exists(self) -> bool:
         """Prüft, ob das Dashboard bereits existiert."""
-        # Platzhalter – später über HA-API prüfen
+        try:
+            # Prüfe, ob es ein Lovelace-Dashboard mit dem Titel "PV Manager" gibt
+            lovelace = self.hass.data.get("lovelace")
+            if lovelace:
+                dashboards = await lovelace.async_get_dashboards()
+                for dashboard in dashboards:
+                    if dashboard.get("title") == "PV Manager":
+                        return True
+        except Exception as e:
+            self.error_handler.log_warning("DashboardCreator", f"Fehler beim Prüfen des Dashboards: {e}")
         return False
 
     async def _load_cards(self) -> list:
@@ -49,8 +58,11 @@ class DashboardCreator:
         cards = []
         try:
             card_path = os.path.join(os.path.dirname(__file__), "lovelace_cards.yaml")
-            with open(card_path, "r", encoding="utf-8") as f:
-                cards = yaml.safe_load(f) or []
+            if os.path.exists(card_path):
+                with open(card_path, "r", encoding="utf-8") as f:
+                    cards = yaml.safe_load(f) or []
+            else:
+                self.error_handler.log_warning("DashboardCreator", "lovelace_cards.yaml nicht gefunden")
         except Exception as e:
             self.error_handler.log_error("DashboardCreator", "Fehler beim Laden der Karten", e)
             # Fallback: Standardkarten
@@ -62,5 +74,15 @@ class DashboardCreator:
 
     async def _save_dashboard(self, data: dict):
         """Speichert das Dashboard in Home Assistant."""
-        # Platzhalter – später über Lovelace-API speichern
-        self.error_handler.log_info("DashboardCreator", "Dashboard würde gespeichert werden")
+        try:
+            lovelace = self.hass.data.get("lovelace")
+            if lovelace:
+                await lovelace.async_create_dashboard(
+                    "pv-manager",
+                    data
+                )
+                self.error_handler.log_info("DashboardCreator", "Dashboard gespeichert")
+            else:
+                self.error_handler.log_warning("DashboardCreator", "Lovelace nicht verfügbar – Dashboard nicht gespeichert")
+        except Exception as e:
+            self.error_handler.log_error("DashboardCreator", "Fehler beim Speichern des Dashboards", e)
