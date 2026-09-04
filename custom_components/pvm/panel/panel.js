@@ -158,19 +158,22 @@
 :host([theme="ha"]) {
   /* alles über die HA-Variablen – wird in applyTheme gesetzt */
 }
-.wrap { max-width: 1060px; margin: 0 auto; padding: 16px 16px 90px; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 14px 16px 90px; }
 
-header { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding: 10px 4px 18px;
-  border-bottom:1px solid var(--line); margin-bottom:6px; }
-.logo { width:46px;height:46px;border-radius:14px;flex:0 0 auto; display:grid;place-items:center;color:#fff;
-  background:linear-gradient(135deg,var(--acc),var(--acc2)); box-shadow:0 6px 18px rgba(0,0,0,.35); }
-.logo svg{width:26px;height:26px}
-.titles { flex:1 1 auto; min-width:170px; }
-.titles h1 { margin:0; font-size:20px; }
-.titles p { margin:2px 0 0; color:var(--mut); font-size:12.5px; }
-.chips { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-.chip { background:var(--card2); border:1px solid var(--line); padding:7px 12px; border-radius:999px;
-  font-size:13px; display:flex; gap:7px; align-items:center; white-space:nowrap; }
+/* Kopfbereich im HA-Stil: eine „App-Bar“-Karte mit Titel, Live-Chips und
+   Zurück-zu-HA-Button – in HA-Farben, hell/dunkel automatisch. */
+header { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 14px 10px 16px;
+  background:var(--card); border:1px solid var(--line); border-radius:calc(var(--r) + 2px);
+  box-shadow:var(--sh); }
+.logo { width:40px;height:40px;border-radius:12px;flex:0 0 auto; display:grid;place-items:center;color:#fff;
+  background:linear-gradient(135deg,var(--acc),var(--acc2)); box-shadow:0 4px 12px rgba(0,0,0,.22); }
+.logo svg{width:23px;height:23px}
+.titles { flex:1 1 auto; min-width:150px; }
+.titles h1 { margin:0; font-size:18px; line-height:1.2; }
+.titles p { margin:2px 0 0; color:var(--mut); font-size:12px; }
+.chips { display:flex; gap:7px; flex-wrap:wrap; align-items:center; }
+.chip { background:var(--card2); border:1px solid var(--line); padding:6px 11px; border-radius:999px;
+  font-size:12.5px; display:flex; gap:6px; align-items:center; white-space:nowrap; }
 .chip b { font-weight:700 }
 /* Live-Werte reservieren eine feste Breite – kein Springen der Beschriftungen */
 .chips .chip b[data-live] { display:inline-block; min-width:4.6em; text-align:right; font-variant-numeric:tabular-nums; }
@@ -181,14 +184,17 @@ header { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding: 10
 .dot.warn { background:var(--warn); box-shadow:0 0 8px var(--warn); }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 
-nav { display:flex; gap:6px; flex-wrap:wrap; background:var(--card); border:1px solid var(--line);
-  border-radius:14px; padding:6px; position:sticky; top:10px; z-index:30; backdrop-filter:blur(8px); }
-nav button { border:0; background:transparent; color:var(--mut); font:inherit; font-size:13.5px;
-  padding:9px 13px; border-radius:10px; cursor:pointer; transition:.18s; display:flex; gap:7px; align-items:center;
+/* Tabs: segmentierte Schaltflächen im Chip-Stil; bei schmalen Fenstern
+   umbrechen statt abzuschneiden (auf breiten Bildschirmen eine Zeile). */
+nav { display:flex; gap:4px; flex-wrap:wrap; margin-top:14px; padding:0 2px; }
+nav button { border:0; background:transparent; color:var(--mut); font:inherit; font-size:13px;
+  padding:8px 13px; border-radius:9px; cursor:pointer; transition:.16s; display:flex; gap:7px; align-items:center;
   white-space:nowrap; }
-nav button svg{width:16px;height:16px}
+nav button svg{width:15px;height:15px}
 nav button:hover { color:var(--txt); background:var(--card2); }
-nav button.on { background:linear-gradient(135deg,var(--acc),var(--acc2)); color:#fff; font-weight:600; }
+nav button.on { background:var(--card); color:var(--txt); font-weight:600; box-shadow:var(--sh), 0 0 0 1px var(--line); }
+nav button.on svg { color:var(--acc); }
+@media (min-width: 980px) { nav { flex-wrap:nowrap; } nav button { flex:1 1 0; justify-content:center; } }
 
 section.view { animation:fade .22s ease; }
 @keyframes fade { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
@@ -934,8 +940,8 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         ? "Verbunden: " + e.text
         : "PV-/Netz-Sensor verbinden – erst dann kennt PVM deinen Überschuss.",
       devices: ctl.length
-        ? ctl.length + " Gerät" + (ctl.length > 1 ? "e" : "") + " konfiguriert"
-        : "Wallbox, Wärmepumpe oder Verbraucher hinzufügen – Schritt für Schritt gefragt.",
+        ? (ctl.length + (devs.length > ctl.length ? " + " + (devs.length - ctl.length) + " Auto" + (devs.length - ctl.length > 1 ? "s" : "") : "")) + " Gerät" + ((ctl.length + (devs.length > ctl.length ? 1 : 0)) > 1 ? "e" : "") + " konfiguriert"
+        : (devs.length ? devs.length + " Auto(s) konfiguriert – füge ein steuerbares Gerät hinzu." : "Wallbox, Wärmepumpe oder Verbraucher hinzufügen – Schritt für Schritt gefragt."),
       order: ctl.length > 1
         ? "Prioritäten gesetzt – wer zuerst Überschuss bekommt."
         : "Bei mehreren Geräten legst du fest, wer zuerst bekommt.",

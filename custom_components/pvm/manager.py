@@ -97,8 +97,6 @@ class PvmManager:
         self._save_task: asyncio.Task | None = None
         self._extra_cycle: asyncio.Task | None = None
         self._wp_task: asyncio.Task | None = None
-        self._reload_task: asyncio.Task | None = None
-        self._reload_pending = False
         self._scan_lock = False
         self._closing = False
         self._last_extra_cycle = 0.0
@@ -865,22 +863,6 @@ class PvmManager:
             )
         return True
 
-    def _devices_changed(self, new_config: dict) -> bool:
-        """Hat sich die Geräteliste (IDs/Rollen) gegenüber dem Stand geändert?
-
-        Nur dann müssen Entitäten neu erzeugt/entfernt werden. Reine
-        Einstellungs-/Sensor-Änderungen brauchen keinen Reload.
-        """
-        old = [
-            (str(d.get("id", "")), str(d.get("role", "")))
-            for d in self.config.get("devices", [])
-        ]
-        new = [
-            (str(d.get("id", "")), str(d.get("role", "")))
-            for d in new_config.get("devices", [])
-        ]
-        return old != new
-
     async def async_replace_config(self, config: dict) -> None:
         """Übernimmt die komplette Konfiguration aus dem Panel.
 
@@ -895,39 +877,6 @@ class PvmManager:
         self.config = normalized
         self.request_cycle()
         self._broadcast()
-
-    def _schedule_entity_reload(self) -> None:
-        """Lädt die Entitäten neu – entprellt und ohne Überschneidungen.
-
-        Läuft als eigener Hintergrund-Task; mehrere schnelle Speicherungen
-        werden zu einem einzigen Reload zusammengefasst. Wird PVM gerade
-        heruntergefahren, passiert nichts mehr.
-        """
-        if self._closing:
-            return
-        if self._reload_task and not self._reload_task.done():
-            self._reload_pending = True
-            return
-
-        async def _do_reload() -> None:
-            try:
-                await asyncio.sleep(0.6)
-                if self._closing:
-                    return
-                await self.hass.config_entries.async_reload(self.entry.entry_id)
-            except asyncio.CancelledError:
-                raise
-            except Exception:  # noqa: BLE001
-                _LOGGER.exception("PVM: Entitäten-Reload fehlgeschlagen")
-            finally:
-                self._reload_task = None
-                if self._reload_pending:
-                    self._reload_pending = False
-                    self._schedule_entity_reload()
-
-        self._reload_task = self.hass.async_create_task(
-            _do_reload(), name=f"{DOMAIN}_entity_reload"
-        )
 
     # ------------------------------------------------------------------
     # Sensoren lesen

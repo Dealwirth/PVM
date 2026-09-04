@@ -88,7 +88,7 @@
     entities: {},   // entity_id -> {state, attributes}
     scan: { sets: [] },
     setup: "start",
-    version: "1.6.0-sandbox",
+    version: "1.6.1-sandbox",
     carMode: "charging", // "charging" | "away"
     listeners: [],
   };

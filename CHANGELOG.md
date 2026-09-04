@@ -2,6 +2,23 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.6.1] – 2026-09-04
+
+### Design & Code-Aufräumrunde
+- **Kopfbereich im HA-Stil:** Der Panel-Kopf ist jetzt eine kompakte
+  „App-Bar“-Karte (weiße Karte, Logo, Live-Chips, Zurück-zu-HA-Button) –
+  folgt deinem HA-Theme inkl. hell/dunkel.
+- **Tabs als segmentierte Leiste:** Navigation im HA-Chip-Stil; auf breiten
+  Bildschirmen eine gleichmäßige Zeile, auf schmalen Fenstern bricht sie
+  sauber um statt abzuschneiden.
+- **Kleberei in der Einführung korrigiert:** Der Zähler unter „Geräte
+  hinzufügen“ nennt jetzt auch mit Autos die richtige Zahl (z. B.
+  „1 + 1 Auto Geräte konfiguriert“ statt einer irreführenden Zahl).
+- **Toter Code entfernt:** Die veraltete automatische Entitäten-
+  Neuauslösung im Manager (`_schedule_entity_reload`/`_devices_changed`)
+  ist entfernt – den Entitäten-Reload löst seit 1.5.0 ausschließlich das
+  Panel gezielt aus. Kein Doppel-Reload, weniger Verwirrung.
+
 ## [1.6.0] – 2026-09-04
 
 ### Auto ↔ Wallbox: Einsteck-Zeitpunkt + gelernte Zuordnung
