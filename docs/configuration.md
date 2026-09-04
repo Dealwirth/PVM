@@ -174,10 +174,13 @@ Nichts wird ohne deine Bestätigung konfiguriert.
   helle/dunkle Erscheinungsbild deines HA-Themes), ☀️ **Sonnenaufgang**
   (warme Gelb-/Orange-Töne), 🌿 **Natur-frisch** (Grün) und 🌊 **Kühl & klar**
   (Blau). Der Wechsel gilt sofort.
-- **Akzentfarbe (2. Farbe):** Zusätzlich wählst du die Akzentfarbe für
-  Verläufe, Fortschritt und Details (Automatisch = Farbe deines Designs,
-  Grün, Orange, Lila, Rot, Türkis, Blau). Damit bleibt PVM auch bei einem
-  dunklen HA-Theme lesbar, während du Akzente nach Geschmack setzt.
+- **Deine Farbe (ersetzt das HA-Blau):** Unter **Einstellungen → Design →
+  Deine Farbe** bestimmst du die Hauptfarbe für Knöpfe, Verläufe, Fortschritt
+  und kleine Details – also genau die Farbe, die bei „Home Assistant“ blau
+  ist. Wählbar: Automatisch (Farbe deines HA-Designs), Grün, Orange, Lila,
+  Rot, Türkis, Blau – oder **Eigene Farbe …** mit einem freien Farbfeld
+  (beliebiger Hex-Wert, wird gespeichert und überlebt Neustarts). Die Wahl
+  wirkt in allen vier Designs und ersetzt dort die jeweilige Standardfarbe.
 - **Einführung ausblenden:** Auf „Erste Schritte“ steht „🎉 Einführung
   beenden“, sobald alles eingerichtet ist – danach ist die Seite aufgeräumt.
   Noch nicht fertig? Der kleine Link „Einführung überspringen“ erledigt das

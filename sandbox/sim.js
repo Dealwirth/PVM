@@ -88,7 +88,7 @@
     entities: {},   // entity_id -> {state, attributes}
     scan: { sets: [] },
     setup: "start",
-    version: "1.6.1-sandbox",
+    version: "1.6.2-sandbox",
     carMode: "charging", // "charging" | "away"
     listeners: [],
   };
@@ -149,7 +149,7 @@
       settings: {
         mode: "auto", reserve_w: 100, cycle_s: 30, min_on_s: 120, min_off_s: 60,
         wp_test_target_c: 70, wp_test_max_duration_min: 120, ui_theme: "ha",
-        accent: "auto", intro_done: false,
+        accent: "auto", accent_custom: "", intro_done: false,
       },
       devices: separate ? [wallbox, auto] : [wallbox, auto],
       wp_test_results: {},

@@ -225,7 +225,24 @@ def test_home_wallbox_must_reference_existing_wallbox():
 def test_settings_accent_and_intro_defaults():
     config = cm.normalize_config({"settings": {}})
     assert config["settings"]["accent"] == "auto"
+    assert config["settings"]["accent_custom"] == ""
     assert config["settings"]["intro_done"] is False
     config = cm.normalize_config({"settings": {"accent": "gruen", "intro_done": True}})
     assert config["settings"]["accent"] == "gruen"
     assert config["settings"]["intro_done"] is True
+
+
+def test_settings_custom_accent_color_validation():
+    # Gültige freie Farbe wird übernommen
+    config = cm.normalize_config(
+        {"settings": {"accent": "custom", "accent_custom": "#ff9f1c"}}
+    )
+    assert config["settings"]["accent"] == "custom"
+    assert config["settings"]["accent_custom"] == "#ff9f1c"
+    # Ungültige Hex-Werte fallen zurück auf „Automatisch“ (ohne freie Farbe)
+    for bad in ["#12345", "123456", "#gggggg", "#ff9f1"]:
+        config = cm.normalize_config(
+            {"settings": {"accent": "custom", "accent_custom": bad}}
+        )
+        assert config["settings"]["accent"] == "auto", bad
+        assert config["settings"]["accent_custom"] == "", bad

@@ -96,14 +96,21 @@
       rot: "Rot",
       tuerkis: "Türkis",
       blau: "Blau",
+      custom: "Eigene Farbe …",
     },
   };
-  // Akzentfarben (2. Farbe) für Verläufe, Fortschritt und kleine Details
+  // Deine Farbe (ersetzt das HA-Blau) für Knöpfe, Verläufe, Fortschritt und
+  // kleine Details. "custom" holt sich die freie Farbe aus accent_custom.
   const ACCENT_COLORS = {
     gruen: "#43a047", orange: "#ef6c00", lila: "#7c4dff",
     rot: "#e53935", tuerkis: "#00b3a6", blau: "#039be5",
   };
   function accentColorOf(key) {
+    if (key === "custom") {
+      const custom = (configSettings().accent_custom || "").trim();
+      if (/^#[0-9a-fA-F]{6}$/.test(custom)) return custom;
+      return "";
+    }
     return (key && ACCENT_COLORS[key]) || "";
   }
 
@@ -154,6 +161,17 @@
   background:
     radial-gradient(1000px 500px at 90% -5%, rgba(26,127,224,.14), transparent 55%),
     linear-gradient(180deg,var(--bg1),var(--bg0));
+}
+:host([theme="sonnenaufgang"]) {
+  /* Warme Sonnenaufgang-Stimmung (dunkel, Orange/Gold). */
+  --acc:#ff9f1c; --acc2:#ff6b35; color-scheme: dark;
+  --bg0:#1a0f0a; --bg1:#24140c; --bg2:#2e1a10;
+  --card:rgba(255,255,255,.05); --card2:rgba(255,255,255,.09);
+  --line:rgba(255,255,255,.12); --txt:#fdf3e7; --mut:#c9a88f;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgba(255,159,28,.16), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(255,107,53,.14), transparent 55%),
+    linear-gradient(180deg,#24140c,#1a0f0a);
 }
 :host([theme="ha"]) {
   /* alles über die HA-Variablen – wird in applyTheme gesetzt */
@@ -428,6 +446,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     modalStack: [],     // gestapelte Dialoge: Picker/Sub-Dialoge zerstören den
                         // darunterliegenden Dialog nicht mehr (wichtig: Geräte-Dialog)
     deviceDialog: null,
+    accOpen: {},        // offene Einstellungs-Akkordeons (bleiben nach Reload erhalten)
     instance: null,     // Instanz des aktuell geladenen Managers
     lastInstance: null, // Instanz beim letzten Speichern (für Reload-Erkennung)
     lastLive: 0,
@@ -1576,6 +1595,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const s = configSettings();
     const e = configEnergy();
     const theme = s.ui_theme || "ha";
+    const customColor = (s.accent_custom || "").trim();
     const gridMode = gridModeOf(e);
     const gridChoice = `
       <div class="f"><label>Dein Netzanschluss</label><small>Wie misst dein Zähler? Änderungen werden sofort gespeichert – du kannst jederzeit wechseln.</small></div>
@@ -1637,13 +1657,24 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
               <span class="tt"><b>${esc(L.themes[t])}</b><span>${themeDots(t)}</span></span>
             </label>`).join("")}
         </div>
-        <span class="lbl" style="margin-top:10px">Akzentfarbe (2. Farbe)<small>Für Verläufe, Fortschritt und kleine Details – „Automatisch“ nutzt die Farbe deines Designs.</small></span>
+        <span class="lbl" style="margin-top:10px">Deine Farbe (ersetzt das HA-Blau)<small>Färbt Knöpfe, Verläufe, Fortschritt und kleine Details. „Automatisch“ nutzt die Farbe deines HA-Designs.</small></span>
         <div class="pick">
-          ${Object.keys(L.accents).map((a) => `
+          ${Object.keys(L.accents).map((a) => {
+            const color = a === "custom"
+              ? (customColor || "#0f6cbd")
+              : (ACCENT_COLORS[a] || "var(--acc2)");
+            return `
             <label class="${(s.accent || "auto") === a ? "sel" : ""}" data-accent-pick="${a}">
-              <span class="rb" style="background:${a === "auto" ? "var(--acc2)" : (ACCENT_COLORS[a] || "var(--acc2)")}"></span>
-              <span class="tt"><b>${esc(L.accents[a])}</b>${a !== "auto" ? `<span><i style="display:inline-block;width:16px;height:16px;border-radius:50%;background:${ACCENT_COLORS[a]};vertical-align:-3px"></i> ${ACCENT_COLORS[a]}</span>` : ""}</span>
-            </label>`).join("")}
+              <span class="rb" style="background:${a === "auto" ? "var(--acc2)" : color}"></span>
+              <span class="tt"><b>${esc(L.accents[a])}</b>${
+                a === "custom"
+                  ? `<span class="row" style="gap:8px;align-items:center"><input type="color" data-accent-color value="${esc(customColor || "#0f6cbd")}" title="Farbe frei wählen" style="width:40px;height:28px;padding:0;border:1px solid var(--line);border-radius:6px;background:var(--card2);cursor:pointer"><small>${esc(customColor || "Farbe wählen")}</small></span>`
+                  : a !== "auto"
+                    ? `<span><i style="display:inline-block;width:16px;height:16px;border-radius:50%;background:${ACCENT_COLORS[a]};vertical-align:-3px"></i> ${ACCENT_COLORS[a]}</span>`
+                    : ""
+              }</span>
+            </label>`;
+          }).join("")}
         </div>
       `)}
       ${accordion("system", I.wifi, "System", `
@@ -1661,8 +1692,11 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     `;
   }
   function accordion(id, icon, title, inner, open) {
+    // Offen/Zu-Zustand bleibt über Re-Renders erhalten (state.accOpen),
+    // damit sich z. B. die Design-Wahl nicht nach jedem Klick zuklappt.
+    const isOpen = state.accOpen[id] !== undefined ? state.accOpen[id] : !!open;
     return `
-      <div class="acc ${open ? "open" : ""}" data-acc="${id}">
+      <div class="acc ${isOpen ? "open" : ""}" data-acc="${id}">
         <button class="h">${icon} ${esc(title)}<span class="arr">${I.down}</span></button>
         <div class="body"><div class="inner">${inner}</div></div>
       </div>`;
@@ -2212,7 +2246,9 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     }
     const accBtn = ev.target.closest(".acc > button.h");
     if (accBtn) {
-      accBtn.parentElement.classList.toggle("open");
+      const id = accBtn.parentElement.getAttribute("data-acc");
+      const open = accBtn.parentElement.classList.toggle("open");
+      if (id) state.accOpen[id] = open;
       return;
     }
     const modeEl = ev.target.closest("[data-mode]");
@@ -2233,7 +2269,11 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       $$(root, "[data-accent-pick]").forEach((x) => x.classList.toggle("sel", x === accentEl));
       configSettings().accent = key;
       applyTheme();
-      saveAndRefresh("Akzentfarbe: „" + (L.accents[key] || key) + "“");
+      // Klick kam direkt vom Farbfeld → spart nur, wenn wirklich eine Farbe
+      // gewählt wurde (onRootChange übernimmt das Speichern dann mit Hex).
+      if (!ev.target.closest("[data-accent-color]")) {
+        saveAndRefresh("Farbe: „" + (L.accents[key] || key) + "“");
+      }
       return;
     }
     const gridModeEl = ev.target.closest("[data-grid-mode]");
@@ -2455,6 +2495,14 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     }
     const kind = ev.target.closest('[data-setting="grid_kind"]');
     if (kind) state.config.energy.grid_kind = kind.value;
+    const colorInp = ev.target.closest("[data-accent-color]");
+    if (colorInp) {
+      const hex = colorInp.value;
+      configSettings().accent = "custom";
+      configSettings().accent_custom = hex;
+      applyTheme();
+      saveAndRefresh("Farbe gespeichert: " + hex);
+    }
   }
 
   const GLOBAL_ENTITY_KEYS = { reserve: "reserve", cycle: "cycle", min_on: "min_on", min_off: "min_off" };
@@ -2499,18 +2547,13 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       .catch(() => toast("Modus konnte nicht gesetzt werden", "bad"));
   }
   function setTheme(key) {
-    const id = state.entities.theme;
-    const label = L.themes[key];
-    if (!id) return;
-    const s = st(id);
-    const option = matchOption(s, label);
-    callSvc("select", "select_option", { entity_id: id, option: option || label })
-      .then(() => {
-        state.config.settings.ui_theme = key;
-        applyTheme();
-        toast("Design: „" + label + "“", "ok");
-      })
-      .catch(() => toast("Design konnte nicht gesetzt werden", "bad"));
+    // Robust: Design wird sofort übernommen und über den Websocket-Speicherweg
+    // persistiert – unabhängig davon, ob die select-Entität bereits existiert.
+    // Das select-Entity liest die Wahl aus der Konfiguration und zieht automatisch nach.
+    const label = L.themes[key] || key;
+    state.config.settings.ui_theme = key;
+    applyTheme();
+    saveAndRefresh("Design: „" + label + "“");
   }
   function matchOption(entityState, label) {
     const opts = entityState && entityState.attributes && entityState.attributes.options;
@@ -2561,11 +2604,19 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         /* Standard behalten */
       }
     }
-    // Akzentfarbe (2. Farbe) des Nutzers – überschreibt die Theme-Farbe.
+    // Deine Farbe des Nutzers – ersetzt das HA-Blau (--acc), die zweite
+    // Verlaufsfarbe (--acc2) und die Knopffarbe (--btn). „auto“ = Design-Standard.
     const accentKey = (state.config && state.config.settings && state.config.settings.accent) || "auto";
     const color = accentColorOf(accentKey);
-    if (color) host.style.setProperty("--acc2", color);
-    else host.style.removeProperty("--acc2");
+    if (color) {
+      host.style.setProperty("--acc", color);
+      host.style.setProperty("--acc2", color);
+      host.style.setProperty("--btn", color);
+    } else {
+      host.style.removeProperty("--acc");
+      host.style.removeProperty("--acc2");
+      host.style.removeProperty("--btn");
+    }
   }
 
   /* ------------------------------------------------------------------ *

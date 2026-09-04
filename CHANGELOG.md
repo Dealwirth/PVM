@@ -2,6 +2,26 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.6.2] – 2026-09-04
+
+### Design-Auswahl repariert & freie Farbe
+- **„Sonnenaufgang“ funktioniert jetzt wirklich:** Das Design hatte seit jeher
+  keine eigenen Farben – die Auswahl tat optisch nichts. Neues warmes
+  Sonnenaufgang-Design (dunkel, Orange/Gold) mit passendem Hintergrundverlauf.
+- **Deine Farbe ersetzt das HA-Blau:** Unter **Einstellungen → Design →
+  Deine Farbe** bestimmst du jetzt die Hauptfarbe (Knöpfe, Verläufe,
+  Fortschritt, Details) – vorher war nur eine kaum sichtbare zweite
+  Verlaufsfarbe wählbar. Die Wahl wirkt in allen vier Designs.
+- **Eigene Farbe (freies Farbfeld):** Zusätzlich zu den Vorgaben (Grün,
+  Orange, Lila, Rot, Türkis, Blau) gibt es „Eigene Farbe …“ mit beliebigem
+  Hex-Wert. Wird gespeichert und überlebt Neustarts; ungültige Werte fallen
+  automatisch auf „Automatisch“ zurück.
+- **Design-Menü bleibt offen:** Die Einstellungs-Akkordeons merken sich ihren
+  Zustand – die Auswahl klappt nach dem Speichern nicht mehr von selbst zu.
+- Design-Wahl wird direkt über den Panel-Speicherweg persistiert und ist
+  damit nicht mehr von der select-Entität abhängig (robuster, auch wenn die
+  Entität noch nicht existiert).
+
 ## [1.6.1] – 2026-09-04
 
 ### Design & Code-Aufräumrunde

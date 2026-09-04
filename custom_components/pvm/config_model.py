@@ -338,10 +338,25 @@ def normalize_config(data: dict | None) -> dict:
     if isinstance(raw_settings, dict):
         if "accent" not in raw_settings:
             settings["accent"] = "auto"
+        if "accent_custom" not in raw_settings:
+            settings["accent_custom"] = ""
         if "intro_done" not in raw_settings:
             settings["intro_done"] = False
     if settings.get("intro_done") is None:
         settings["intro_done"] = False
+    # Eigene Farbe nur akzeptieren, wenn sie eine gültige Hex-Farbe ist
+    # (z. B. "#ff9f1c"). Sonst fällt PVM zurück auf „Automatisch“.
+    custom = str(settings.get("accent_custom") or "")
+    valid_hex = len(custom) == 7 and custom.startswith("#")
+    if valid_hex:
+        try:
+            int(custom[1:], 16)
+        except ValueError:
+            valid_hex = False
+    if not valid_hex:
+        settings["accent_custom"] = ""
+        if settings.get("accent") == "custom":
+            settings["accent"] = "auto"
 
     results = merged.get("wp_test_results") or {}
     merged["wp_test_results"] = {str(k): v for k, v in results.items()}
