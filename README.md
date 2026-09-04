@@ -2,7 +2,7 @@
 
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.2.0+-blue.svg)](https://www.home-assistant.io)
-[![GitHub Release](https://img.shields.io/badge/version-1.7.1-blue.svg)](https://github.com/Dealwirth/PVM/releases)
+[![GitHub Release](https://img.shields.io/badge/version-1.8.0-blue.svg)](https://github.com/Dealwirth/PVM/releases)
 [![License](https://img.shields.io/github/license/Dealwirth/PVM)](LICENSE)
 
 **PVM** ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deinen
@@ -55,7 +55,7 @@ Setup-Wizard: Installieren, öffnen, Geräte per Klick übernehmen – fertig.
 
 | | | |
 |---|---|---|
-| ⚡ **Überschuss verteilen**<br><small>Solarstrom zuerst an deine wichtigsten Geräte – du legst die Reihenfolge fest.</small> | 🚗 **E-Autos & Wallboxen**<br><small>Mindest-SOC, Max-SOC, Zeit-Ziele und Power Charge. PVM erkennt automatisch, welches Auto an welcher Wallbox lädt.</small> | 🌡️ **Wärmepumpe**<br><small>Bei Überschuss bis zur Komfort-Temperatur heizen – mit Notfall-Schutz und Testlauf.</small> |
+| ⚡ **Überschuss verteilen**<br><small>Solarstrom zuerst an deine wichtigsten Geräte – du legst die Reihenfolge fest.</small> | 🚗 **E-Autos & Wallboxen**<br><small>Mindest-SOC, Max-SOC, Zeit-Ziele und Power Charge. Die Auto-Erkennung ist zuschaltbar – sonst nutzt PVM die Heimat-Wallbox.</small> | 🌡️ **Wärmepumpe**<br><small>Bei Überschuss bis zur Komfort-Temperatur heizen – mit Notfall-Schutz, Testlauf und „Nur Ziel-Temperatur“ für Wärmepumpen ohne Ein/Aus.</small> |
 | 🧺 **Verbraucher**<br><small>Waschmaschine, Poolpumpe, Lüftung … alles Schaltbare bekommt Überschuss.</small> | 🔍 **Geräte-Erkennung**<br><small>PVM durchsucht deine Integrationen und schlägt passende Sensoren und Geräte vor – du bestätigst per Klick.</small> | 📊 **Eigene Seite**<br><small>Live-Energiefluss, Karten und Einstellungen auf einer eigenen Seite – ganz im Design deines Home Assistant.</small> |
 | 🧲 **Netzbezug & Einspeisung**<br><small>Ein kombinierter Sensor **oder** zwei getrennte Zähler – du entscheidest, PVM rechnet beides korrekt.</small> | 🛡️ **Ausfallsicher**<br><small>Sensorausfälle blockieren nichts; die Engine pausiert kurz und startet von selbst neu.</small> | 🔌 **Herstellerunabhängig**<br><small>Alles, was in HA als Entität existiert, kann PVM steuern – auch evcc, openWB, go-e & Co.</small> |
 
@@ -82,7 +82,8 @@ Die wichtigsten Knöpfe im Überblick:
 | Gerät anlegen | *Geräte → „Gerät hinzufügen“* – Typ wählen, Steuerung, Sensoren |
 | Automatisch finden | *„Automatisch suchen“* – dann unter *Gefunden* per Klick übernehmen |
 | Gerät nachträglich ändern | ✏️ auf der Gerätekarte – Typ, Schalter, Sensoren und Ziele sind jederzeit änderbar |
-| Manuell voll laden | Power Charge auf der Wallbox-Karte |
+| Manuell voll laden | Power Charge am Auto (Dialog oder Karte) |
+| PVM pausieren | *Einstellungen → Steuerung → „Automatik / Manuell“* – im Manuell-Modus misst PVM nur noch |
 | Zurück zu HA | „← Home Assistant“ oben rechts öffnet die Seitenleiste wieder |
 
 > ⚙️ Zusätzlich gibt es nützliche Entitäten für Automationen: `select.pvm_mode`, `switch.pvm_auto_…`, `sensor.pvm_status`, `button.pvm_scan` sowie die Services `pvm.power_charge`, `pvm.set_priority`, `pvm.set_deadline`, `pvm.run_self_test` u. a. – Details im [Konfigurations-Handbuch](docs/configuration.md).
@@ -99,7 +100,11 @@ PVM entscheidet alle 30 Sekunden neu, wer deinen PV-Überschuss bekommt:
 4. **Sauber schalten** – Mindest-Schaltzeiten verhindern Flackern; ungültige Messwerte halten den letzten Zustand.
 5. **Ziele beenden** – Frist oder Max-SOC erreicht → Gerät stoppt, der Strom geht ans nächste Gerät.
 
-Bei **mehreren Autos** vergleicht PVM die Ladeleistungen von Autos und Wallboxen und ordnet sie automatisch zu – lädt nur ein Auto, ist die Zuordnung trivial. Nicht ladende Autos gelten als *unterwegs*.
+Bei **mehreren Autos** (und eingeschalteter „Automatische Auto-Erkennung“)
+vergleicht PVM die Ladeleistungen von Autos und Wallboxen und ordnet sie
+automatisch zu – lädt nur ein Auto, ist die Zuordnung trivial. Standardmäßig
+ist die Erkennung **aus**: Dann nutzt PVM die im Auto gewählte
+**Heimat-Wallbox**. Nicht ladende Autos gelten als *unterwegs*.
 
 ---
 

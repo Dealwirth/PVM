@@ -548,26 +548,42 @@ def suggest_sets(entities: list[dict]) -> list[dict]:
             if key in seen:
                 return
             seen.add(key)
+            # Ein-/Ausschalter suchen …
             control = _control_entity(cluster, KEYWORDS["control_switch"]) or _control_entity(
                 cluster, ["heiz", "freigabe", "betrieb"]
             )
+            # … oder eine einstellbare Ziel-Temperatur (number mit °C): Viele
+            # Wärmepumpen lassen sich nicht schalten, nur die gewünschte
+            # Speichertemperatur einstellen (Steuerungsart „wp_temp“).
+            temp_entity = None
+            if control is None:
+                for entity in cluster:
+                    domain = _domain(str(entity.get("entity_id", "")))
+                    unit = str(entity.get("unit_of_measurement", "") or "")
+                    if domain in {"number", "input_number"} and "°C" in unit:
+                        temp_entity = str(entity.get("entity_id", ""))
+                        break
             fields = {
                 "switch_entity": control,
                 "on_entity": None,
                 "off_entity": None,
                 "number_entity": None,
+                "temp_entity": temp_entity,
                 "power_sensor": power["entity_id"] if power else None,
                 "temp_sensor": temp_id,
                 "soc_sensor": None,
             }
+            reasons = temp["reasons"] if temp else ["Wärmepumpen-Temperatur erkannt"]
+            if temp_entity:
+                reasons.append("Ziel-Temperatur einstellbar (kein Schalter nötig)")
             sets.append(
                 {
                     "role": role,
                     "title": _cluster_title(cluster, fallback="Wärmepumpe"),
                     "score": (temp["score"] if temp else 40),
-                    "reasons": temp["reasons"] if temp else ["Wärmepumpen-Temperatur erkannt"],
+                    "reasons": reasons,
                     "fields": fields,
-                    "control": "switch",
+                    "control": "wp_temp" if temp_entity else "switch",
                     "source": {
                         "temp": temp_id,
                         "power": power["entity_id"] if power else None,

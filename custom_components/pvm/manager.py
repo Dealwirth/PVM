@@ -37,6 +37,7 @@ from .config_model import (
 )
 from .const import (
     CONTROL_BUTTONS,
+    CONTROL_WP_TEMP,
     DOMAIN,
     GRID_KIND_NET,
     GRID_MODE_SEPARATE,
@@ -44,11 +45,14 @@ from .const import (
     MODE_OFF,
     PHASE_VOLTAGE_V,
     REASON_LABELS,
+    REASON_OFF_NO_SURPLUS,
+    REASON_ON_SURPLUS,
     ROLE_FAHRZEUG,
     ROLE_VERBRAUCHER,
     ROLE_WAERMEPUMPE,
     ROLE_WALLBOX,
     SETUP_LABELS,
+    STALE_CONTROL_AFTER_S,
     STALE_SENSOR_AFTER_S,
     STALE_SOC_AFTER_S,
     STALE_TEMP_AFTER_S,
@@ -136,6 +140,9 @@ class PvmManager:
         self._on_timers: dict[str, float] = {}
         self._off_timers: dict[str, float] = {}
         self._last_stop_press: dict[str, float] = {}
+
+        # Zuletzt gesetzte Ziel-Temperatur pro WP-Temperatur-Gerät (Hysterese)
+        self._temp_targets: dict[str, float] = {}
 
         # Verlaufs-Puffer für Korrelation (power/soc)
         self._power_buf: dict[str, deque] = {}
@@ -317,8 +324,14 @@ class PvmManager:
             return
 
         inp = await self._build_cycle_input()
+        # Manueller Modus: PVM misst weiter (Überschuss bleibt aktuell), steuert
+        # aber nichts – weder Schalter noch Temperatur-Ziele.
+        if bool(self.config["settings"].get("manual_mode")):
+            return
+
         plan = eng.compute_plan(inp)
         await self._apply_plan(plan)
+        await self._apply_temp_controls()
         self._store_wp_samples(plan)
 
     # ------------------------------------------------------------------
@@ -391,6 +404,10 @@ class PvmManager:
                 # Engine und keine Prioritäts-Position (Pfeile im Dashboard
                 # verschieben nur steuerbare Geräte).
                 continue
+            if (device.get("control") or {}).get("type") == CONTROL_WP_TEMP:
+                # Temperatur-Ziel-Wärmepumpe: kein Ein/Aus-Schalten – die
+                # Ziel-Temperatur wird separat gesetzt (_apply_temp_controls).
+                continue
             try:
                 devices.append(
                     self._device_to_engine(device, priority, mode, now_local)
@@ -413,7 +430,9 @@ class PvmManager:
         settings = self.config.get("settings", {})
         measured, _valid = self.read_power(sensors.get("power"))
         on = self._control_is_on(device_id, device.get("control", {}), measured)
-        has_setpoint = control.get("type") == "switch_number"
+        # Leistungs-Begrenzung: eigenes „hat eine Begrenzung“-Flag (neues
+        # Modell) bzw. die alte Schalter+Limit-Steuerung (Legacy).
+        has_setpoint = bool(control.get("has_limiter")) or control.get("type") == "switch_number"
 
         engine_device = eng.Device(
             id=device_id,
@@ -562,6 +581,76 @@ class PvmManager:
         self.engine_notes = plan.notes
         if changed_anything:
             self.schedule_save()
+
+    # ------------------------------------------------------------------
+    # Temperatur-Ziel-Wärmepumpe („Nur Ziel-Temperatur, kein Ein/Aus“)
+    # ------------------------------------------------------------------
+    async def _apply_temp_controls(self) -> None:
+        """Hebt die Ziel-Temperatur von Wärmepumpen bei Überschuss an.
+
+        Geräte mit Steuerungsart „wp_temp“ lassen sich nicht an-/ausschalten –
+        PVM stellt stattdessen die gewünschte Speichertemperatur ein:
+        bei genügend Überschuss die Boost-Temperatur, sonst die normale
+        Soll-Temperatur. Mit Hysterese, damit es nicht hin- und herspringt.
+        """
+        hysteresis_w = 250.0
+        for device in self.config.get("devices", []):
+            control = device.get("control", {})
+            if control.get("type") != CONTROL_WP_TEMP:
+                continue
+            if not device.get("enabled", True):
+                continue
+            device_id = device["id"]
+            wp = device.get("wp") or {}
+            temp_entity = control.get("temp_entity")
+            if not temp_entity:
+                continue
+            min_on_w = float(device.get("limits", {}).get("min_on_power_w", 1400))
+            boost_c = float(wp.get("boost_c", wp.get("comfort_c", 60) + 5))
+            normal_c = float(wp.get("comfort_c", 60))
+
+            surplus_ok = self.surplus_valid and self.surplus_w >= min_on_w
+            last = self._temp_targets.get(device_id)
+            if surplus_ok:
+                target = boost_c
+            elif last is not None and last > normal_c and self.surplus_w >= min_on_w - hysteresis_w:
+                # Wird mit knappem Überschuss gehalten, statt zu pendeln.
+                target = last
+            else:
+                target = normal_c
+
+            current, valid = self.read_number(temp_entity, stale_s=STALE_CONTROL_AFTER_S)
+            if (current is None or not valid) and target == normal_c and last is None:
+                # Noch nie gesetzt und gerade kein Überschuss – nicht antasten.
+                self._temp_targets[device_id] = target
+                self._set_temp_status(device_id, device, False, normal_c)
+                continue
+            if current is None or abs(current - target) > 0.4:
+                await self._call_service(
+                    "number", "set_value", temp_entity, value=round(target, 1)
+                )
+            self._temp_targets[device_id] = target
+            self._set_temp_status(
+                device_id,
+                device,
+                surplus_ok and target >= boost_c - 0.1,
+                target,
+            )
+
+    def _set_temp_status(
+        self, device_id: str, device: dict, boosted: bool, target: float
+    ) -> None:
+        """Status-Sensor einer Temperatur-WP beschreiben (an/aus + Ziel)."""
+        reason = REASON_ON_SURPLUS if boosted else REASON_OFF_NO_SURPLUS
+        self.device_state[device_id] = {
+            "name": device.get("name", ""),
+            "target": "an" if boosted else "aus",
+            "reason": reason,
+            "reason_label": REASON_LABELS.get(reason, reason),
+            "power_w": None,
+            "temp_target": target,
+            "ts": _time.time(),
+        }
 
     def _describe_action(self, device: dict, action: eng.DeviceAction) -> dict[str, Any]:
         reason = action.reason
@@ -1296,6 +1385,8 @@ class PvmManager:
             return "Keine Energiesensoren"
         if self.config["settings"].get("mode") == MODE_OFF:
             return "Aus"
+        if self.config["settings"].get("manual_mode"):
+            return "Manuell"
         if not self.last_cycle_ts:
             return "Starte …"
         if not self.surplus_valid:
@@ -1349,8 +1440,15 @@ class PvmManager:
         3. **Gelernte Heimat-Wallbox** – als Rückfall, wenn ein einziges Auto
            keine eigene Leistung meldet, aber seine Wallbox lädt.
         Nicht ladende Autos gelten als „unterwegs“.
+
+        Die automatische Erkennung (Einsteck-Zeitpunkt, Leistungsvergleich,
+        Lernen der Heimat-Wallbox) ist über die Einstellung ``auto_pairing``
+        zuschaltbar – Standard ist AUS. Dann kommt die Zuordnung nur aus der
+        manuell gewählten Heimat-Wallbox des Autos („Wo ist dieses Auto zu
+        Hause?“) – nichts wird automatisch gelernt.
         """
         now = _time.time()
+        auto = bool(self.config["settings"].get("auto_pairing"))
         car_devices = [
             d for d in self.config.get("devices", [])
             if d.get("role") == ROLE_FAHRZEUG
@@ -1368,7 +1466,8 @@ class PvmManager:
             cars.append({"id": device["id"], "power_w": value})
             if valid and power is not None:
                 car_powers[device["id"]] = power
-                self._track_charge_plug(device["id"], power, now)
+                if auto:
+                    self._track_charge_plug(device["id"], power, now)
 
         wallboxes: list[dict] = []
         wallbox_powers: dict[str, float] = {}
@@ -1378,50 +1477,76 @@ class PvmManager:
             wallboxes.append({"id": device["id"], "power_w": value})
             if valid and power is not None:
                 wallbox_powers[device["id"]] = power
-                self._track_charge_plug(device["id"], power, now)
+                if auto:
+                    self._track_charge_plug(device["id"], power, now)
         self._purge_plug_ts(now)
 
-        # 1) Einsteck-Zeitpunkt: nur Paare, die gerade beide laden
-        self._plug_pairs = {}
-        plug_pairs = self._fresh_plug_pairs(wallbox_powers, car_powers, now)
-        for wallbox_id, car_id in plug_pairs.items():
-            if (
-                wallbox_id in wallbox_powers
-                and wallbox_powers[wallbox_id] >= CHARGE_ON_W
-                and car_id in car_powers
-                and car_powers[car_id] >= CHARGE_ON_W
-            ):
-                self._plug_pairs[car_id] = wallbox_id
+        assignments: dict[str, str] = {}
+        if auto:
+            # 1) Einsteck-Zeitpunkt: nur Paare, die gerade beide laden
+            self._plug_pairs = {}
+            plug_pairs = self._fresh_plug_pairs(wallbox_powers, car_powers, now)
+            for wallbox_id, car_id in plug_pairs.items():
+                if (
+                    wallbox_id in wallbox_powers
+                    and wallbox_powers[wallbox_id] >= CHARGE_ON_W
+                    and car_id in car_powers
+                    and car_powers[car_id] >= CHARGE_ON_W
+                ):
+                    self._plug_pairs[car_id] = wallbox_id
+                    self._learn_pairing(car_id, wallbox_id)
+
+            # 2) Leistungs-Vergleich für den Rest
+            assignments = dict(self._plug_pairs)
+            rest_cars = [
+                c for c in cars
+                if c["id"] not in assignments and c["power_w"] is not None
+                and c["power_w"] >= CHARGE_ON_W
+            ]
+            rest_wb = [
+                w for w in wallboxes
+                if w["id"] not in assignments.values()
+                and w["power_w"] is not None and w["power_w"] >= CHARGE_ON_W
+            ]
+            for car_id, wallbox_id in assign_cars_to_wallboxes(
+                rest_cars, rest_wb
+            ).items():
+                assignments[car_id] = wallbox_id
                 self._learn_pairing(car_id, wallbox_id)
 
-        # 2) Leistungs-Vergleich für den Rest
-        assignments = dict(self._plug_pairs)
-        rest_cars = [
-            c for c in cars
-            if c["id"] not in assignments and c["power_w"] is not None
-            and c["power_w"] >= CHARGE_ON_W
-        ]
-        rest_wb = [
-            w for w in wallboxes
-            if w["id"] not in assignments.values()
-            and w["power_w"] is not None and w["power_w"] >= CHARGE_ON_W
-        ]
-        for car_id, wallbox_id in assign_cars_to_wallboxes(rest_cars, rest_wb).items():
-            assignments[car_id] = wallbox_id
-            self._learn_pairing(car_id, wallbox_id)
+            # 3) Rückfall „nur ein Auto + gelernte Wallbox lädt“: das Auto
+            #    meldet selbst keine Leistung, kann also nur an seiner
+            #    Wallbox sein.
+            active_wb = [
+                w for w in wallboxes
+                if w["power_w"] is not None and w["power_w"] >= CHARGE_ON_W
+            ]
+            if len(car_devices) == 1 and len(active_wb) == 1:
+                car = cars[0]
+                if (
+                    car["power_w"] is None or car["power_w"] < CHARGE_ON_W
+                ) and car["id"] not in assignments:
+                    device = car_devices[0]
+                    home = device.get("car", {}).get("home_wallbox")
+                    if home and home == active_wb[0]["id"]:
+                        assignments[car["id"]] = active_wb[0]["id"]
 
-        # 3) Rückfall „nur ein Auto + gelernte Wallbox lädt“: das Auto meldet
-        #    selbst keine Leistung, kann also nur an seiner Wallbox sein.
-        active_wb = [w for w in wallboxes if w["power_w"] is not None and w["power_w"] >= CHARGE_ON_W]
-        if len(car_devices) == 1 and len(active_wb) == 1:
-            car = cars[0]
+        # Immer: manuell gewählte Heimat-Wallbox berücksichtigen – ein Auto,
+        # dessen Wallbox gerade lädt, hängt dort (auch ohne Auto-Erkennung).
+        for car in cars:
+            if car["id"] in assignments:
+                continue
+            device = next(
+                (d for d in car_devices if d["id"] == car["id"]), None
+            )
+            home = (device or {}).get("car", {}).get("home_wallbox")
+            if not home:
+                continue
             if (
-                car["power_w"] is None or car["power_w"] < CHARGE_ON_W
-            ) and car["id"] not in assignments:
-                device = car_devices[0]
-                home = device.get("car", {}).get("home_wallbox")
-                if home and home == active_wb[0]["id"]:
-                    assignments[car["id"]] = active_wb[0]["id"]
+                home in wallbox_powers
+                and wallbox_powers[home] >= CHARGE_ON_W
+            ):
+                assignments[car["id"]] = home
 
         self.car_assignments = assignments
 

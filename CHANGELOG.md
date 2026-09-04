@@ -2,6 +2,58 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.8.0] – 2026-09-04
+
+### Bedienung & neue Steuerungsarten
+- **Auto & Wallbox: automatische Erkennung jetzt abschaltbar.** Neu unter
+  **Einstellungen → Steuerung**: „Automatische Auto-Erkennung“ (Standard:
+  **aus**). Ist sie an, erkennt PVM über Einsteck-Zeitpunkt und
+  Ladeleistung, welches Auto an welcher Wallbox hängt, und lernt die
+  Zuordnung. Ist sie aus (Standard), nutzt PVM nur die manuell gewählte
+  Heimat-Wallbox im Auto – nichts wird automatisch gelernt.
+- **Automatik / Manuell-Schalter.** Neuer großer Umschalter in den
+  Einstellungen: **Automatik** verteilt den Überschuss selbst,
+  **Manuell** misst PVM nur noch mit und lässt alle Geräte in Ruhe.
+- **Steuerung umgebaut (Wallbox & alle Geräte):** Die Auswahl ist jetzt
+  „Ein Schalter“ oder „Zwei Taster“ plus ein eigenes Feld
+  **„Leistungs-Begrenzer vorhanden“** – dein Gerät (z. B. zwei Taster +
+  Leistungsbegrenzer) lässt sich damit genau abbilden. Die zwei
+  Schieberegler (maximale Leistung + Mindest-Überschuss) stehen direkt im
+  Dialog.
+- **Wärmepumpe: „Nur Ziel-Temperatur“ (ohne Ein/Aus).** Viele Wärmepumpen
+  lassen sich nicht schalten – nur die gewünschte Speichertemperatur
+  einstellen. PVM kann das jetzt: Bei genügend Überschuss wird die
+  Ziel-Temperatur angehoben („Ziel bei Überschuss“), bei zu wenig wieder
+  auf die normale Soll-Temperatur zurückgestellt. Die Auto-Erkennung
+  schlägt diese Steuerungsart selbst vor, wenn eine einstellbare
+  Temperatur gefunden wird.
+- **Schieberegler zeigen jetzt immer ihren Wert.** Jeder Regler im
+  Geräte-Dialog zeigt die aktuelle Zahl direkt an (vorher stand nur die
+  Einheit daneben – man musste raten).
+- **Zusatz-Infos sind eingeklappt.** Lange Beschreibungstexte in den
+  Geräte-Dialogen stecken hinter einem **ⓘ**-Symbol und klappen erst auf,
+  wenn du sie brauchst – die Dialoge wirken dadurch aufgeräumter.
+
+### Fehler & Anzeige
+- **„Gefundene Messungen übernehmen“ funktioniert jetzt sichtbar.** Vorher
+  lud die Seite nach dem Klick nur neu und der Eintrag blieb stehen – der
+  übernommene Vorschlag verschwindet jetzt sofort aus der Liste und wird
+  als übernommen bestätigt.
+- **Wallbox zeigt keinen Akku-Stand mehr.** Der Akku gehört zum Auto – die
+  Wallbox-Karte zeigt nur Leistung, zugeordnetes Auto und Ziel. (Die
+  Wattpilot-„Prozentanzeige“ ohne eigenen Sensor ist damit weg.)
+- **Fehlende Daten werden ausgeblendet statt erfunden.** Die Auto-Karte
+  zeigt den Akku-Stand nur, wenn ein SoC-Sensor wirklich einen Wert
+  liefert – sonst erscheint gar keine Akku-Leiste.
+- **PV-/Netz-Sensoren wirken wieder zuverlässiger:** Der Überschuss wird in
+  der Anzeige direkt aus den Sensoren berechnet (nicht aus einem
+  veralteten Zykluswert), und Messwerte gelten länger als frisch
+  (5 Minuten statt 90 s) – langsam aktualisierende Zähler (z. B. Modbus)
+  „verschwinden“ nicht mehr ständig.
+- **Leistungs-Begrenzer-Modell vereinheitlicht:** Alte „Schalter + Limit“
+  Steuerungen werden automatisch auf das neue Modell umgestellt
+  (Schalter + „Leistungs-Begrenzer vorhanden“).
+
 ## [1.7.1] – 2026-09-04
 
 ### Fehleranalyse & Verbesserungen („Alles nochmal geprüft“)

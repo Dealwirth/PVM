@@ -246,3 +246,68 @@ def test_settings_custom_accent_color_validation():
         )
         assert config["settings"]["accent"] == "auto", bad
         assert config["settings"]["accent_custom"] == "", bad
+
+
+def test_has_limiter_flag_normalized():
+    device = cm.default_device(ROLE_WALLBOX, "Wallbox")
+    device["control"]["has_limiter"] = True
+    device["control"]["number_entity"] = "number.wallbox_max"
+    normalized = cm.normalize_device(device)
+    assert normalized["control"]["type"] == CONTROL_SWITCH
+    assert normalized["control"]["has_limiter"] is True
+    assert normalized["control"]["number_entity"] == "number.wallbox_max"
+
+
+def test_legacy_switch_number_migrates_to_has_limiter():
+    device = cm.default_device(ROLE_WALLBOX, "Wallbox")
+    device["control"] = {
+        "type": "switch_number",
+        "switch_entity": "switch.freigabe",
+        "number_entity": "number.max",
+        "number_unit": "A",
+        "phases": 3,
+    }
+    normalized = cm.normalize_device(device)
+    assert normalized["control"]["type"] == CONTROL_SWITCH
+    assert normalized["control"]["has_limiter"] is True
+    assert normalized["control"]["number_entity"] == "number.max"
+
+
+def test_limiter_without_entity_downgraded():
+    device = cm.default_device(ROLE_WALLBOX, "Wallbox")
+    device["control"]["has_limiter"] = True  # aber keine number_entity
+    normalized = cm.normalize_device(device)
+    assert normalized["control"]["has_limiter"] is False
+
+
+def test_wp_temp_requires_temp_entity():
+    device = cm.default_device(ROLE_WAERMEPUMPE, "WP")
+    device["control"]["type"] = "wp_temp"
+    device["control"]["temp_entity"] = "number.wp_soll"
+    normalized = cm.normalize_device(device)
+    assert normalized["control"]["type"] == "wp_temp"
+    assert normalized["control"]["temp_entity"] == "number.wp_soll"
+
+    # Ohne temp_entity -> auf einfachen Schalter zurückfallen
+    broken = cm.default_device(ROLE_WAERMEPUMPE, "WP")
+    broken["control"]["type"] = "wp_temp"
+    normalized_broken = cm.normalize_device(broken)
+    assert normalized_broken["control"]["type"] == CONTROL_SWITCH
+
+
+def test_wp_boost_c_default_and_clamp():
+    device = cm.default_device(ROLE_WAERMEPUMPE, "WP")
+    normalized = cm.normalize_device(device)
+    wp = normalized["wp"]
+    assert wp["boost_c"] is not None
+    assert wp["boost_c"] > wp["comfort_c"]
+    assert 40.0 <= wp["boost_c"] <= 70.0
+
+
+def test_settings_auto_pairing_and_manual_defaults():
+    config = cm.normalize_config(None)
+    assert config["settings"]["auto_pairing"] is False
+    assert config["settings"]["manual_mode"] is False
+    on = cm.normalize_config({"settings": {"auto_pairing": True, "manual_mode": True}})
+    assert on["settings"]["auto_pairing"] is True
+    assert on["settings"]["manual_mode"] is True

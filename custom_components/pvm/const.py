@@ -7,7 +7,7 @@ Logik-Modulen und Tests.
 
 DOMAIN = "pvm"
 NAME = "PV Manager"
-VERSION = "1.7.1"
+VERSION = "1.8.0"
 
 # Von der Integration bereitgestellte Plattformen.
 PLATFORMS = ["sensor", "number", "switch", "button", "select", "time"]
@@ -66,15 +66,17 @@ ROLE_ICONS = {
 
 # Steuerungsarten pro Gerät
 CONTROL_SWITCH = "switch"                # Ein Schalter (an/aus)
-CONTROL_SWITCH_NUMBER = "switch_number"  # Schalter + Leistungs-/Strom-Limit
+CONTROL_SWITCH_NUMBER = "switch_number"  # Legacy: Schalter + Leistungs-Limit (wird zu switch + has_limiter)
 CONTROL_BUTTONS = "buttons"              # Zwei Taster (Start/Stopp)
+CONTROL_WP_TEMP = "wp_temp"              # Wärmepumpe: nur Ziel-Temperatur einstellbar (kein Ein/Aus)
 
-CONTROL_TYPES = (CONTROL_SWITCH, CONTROL_SWITCH_NUMBER, CONTROL_BUTTONS)
+CONTROL_TYPES = (CONTROL_SWITCH, CONTROL_SWITCH_NUMBER, CONTROL_BUTTONS, CONTROL_WP_TEMP)
 
 CONTROL_LABELS = {
     CONTROL_SWITCH: "Ein Schalter (An/Aus)",
     CONTROL_SWITCH_NUMBER: "Schalter + Leistungs-/Strom-Begrenzung",
     CONTROL_BUTTONS: "Zwei Taster (Start/Stopp)",
+    CONTROL_WP_TEMP: "Nur Ziel-Temperatur (kein Ein/Aus)",
 }
 
 # Netzanschluss-Variante (UI-Auswahl „Ein Sensor“ oder „Zwei getrennte“)
@@ -131,11 +133,15 @@ DEFAULT_MIN_CHARGE_POWER_W = 4000.0  # Netz-Leistung für Mindest-SOC
 DEFAULT_PHASES = 3
 PHASE_VOLTAGE_V = 230.0
 
+
+
 # Wärmepumpe
 DEFAULT_WP_TARGET_C = 60.0
 DEFAULT_WP_SAFETY_MIN_C = 40.0
 DEFAULT_WP_EST_POWER_W = 2000.0
 DEFAULT_WP_HYSTERESIS_C = 2.0
+# Ziel-Temperatur, auf die PVM die WP bei Überschuss anhebt („Boosten“)
+DEFAULT_WP_BOOST_C = 65.0
 
 # Verbraucher
 DEFAULT_CONSUMER_NOMINAL_W = 2000.0
@@ -149,7 +155,10 @@ WP_TEST_DISTURBANCE_W = 500.0
 # Zeitgrenzen
 MAX_DEADLINE_DAYS_AHEAD = 7
 # Sensoren gelten nach dieser Zeit als "ungültig" (Zustand wird gehalten).
-STALE_SENSOR_AFTER_S = 2 * DEFAULT_CYCLE_S + 30  # ~90 s (Überschuss/Leistung)
+# Großzügig gewählt: Viele PV-/Netz-Integrationen (Modbus, SolarNet …)
+# aktualisieren nur alle 1–5 Minuten – kürzere Fenster ließen den
+# Überschuss ständig „ungültig“ werden (Sensoren schienen kaputt).
+STALE_SENSOR_AFTER_S = 300.0  # 5 min (Überschuss/Leistung)
 STALE_SOC_AFTER_S = 1800.0  # SoC-Sensoren aktualisieren oft nur alle paar Minuten
 STALE_TEMP_AFTER_S = 600.0  # Temperaturmessungen (WP)
 STALE_CONTROL_AFTER_S = 600.0  # Schalter-/Nummern-Entitäten (kein aktives Polling)
@@ -225,6 +234,11 @@ DEFAULT_CONFIG = {
         "accent_custom": "",
         # Tutorial/Einführung auf der Startseite beendet (vom Nutzer per Button)
         "intro_done": False,
+        # Automatische Auto-Erkennung (welches Auto lädt wo): standardmäßig AUS –
+        # die Zuordnung kommt dann aus der manuell gewählten Heimat-Wallbox.
+        "auto_pairing": False,
+        # Manueller Modus: PVM steuert nichts, misst aber weiter (Monitor).
+        "manual_mode": False,
     },
     "devices": [],
     # WP-Test-Ergebnisse (dauerhaft, damit nach Neustart noch abrufbar)
@@ -255,4 +269,5 @@ ENTITY_LABELS = {
     "min_on_power": "Mindest-Überschuss zum Laden",
     "safety": "Notfall-Temperatur (Minimum)",
     "nominal": "Leistung im Betrieb",
+    "boost": "Ziel-Temperatur bei Überschuss",
 }

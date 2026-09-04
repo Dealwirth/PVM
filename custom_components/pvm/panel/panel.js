@@ -49,6 +49,7 @@
       switch: "Ein Schalter (An/Aus)",
       switch_number: "Schalter + Leistungs-Begrenzung",
       buttons: "Zwei Taster (Start/Stopp)",
+      wp_temp: "Nur Ziel-Temperatur (kein Ein/Aus)",
     },
     controlHint: {
       switch: "Ein Schalter schaltet das Gerät komplett an und aus.",
@@ -56,6 +57,8 @@
         "Zusätzlich zum Schalter begrenzt PVM die Leistung über einen Zahlenwert (z. B. Ampere oder kW).",
       buttons:
         "Zwei getrennte Taster: einer startet, einer stoppt. PVM erkennt den Zustand über die Leistung.",
+      wp_temp:
+        "Deine Wärmepumpe lässt sich nicht an-/ausschalten – PVM stellt nur die gewünschte Speichertemperatur ein: bei Überschuss höher, sonst wieder zurück.",
     },
     modes: {
       auto: "Auto",
@@ -392,6 +395,17 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
 .dlg-adv[open] summary::before { transform:rotate(90deg); }
 .dlg-adv summary:hover { color:var(--txt); }
 .dlg-adv-inner { display:flex; flex-direction:column; gap:12px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
+/* „i“-Info: Beschreibungen sind standardmäßig eingeklappt – ein Klick
+   auf das ⓘ klappt sie auf (Dialoge wirken dadurch nie überladen). */
+.info { display:inline-flex; align-items:center; justify-content:center; width:20px;height:20px;
+  border-radius:50%; border:1px solid var(--line); background:var(--card2); color:var(--mut);
+  font-size:12px; font-weight:800; cursor:pointer; flex:0 0 auto; margin-left:6px; vertical-align:-4px; }
+.info:hover { color:var(--acc); border-color:var(--acc); }
+.infobox { display:none; }
+.infobox.open { display:block; }
+/* Zahlenwert direkt am Schieberegler (nie raten, auf welchem Wert man steht) */
+.numval { font-weight:800; color:var(--acc); font-variant-numeric:tabular-nums;
+  min-width:64px; text-align:right; white-space:nowrap; }
 .founditem p { margin:0; color:var(--mut); font-size:12px; line-height:1.45; word-break:break-word; }
 
 #toasts { position:fixed; bottom:18px; right:18px; display:flex; flex-direction:column; gap:8px; z-index:400; }
@@ -1069,13 +1083,18 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const ent = state.entities || {};
     const e = configEnergy();
     if (key === "surplus") {
+      // Überschuss IMMER zuerst direkt aus den Sensoren berechnen – so bleibt
+      // die Anzeige aktuell, auch wenn der PVM-Überschuss-Sensor gerade alt
+      // ist oder der letzte Zyklus ausfiel („Sensoren gehen nicht mehr“).
+      const ex = calcExport();
+      if (ex != null) {
+        const val = Math.max(0, ex - Number(configSettings().reserve_w || 0));
+        return { text: fmtW(val), raw: val };
+      }
       const id = ent.surplus;
       const v = num(id);
       if (v != null) return { text: fmtNum(v, unitOf(id) || "W"), raw: v };
-      const ex = calcExport();
-      if (ex == null) return { text: "–", raw: 0 };
-      const val = Math.max(0, ex - Number(configSettings().reserve_w || 0));
-      return { text: fmtW(val), raw: val };
+      return { text: "–", raw: 0 };
     }
     if (key === "pv") return { text: energyText("pv_sensor"), raw: 0 };
     if (key === "house") return { text: energyText("house_sensor"), raw: 0 };
@@ -1245,10 +1264,12 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   }
 
   function energySummaryText() {
-    const mode = configSettings().mode || "auto";
-    const reserve = configSettings().reserve_w || 0;
+    const s = configSettings();
+    const mode = s.mode || "auto";
+    const reserve = s.reserve_w || 0;
     const devs = devicesOf();
-    return "Modus „" + L.modes[mode] + "“ · Reserve " + fmtW(reserve) +
+    const head = s.manual_mode ? "Manuell – PVM misst nur" : "Modus „" + L.modes[mode] + "“";
+    return head + " · Reserve " + fmtW(reserve) +
       (devs.length ? " · " + devs.length + " Gerät" + (devs.length > 1 ? "e" : "") : "");
   }
 
@@ -1354,9 +1375,10 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         Noch keine Geräte.
         <div style="margin-top:12px"><button class="btn primary" data-action="add-device">${I.plus} Jetzt hinzufügen</button></div>
       </div>`;
+    const autoPairing = !!configSettings().auto_pairing;
     return `
       <h2 class="sec">Geräte & Verbraucher</h2>
-      <p class="sub">Tippe auf eine Karte, um alle Details und Einstellungen zu sehen (✏️ = Bearbeiten, 🗑️ = Entfernen, Schalter = Automatik).</p>
+      <p class="sub">Tippe auf eine Karte, um alle Details und Einstellungen zu sehen.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
         <button class="btn primary" data-action="add-device">${I.plus} Gerät hinzufügen</button>
         <button class="btn ghost" data-action="run-scan">${I.radar} Automatisch suchen</button>
@@ -1364,7 +1386,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       ${others.length ? `<div class="devices" style="margin-top:14px">${others.map(htmlDeviceCard).join("")}</div>` : (devs.length ? "" : empty)}
       ${cars.length ? `
         <h2 class="sec" style="margin-top:22px">🚗 E-Autos
-          <span style="font-weight:400;color:var(--mut);font-size:12.5px"> – PVM erkennt automatisch, an welcher Wallbox jedes Auto lädt.</span>
+          <span style="font-weight:400;color:var(--mut);font-size:12.5px"> – ${autoPairing ? "PVM erkennt automatisch, an welcher Wallbox jedes Auto lädt." : "Zuordnung über die Heimat-Wallbox im Auto-Dialog."}</span>
         </h2>
         <div class="devices" style="margin-top:10px">${cars.map(htmlDeviceCard).join("")}</div>` : ""}
     `;
@@ -1376,15 +1398,14 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const ent = entOf(device.id);
     const autoOn = isOn(ent.auto);
     const pid = device.sensors && device.sensors.power;
-    const sid = device.sensors && device.sensors.soc;
-    const socV = num(sid);
     const tags = [
       { t: "Prio " + (rankOf(device.id) || "–"), cls: "tag" },
       { t: L.roles[role] || role, cls: "tag role" },
     ];
     const ctrl = device.control || {};
     if (ctrl.type === "buttons") tags.push({ t: "2 Taster", cls: "tag" });
-    else if (ctrl.type === "switch_number") tags.push({ t: "Leistungs-Limit", cls: "tag" });
+    else if (ctrl.type === "wp_temp") tags.push({ t: "Temp-Ziel", cls: "tag" });
+    else if (ctrl.has_limiter) tags.push({ t: "Leistungs-Limit", cls: "tag" });
     // Ziel-Kachel für Wallboxen setzt der Live-Update anhand des
     // zugeordneten Autos (Auto & Wallbox sind getrennt, koppeln sich aber
     // automatisch – siehe updateDeviceLives).
@@ -1408,11 +1429,6 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         <div class="mid">
           ${pid ? `<div class="bigw" data-live="devpwr:${esc(device.id)}">–</div>` : ""}
         </div>
-        ${role === "wallbox" && sid ? `
-          <div class="soc">
-            <div class="row"><span>Akku</span><span data-live="devsoc:${esc(device.id)}">–</span></div>
-            <div class="socbar"><i id="socbar-${esc(device.id)}" style="width:${socV == null ? 0 : Math.max(0, Math.min(100, socV))}%"></i></div>
-          </div>` : ""}
         ${role === "wallbox" ? `<div class="goal" data-el="assigned-car"></div>` : ""}
         ${goalTxt ? `<div class="goal">${esc(goalTxt)}</div>` : ""}
         <div class="statusline" data-el="statusline">…</div>
@@ -1431,7 +1447,10 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const pid = device.sensors && device.sensors.power;
     const socV = num(sid);
     const car = device.car || {};
-    const goalTxt = "Ziel " + Math.round(car.min_soc || 0) + "–" + Math.round(car.max_soc || 100) + " %";
+    // Ohne SoC-Sensor bzw. ohne gültigen Wert keine Akku-Anzeige erfinden –
+    // fehlende Daten werden ausgeblendet statt mit „–“ angezeigt.
+    const hasSoc = !!sid && socV != null;
+    const goalTxt = hasSoc ? "Ziel " + Math.round(car.min_soc || 0) + "–" + Math.round(car.max_soc || 100) + " %" : "";
     return `
       <div class="dev" data-device="${esc(device.id)}" data-action="open-device" title="Details & Einstellungen">
         <div class="head">
@@ -1442,12 +1461,12 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         <div class="mid">
           ${pid ? `<div class="bigw" data-live="devpwr:${esc(device.id)}">–</div>` : ""}
         </div>
-        ${sid ? `
+        ${hasSoc ? `
           <div class="soc">
             <div class="row"><span>Akku</span><span data-live="devsoc:${esc(device.id)}">–</span></div>
-            <div class="socbar"><i id="socbar-${esc(device.id)}" style="width:${socV == null ? 0 : Math.max(0, Math.min(100, socV))}%"></i></div>
+            <div class="socbar"><i id="socbar-${esc(device.id)}" style="width:${Math.max(0, Math.min(100, socV))}%"></i></div>
           </div>` : ""}
-        <div class="goal">${esc(goalTxt)}</div>
+        ${goalTxt ? `<div class="goal">${esc(goalTxt)}</div>` : ""}
         <div class="statusline" data-el="statusline">…</div>
         <div class="ops" style="justify-content:flex-end">
           <button class="ico" data-action="edit-device" data-device="${esc(device.id)}" title="Bearbeiten">${I.edit}</button>
@@ -1663,13 +1682,21 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         <div class="row" style="justify-content:flex-end"><button class="btn primary" data-action="save-energy">${I.check} Speichern</button></div>
       `, true)}
       ${accordion("steuerung", I.gear, "Steuerung", `
-        <span class="lbl">Betriebsmodus<small>Wie PVM deine Geräte steuert.</small></span>
+        <div class="row" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--card)">
+          <span class="lbl grow"><b>Automatik / Manuell</b><small><b>Automatik:</b> PVM verteilt den Überschuss selbst. <b>Manuell:</b> PVM misst nur noch mit und lässt alle Geräte in Ruhe – du steuerst selbst.</small></span>
+          <span class="sw ${s.manual_mode ? "on" : ""}" data-settings-toggle="manual_mode" title="Automatik / Manuell"><i></i></span>
+        </div>
+        <span class="lbl">Betriebsmodus<small>Wie PVM deine Geräte im Automatik-Modus steuert.</small></span>
         <div class="pick">
           ${Object.keys(L.modes).map((m) => `
             <label class="${(s.mode || "auto") === m ? "sel" : ""}" data-mode="${m}">
               <span class="rb"></span>
               <span class="tt"><b>${esc(L.modes[m])}</b><span>${esc(L.modeHint[m])}</span></span>
             </label>`).join("")}
+        </div>
+        <div class="row" style="border-top:1px solid var(--line);padding-top:12px">
+          <span class="lbl grow">Automatische Auto-Erkennung<small>Standard: aus. Wenn eingeschaltet, erkennt PVM über Einsteck-Zeitpunkt und Ladeleistung, welches Auto an welcher Wallbox hängt – und lernt die Zuordnung. Aus: PVM nutzt nur die im Auto hinterlegte Heimat-Wallbox.</small></span>
+          <span class="sw ${s.auto_pairing ? "on" : ""}" data-settings-toggle="auto_pairing"><i></i></span>
         </div>
         ${slider("reserve", "Einspeise-Reserve", s.reserve_w, 0, 2000, 10, "W", "Leistung, die als Puffer für Wolken zurückbleibt.")}
         ${slider("cycle", "Zykluszeit", s.cycle_s, 10, 300, 5, "s", "Wie oft PVM neu entscheidet (empfohlen: 30 s).")}
@@ -1893,6 +1920,15 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         <button class="btn primary" data-save style="${dd.step < 3 ? "display:none" : ""}">${I.check} Speichern</button>
       </div>`);
     overlay.addEventListener("click", (ev) => onDeviceDialogClick(overlay, ev));
+    overlay.addEventListener("input", (ev) => {
+      // Schieberegler im Dialog: Wert live anzeigen (nie raten, wo man steht)
+      const num = ev.target.closest && ev.target.closest("[data-num]");
+      if (num) {
+        const key = num.getAttribute("data-num");
+        const valEl = $(overlay, '[data-numval="' + key + '"]');
+        if (valEl) valEl.textContent = fmtNum(parseFloat(num.value), numUnitOf(key));
+      }
+    });
   }
 
   function deviceSub(step) {
@@ -1906,13 +1942,19 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   function deviceBody(step, d) {
     if (step === 1) {
       return `
-        <div class="f"><label>Gerätetyp</label><small>Bestimmt, welche Ziele und Felder PVM anbietet.</small></div>
+        <div class="f"><label>Gerätetyp <span class="info" data-info-btn="role">i</span></label>
+          <small>Was für ein Gerät möchtest du hinzufügen?</small></div>
         <div class="pick">
           ${["wallbox", "waermepumpe", "verbraucher", "fahrzeug"].map((r) => `
             <label class="${d.role === r ? "sel" : ""}" data-role="${r}">
               <span class="rb"></span>
-              <span class="tt"><b>${esc(L.roles[r])}</b><span>${esc(L.roleHint[r])}</span></span>
+              <span class="tt"><b>${esc(L.roles[r])}</b></span>
             </label>`).join("")}
+        </div>
+        <div class="infobox" data-info="role">
+          <p class="sub" style="margin:6px 0 0;padding:10px 12px;background:var(--card2);border-radius:10px;border:1px solid var(--line)">
+            ${["wallbox", "waermepumpe", "verbraucher", "fahrzeug"].map((r) => `<b>${esc(L.roles[r])}:</b> ${esc(L.roleHint[r])}<br>`).join("")}
+          </p>
         </div>
         <div class="f"><label>Name</label>
           <input type="text" data-el="dd-name" value="${esc(d.name || "")}" placeholder="z. B. Wallbox Garage, Wärmepumpe, Pool …">
@@ -1925,19 +1967,31 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
             <div class="grow">
               <h4>Reine Überwachung 🚗</h4>
               <p>Autos werden von PVM <b>nicht geschaltet</b> – PVM liest Akkustand und
-                 Ladeleistung und erkennt automatisch, an welcher Wallbox das Auto
-                 gerade lädt (oder ob es unterwegs ist).</p>
+                 Ladeleistung und erkennt, an welcher Wallbox das Auto gerade lädt
+                 (oder ob es unterwegs ist).<br><span class="info" data-info-btn="car" style="margin:0">i</span>
+                 <span class="infobox" data-info="car">Wie PVM das Auto einer Wallbox zuordnet,
+                 stellst du unter <b>Einstellungen → Steuerung → Automatische Auto-Erkennung</b> ein
+                 (Standard: aus – dann nutzt PVM die Heimat-Wallbox aus Schritt 3).</span></p>
             </div>
           </div>`;
       }
+      const ctrlOptions = d.role === "waermepumpe"
+        ? ["switch", "buttons", "wp_temp"]
+        : ["switch", "buttons"];
       return `
-        <div class="f"><label>Steuerung</label><small>Wie schaltet PVM dein Gerät? Entweder/oder – PVM zeigt nur die passenden Felder.</small></div>
+        <div class="f"><label>Steuerung <span class="info" data-info-btn="ctrl">i</span></label>
+          <small>Wie schaltet PVM dein Gerät? Wähle die passende Art.</small></div>
         <div class="pick">
-          ${["switch", "switch_number", "buttons"].map((ct) => `
+          ${ctrlOptions.map((ct) => `
             <label class="${d.control.type === ct ? "sel" : ""}" data-ctrl="${ct}">
               <span class="rb"></span>
-              <span class="tt"><b>${esc(L.control[ct])}</b><span>${esc(L.controlHint[ct])}</span></span>
+              <span class="tt"><b>${esc(L.control[ct] || ct)}</b></span>
             </label>`).join("")}
+        </div>
+        <div class="infobox" data-info="ctrl">
+          <p class="sub" style="margin:6px 0 0;padding:10px 12px;background:var(--card2);border-radius:10px;border:1px solid var(--line)">
+            ${ctrlOptions.map((ct) => `<b>${esc(L.control[ct] || ct)}:</b> ${esc(L.controlHint[ct] || "")}<br>`).join("")}
+          </p>
         </div>
         <div data-el="ctrl-fields">${controlFields(d)}</div>`;
     }
@@ -1975,13 +2029,29 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           <button class="btn ghost" data-pick-field="${field}" type="button">${I.search} Wählen</button>
         </div>
       </div>`;
+    if (c.type === "wp_temp") {
+      // Wärmepumpe: nur Ziel-Temperatur einstellbar – keine Taster/Schalter.
+      html += row("temp_entity", "Ziel-Temperatur (einstellbar)", "Die Nummern-Entität, über die deine Wärmepumpe die gewünschte Speichertemperatur bekommt.", "z. B. „Soll-Temperatur“ wählen");
+      html += `<div class="row" style="margin-top:4px">
+        <span class="lbl grow">Mindest-Überschuss zum Anheben<small>Ab dieser Leistung hebt PVM die Temperatur an.</small></span>
+        <input type="range" data-num="min_on_power" min="100" max="11000" step="100" value="${Number(d.limits.min_on_power_w) || 1400}" style="flex:1.2;min-width:150px">
+        <b class="numval" data-numval="min_on_power">${esc(fmtNum(Number(d.limits.min_on_power_w) || 1400, "W"))}</b>
+      </div>`;
+      return html;
+    }
     if (c.type === "buttons") {
       html += row("on_entity", "Start-Knopf", "Mit diesem Knopf startet das Laden (falls dein Gerät zwei getrennte Taster hat).", "z. B. Knopf „Laden starten“ wählen");
       html += row("off_entity", "Stopp-Knopf", "Mit diesem Knopf stoppt das Laden wieder.", "z. B. Knopf „Laden stoppen“ wählen");
     } else {
       html += row("switch_entity", "Schalter (An/Aus)", "Dein Gerät muss sich über einen Schalter an- und ausschalten lassen.", "z. B. Schalter „Freigabe“ wählen");
     }
-    if (c.type === "switch_number") {
+    // Leistungsbegrenzer: eigenes An-/Abwählfeld („hat mein Gerät einen?“)
+    html += `
+      <div class="row" style="border-top:1px solid var(--line);padding-top:12px">
+        <span class="lbl grow">Leistungs-Begrenzer vorhanden<small>Kann dein Gerät seine Leistung begrenzen (z. B. Max. Strom in Ampere)? Dann kann PVM die Leistung passend steuern.</small></span>
+        <span class="sw ${c.has_limiter ? "on" : ""}" data-field-toggle="has_limiter"><i></i></span>
+      </div>`;
+    if (c.has_limiter) {
       html += row("number_entity", "Leistungs-Einstellung", "Hier stellt dein Gerät ein, mit wie viel Leistung es läuft.", "z. B. „Max. Strom“ wählen");
       html += `
         <div class="row">
@@ -2006,11 +2076,19 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     return `
       <div class="f">
         <label>${esc(label)}</label>
-        <div class="ent">
+        <div class="ent" style="align-items:center">
           <input type="range" data-num="${key}" min="${min}" max="${max}" step="${step}" value="${v}" style="flex:1">
-          <span style="color:var(--mut);width:54px;font-size:13px">${esc(unit)}</span>
+          <b class="numval" data-numval="${key}">${esc(fmtNum(v, unit))}</b>
+          <span style="color:var(--mut);width:44px;font-size:12.5px">${esc(unit)}</span>
         </div>
       </div>`;
+  }
+  function numUnitOf(key) {
+    return {
+      capacity: "kWh", min_soc: "%", max_soc: "%", deadline_soc: "%",
+      est_power: "W", comfort: "°C", safety: "°C", boost: "°C",
+      power_limit: "W", min_on_power: "W", nominal: "W",
+    }[key] || "";
   }
 
   function roleFields(d) {
@@ -2033,19 +2111,20 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     if (d.role === "fahrzeug") {
       // Auto: Hier gehören ALLE Lade-Wünsche hin – nicht an die Wallbox.
       const car = d.car;
-      out.push(sensorRow("soc", "Akku-Stand (SoC)", "Ladezustand des Autos in % – z. B. vom Auto-Hersteller."));
+      out.push(sensorRow("soc", "Akku-Stand (SoC)", "Ladezustand des Autos in % – z. B. vom Auto-Hersteller. Ohne Sensor zeigt PVM keinen Akku an."));
       out.push(sensorRow("power", "Aktuelle Ladeleistung", "Was das Auto gerade zieht – PVM vergleicht das mit den Wallboxen und erkennt so, wo es hängt."));
       out.push(numberField("capacity", "Batteriegröße", car.capacity_kwh, 1, 300, 1, "kWh"));
       out.push(numberField("min_soc", "Mindest-Akku (Untergrenze)", car.min_soc, 0, 100, 1, "%"));
       out.push(numberField("max_soc", "Ziel-Akku (Obergrenze)", car.max_soc, 10, 100, 1, "%"));
-      // Heimat-Wallbox: gelernt (Einsteck-Zeitpunkt) oder vom Nutzer gesetzt –
-      // daraus koppeln sich Auto & Wallbox automatisch.
+      // Heimat-Wallbox: vom Nutzer gesetzt (manuell) bzw. von der Auto-
+      // Erkennung gelernt (Einstellung „Automatische Auto-Erkennung“).
       const wallboxes = devicesOf().filter((x) => x.role === "wallbox");
+      const autoOn = !!configSettings().auto_pairing;
       out.push(`<div class="f">
         <label>Wo ist dieses Auto zu Hause?</label>
-        <small>PVM erkennt es automatisch und lernt die Zuordnung – nach dem ersten Laden steht sie hier. Du kannst sie jederzeit selbst festlegen.</small>
+        <small>${autoOn ? "PVM erkennt die Zuordnung automatisch und lernt sie – du kannst sie hier jederzeit selbst festlegen." : "PVM nutzt diese Zuordnung, um das Auto der richtigen Wallbox zuzuordnen. (Automatische Erkennung: aus – siehe Einstellungen → Steuerung.)"}</small>
         <select data-field="home_wallbox" style="margin-top:6px">
-          <option value="" ${!car.home_wallbox ? "selected" : ""}>Automatisch (PVM lernt es selbst)</option>
+          <option value="" ${!car.home_wallbox ? "selected" : ""}>${autoOn ? "Automatisch (PVM lernt es selbst)" : "Keine (Auto ist unterwegs)"}</option>
           ${wallboxes.map((w) => `<option value="${esc(w.id)}" ${car.home_wallbox === w.id ? "selected" : ""}>${esc(w.name || "Wallbox")}</option>`).join("")}
           ${!wallboxes.length ? "<option disabled>Noch keine Wallbox konfiguriert</option>" : ""}
         </select>
@@ -2055,7 +2134,8 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           <label>Fertig-Ziel (bis wann laden?)</label><small>Optional: Akku-Ziel und Uhrzeit – PVM lädt bis dahin (nötigenfalls mit Netz). 0 % = aus.</small>
           <div class="ent" style="margin-top:4px">
             <input type="range" data-num="deadline_soc" min="0" max="100" step="1" value="${Number(car.deadline_soc || 0)}" style="flex:1">
-            <span style="color:var(--mut);width:60px;font-size:13px">%</span>
+            <b class="numval" data-numval="deadline_soc">${esc(fmtNum(Number(car.deadline_soc || 0), "%"))}</b>
+            <span style="color:var(--mut);width:44px;font-size:12.5px">%</span>
           </div>
           <div class="ent" style="margin-top:6px">
             <input type="time" data-field="deadline_time" value="${esc(car.deadline_time || "")}" style="flex:1">
@@ -2066,26 +2146,32 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         ${toggleRow("grid_deadline", "Netzstrom für das Fertig-Ziel", car.grid_deadline_allowed, "Damit dein Auto bis zur Abfahrtszeit sein Ziel erreicht.")}
       `));
     } else if (d.role === "wallbox") {
-      // Wallbox: NUR die Hardware – Leistungs-Sensor + (versteckt) Limits.
+      // Wallbox: NUR die Hardware – Leistungs-Sensor + zwei Schieberegler.
       // Akku-Grenzen, Ziele & Power Charge stellst du am Auto ein.
       out.push(sensorRow("power", "Leistung (lädt gerade)", "Zeigt live, wie viel die Wallbox zieht."));
-      out.push(adv(`
-        ${numberField("power_limit", "Maximale Ladeleistung der Wallbox", d.limits.power_limit_w, 500, 22000, 100, "W")}
-        ${numberField("min_on_power", "Mindest-Überschuss zum Laden", d.limits.min_on_power_w, 100, 11000, 100, "W")}
-      `));
+      out.push(numberField("power_limit", "Maximale Ladeleistung der Wallbox", d.limits.power_limit_w, 500, 22000, 100, "W"));
+      out.push(numberField("min_on_power", "Mindest-Überschuss zum Laden", d.limits.min_on_power_w, 100, 11000, 100, "W"));
     } else if (d.role === "waermepumpe") {
       const wp = d.wp;
+      const tempMode = (d.control.type === "wp_temp");
       out.push(sensorRow("temp", "Temperatur-Sensor", "Vorlauf-/Speichertemperatur in °C."));
       out.push(sensorRow("power", "Leistung (im Betrieb)", "Für die Kalibrierung deiner Wärmepumpe."));
+      if (tempMode) {
+        // „Nur Ziel-Temperatur“: zwei Schieberegler – normal & Boost.
+        out.push(numberField("comfort", "Normale Soll-Temperatur", wp.comfort_c, 40, 70, 0.5, "°C"));
+        out.push(numberField("boost", "Ziel bei Überschuss", wp.boost_c, 40, 70, 0.5, "°C"));
+      } else {
+        out.push(numberField("comfort", "Soll-Temperatur", wp.comfort_c, 40, 70, 0.5, "°C"));
+      }
       out.push(adv(`
         ${numberField("est_power", "Geschätzte Heizleistung", wp.est_power_w, 500, 22000, 100, "W")}
-        ${numberField("comfort", "Soll-Temperatur", wp.comfort_c, 40, 70, 0.5, "°C")}
         ${numberField("safety", "Notfall-Minimum", wp.safety_min_c, 20, 50, 1, "°C")}
         ${toggleRow("grid_fallback", "Netz im Notfall", wp.grid_fallback_allowed, "Unter dem Notfall-Minimum darf PVM kurz Netzstrom nutzen.")}
       `));
     } else {
       out.push(sensorRow("power", "Leistung (im Betrieb)", "Optional – zeigt den Verbrauch live an."));
       out.push(numberField("nominal", "Leistung im Betrieb", d.limits.nominal_power_w, 50, 22000, 100, "W"));
+      out.push(numberField("min_on_power", "Mindest-Überschuss zum Einschalten", d.limits.min_on_power_w, 100, 11000, 100, "W"));
     }
     out.push(`
       <div class="row" style="border-top:1px solid var(--line);padding-top:12px">
@@ -2107,6 +2193,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   const WP_TOGGLE = { grid_fallback: "grid_fallback_allowed" };
   function applyDeviceToggle(d, key, on) {
     if (key === "enabled") d.enabled = on;
+    else if (key === "has_limiter") d.control.has_limiter = on;
     else if (d.car && CAR_TOGGLE[key]) d.car[CAR_TOGGLE[key]] = on;
     else if (d.wp && WP_TOGGLE[key]) d.wp[WP_TOGGLE[key]] = on;
   }
@@ -2128,6 +2215,13 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       nextBtn.style.display = step >= 3 ? "none" : "";
       saveBtn.style.display = step < 3 ? "none" : "";
     };
+    const infoBtn = ev.target.closest("[data-info-btn]");
+    if (infoBtn) {
+      const key = infoBtn.getAttribute("data-info-btn");
+      const box = $(overlay, '[data-info="' + key + '"]');
+      if (box) box.classList.toggle("open");
+      return;
+    }
     const roleEl = ev.target.closest("[data-role]");
     if (roleEl) {
       d.role = roleEl.getAttribute("data-role");
@@ -2163,6 +2257,11 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       const key = fieldToggle.getAttribute("data-field-toggle");
       const on = fieldToggle.classList.toggle("on");
       applyDeviceToggle(d, key, on);
+      // Leistungsbegrenzer ein/aus: passende Felder sofort zeigen/ausblenden
+      if (key === "has_limiter") {
+        const fieldsEl = $(overlay, "[data-el=ctrl-fields]");
+        if (fieldsEl) fieldsEl.innerHTML = controlFields(d);
+      }
       return;
     }
     if (ev.target.closest("[data-close]")) { closeModal(); return; }
@@ -2214,6 +2313,20 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       else if (key === "deadline_time" && d.car) d.car.deadline_time = v || null;
       else if (key === "home_wallbox" && d.car) d.car.home_wallbox = v || null;
     });
+    // Steuerungsart wechseln (z. B. auf „Nur Ziel-Temperatur“) erzwingt
+    // passende Standardwerte, damit alte Felder nicht übrig bleiben.
+    if (d.control.type === "wp_temp") {
+      d.control.switch_entity = null;
+      d.control.on_entity = null;
+      d.control.off_entity = null;
+      d.control.number_entity = null;
+      d.control.has_limiter = false;
+    } else if (d.control.type === "buttons") {
+      d.control.switch_entity = null;
+      d.control.temp_entity = null;
+    } else {
+      d.control.temp_entity = null;
+    }
     $$(overlay, "[data-field-toggle]").forEach((el) => {
       const key = el.getAttribute("data-field-toggle");
       const on = el.classList.contains("on");
@@ -2226,7 +2339,8 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       const map = {
         capacity: ["car", "capacity_kwh"], min_soc: ["car", "min_soc"], max_soc: ["car", "max_soc"],
         deadline_soc: ["car", "deadline_soc"],
-        est_power: ["wp", "est_power_w"], comfort: ["wp", "comfort_c"], safety: ["wp", "safety_min_c"],
+        est_power: ["wp", "est_power_w"], comfort: ["wp", "comfort_c"],
+        safety: ["wp", "safety_min_c"], boost: ["wp", "boost_c"],
       };
       const where = map[key];
       if (key === "power_limit") d.limits.power_limit_w = v;
@@ -2252,6 +2366,17 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       return true;
     }
     const c = d.control;
+    if (c.type === "wp_temp") {
+      if (!c.temp_entity) {
+        toast("Bitte wähle die Ziel-Temperatur-Entität deiner Wärmepumpe.", "bad");
+        return false;
+      }
+      if (Number(d.wp && d.wp.comfort_c) >= Number(d.wp && d.wp.boost_c)) {
+        toast("Die Ziel-Temperatur bei Überschuss muss höher sein als die normale Soll-Temperatur.", "bad");
+        return false;
+      }
+      return true;
+    }
     if (c.type === "buttons") {
       if (!c.on_entity || !c.off_entity) {
         toast("Bei zwei Tastern brauchst du einen Start- UND einen Stopp-Knopf.", "bad");
@@ -2261,7 +2386,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         toast("Bei zwei Tastern braucht PVM einen Leistungs-Sensor, um zu erkennen, ob das Gerät läuft.", "bad");
         return false;
       }
-    } else if (c.type === "switch_number") {
+    } else if (c.has_limiter) {
       if (!c.switch_entity || !c.number_entity) {
         toast("Bitte wähle Schalter und Leistungs-Einstellung.", "bad");
         return false;
@@ -2293,6 +2418,17 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       const id = accBtn.parentElement.getAttribute("data-acc");
       const open = accBtn.parentElement.classList.toggle("open");
       if (id) state.accOpen[id] = open;
+      return;
+    }
+    const settingsToggle = ev.target.closest("[data-settings-toggle]");
+    if (settingsToggle) {
+      const key = settingsToggle.getAttribute("data-settings-toggle");
+      const on = settingsToggle.classList.toggle("on");
+      configSettings()[key] = on;
+      const label = key === "manual_mode"
+        ? (on ? "Manuell – PVM steuert nichts mehr" : "Automatik – PVM verteilt wieder Überschuss")
+        : (on ? "Automatische Auto-Erkennung an" : "Automatische Auto-Erkennung aus");
+      saveAndRefresh(label);
       return;
     }
     const modeEl = ev.target.closest("[data-mode]");
@@ -2446,6 +2582,21 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         const found = sets[idx];
         if (!found) return;
         const fields = found.fields || {};
+        // Den übernommenen Vorschlag SOFORT aus der „Gefunden“-Liste nehmen,
+        // damit es nicht aussieht, als hätte sich nichts getan (die Seite
+        // würde sonst nur neu rendern und der Eintrag bliebe stehen).
+        // Nach Rolle + Entität filtern (nicht nach Objekt-Identität – der
+        // Scan kann zwischenzeitlich neu aufgebaut worden sein).
+        const removeFromScan = () => {
+          const adoptedRole = found.role;
+          const adoptedEntity = fields.entity || fields.power_sensor || fields.temp_sensor || "";
+          state.scan.sets = (state.scan.sets || []).filter((s) => {
+            if (s.role !== adoptedRole) return true;
+            const f = s.fields || {};
+            return (f.entity || f.power_sensor || f.temp_sensor || "") !== adoptedEntity;
+          });
+          if (state.view === "found") state.panel._nav("found");
+        };
         if (["pv", "grid", "grid_import", "grid_export", "house"].includes(found.role)) {
           const eid = fields.entity;
           if (!eid) { toast("Keine passende Entität im Vorschlag.", "bad"); return; }
@@ -2453,7 +2604,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           e[found.role + "_sensor"] = eid;
           if (found.role === "grid") e.grid_mode = "combined";
           if (found.role === "grid_import" || found.role === "grid_export") e.grid_mode = "separate";
-          saveAndRefresh("Sensor übernommen.");
+          saveAndRefresh("Sensor übernommen ✓ – er ist jetzt in den Energie-Sensoren verbunden.").then(removeFromScan);
         } else if (found.role === "fahrzeug") {
           const d = defaultDevice("fahrzeug");
           d.name = found.title || "Auto";
@@ -2471,12 +2622,20 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
             d.control.off_entity = fields.off_entity;
           }
           if (fields.number_entity) {
-            d.control.type = "switch_number";
+            // Leistungs-Begrenzer vorhanden (neues Modell: Schalter + Flag)
+            d.control.has_limiter = true;
             d.control.number_entity = fields.number_entity;
             if (!fields.on_entity && fields.switch_entity) d.control.switch_entity = fields.switch_entity;
           }
+          if (fields.temp_entity && !fields.switch_entity) {
+            // Wärmepumpe ohne Schalter: nur Ziel-Temperatur einstellbar
+            d.control.type = "wp_temp";
+            d.control.temp_entity = fields.temp_entity;
+          }
           if (fields.power_sensor) d.sensors.power = fields.power_sensor;
-          if (fields.soc_sensor) d.sensors.soc = fields.soc_sensor;
+          // SoC gehört NUR zum Auto – nie an Wallbox/WP/Verbraucher anhängen
+          // (sonst „weiß“ z. B. die Wallbox den Akkustand des Autos).
+          if (fields.soc_sensor && role === "fahrzeug") d.sensors.soc = fields.soc_sensor;
           if (fields.temp_sensor) d.sensors.temp = fields.temp_sensor;
           openDeviceDialog(d);
         }
@@ -2524,10 +2683,19 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   /* input-/change-Delegation (Slider + Selects) */
   function onRootInput(root, ev) {
     const slider = ev.target.closest("[data-slider]");
-    if (!slider) return;
-    const key = slider.getAttribute("data-slider");
-    const valEl = $(root, '[data-el="slider-' + key + '"]');
-    if (valEl) valEl.textContent = fmtNum(parseFloat(slider.value), sliderUnit(key));
+    if (slider) {
+      const key = slider.getAttribute("data-slider");
+      const valEl = $(root, '[data-el="slider-' + key + '"]');
+      if (valEl) valEl.textContent = fmtNum(parseFloat(slider.value), sliderUnit(key));
+      return;
+    }
+    const num = ev.target.closest("[data-num]");
+    if (num) {
+      // Geräte-Dialog: Zahlenwert am Schieberegler live anzeigen
+      const key = num.getAttribute("data-num");
+      const valEl = $(root, '[data-numval="' + key + '"]');
+      if (valEl) valEl.textContent = fmtNum(parseFloat(num.value), numUnitOf(key));
+    }
   }
   function onRootChange(root, ev) {
     const slider = ev.target.closest("[data-slider]");
@@ -2739,7 +2907,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   function defaultDevice(role) {
     const base = {
       id: "", name: "", role: role, enabled: true,
-      control: { type: "switch", switch_entity: null, on_entity: null, off_entity: null, number_entity: null, number_unit: "W", phases: 3 },
+      control: { type: "switch", switch_entity: null, on_entity: null, off_entity: null, number_entity: null, temp_entity: null, has_limiter: false, number_unit: "W", phases: 3 },
       sensors: { power: null, soc: null, temp: null },
       limits: { power_limit_w: 11000, min_on_power_w: 1400, min_on_s: 120, min_off_s: 60 },
       car: null, wp: null,
@@ -2747,7 +2915,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     if (role === "wallbox" || role === "fahrzeug") {
       base.car = { capacity_kwh: 60, min_soc: 50, max_soc: 80, min_charge_power_w: 4000, grid_min_allowed: true, grid_deadline_allowed: true, manual_force: false, deadline_time: null, deadline_soc: 0 };
     } else if (role === "waermepumpe") {
-      base.wp = { comfort_c: 60, safety_min_c: 40, est_power_w: 2000, grid_fallback_allowed: true, test_active: false };
+      base.wp = { comfort_c: 60, safety_min_c: 40, est_power_w: 2000, grid_fallback_allowed: true, test_active: false, boost_c: 65 };
     } else {
       base.limits.nominal_power_w = 2000;
     }

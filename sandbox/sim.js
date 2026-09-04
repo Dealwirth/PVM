@@ -88,7 +88,7 @@
     entities: {},   // entity_id -> {state, attributes}
     scan: { sets: [] },
     setup: "start",
-    version: "1.7.1-sandbox",
+    version: "1.8.0-sandbox",
     carMode: "charging", // "charging" | "away"
     listeners: [],
   };
@@ -120,17 +120,19 @@
   }
 
   function defaultDevice(role, name) {
-    return {
+    const base = {
       id: "",
       name,
       role,
       enabled: true,
-      control: { type: "switch", switch_entity: null, number_entity: null, on_entity: null, off_entity: null, number_unit: "W", phases: 3 },
+      control: { type: "switch", switch_entity: null, number_entity: null, on_entity: null, off_entity: null, temp_entity: null, has_limiter: false, number_unit: "W", phases: 3 },
       sensors: { power: null, soc: null, temp: null },
       limits: { power_limit_w: 11000, min_on_power_w: 1400, min_on_s: 120, min_off_s: 60 },
       car: null,
       wp: null,
     };
+    if (role === "waermepumpe") base.wp = { comfort_c: 60, safety_min_c: 40, est_power_w: 2000, grid_fallback_allowed: true, test_active: false, boost_c: 65 };
+    return base;
   }
 
   function scenarioConfig(separate) {
@@ -138,20 +140,25 @@
     const wallbox = defaultDevice("wallbox", "Wallbox Garage");
     wallbox.id = "wb1";
     wallbox.sensors = { power: "sensor.wallbox_garage_leistung", soc: "sensor.auto_soc", temp: null };
-    wallbox.control = { type: "switch", switch_entity: "switch.wallbox_garage_freigabe", number_entity: "number.wallbox_garage_max", on_entity: null, off_entity: null, number_unit: "A", phases: 3 };
+    wallbox.control = { type: "switch", switch_entity: "switch.wallbox_garage_freigabe", number_entity: "number.wallbox_garage_max", on_entity: null, off_entity: null, temp_entity: null, has_limiter: true, number_unit: "A", phases: 3 };
     wallbox.car = { capacity_kwh: 60, min_soc: 30, max_soc: 80, min_charge_power_w: 4000, grid_min_allowed: true, grid_deadline_allowed: true, manual_force: false, deadline_time: null, deadline_soc: 0 };
     const auto = defaultDevice("fahrzeug", "Enyaq");
     auto.id = "car1";
     auto.sensors = { power: "sensor.auto_leistung", soc: "sensor.auto_soc", temp: null };
     auto.car = { capacity_kwh: 62, min_soc: 30, max_soc: 80, min_charge_power_w: 4000, grid_min_allowed: true, grid_deadline_allowed: true, manual_force: false, deadline_time: null, deadline_soc: 0, home_wallbox: "wb1" };
+    const wp = defaultDevice("waermepumpe", "Wärmepumpe");
+    wp.id = "wp1";
+    wp.sensors = { power: null, soc: null, temp: "sensor.wp_vorlauf" };
+    wp.control = { type: "wp_temp", switch_entity: null, number_entity: null, on_entity: null, off_entity: null, temp_entity: "number.wp_soll", has_limiter: false, number_unit: "W", phases: 3 };
     return {
       energy,
       settings: {
         mode: "auto", reserve_w: 100, cycle_s: 30, min_on_s: 120, min_off_s: 60,
         wp_test_target_c: 70, wp_test_max_duration_min: 120, ui_theme: "ha",
         accent: "auto", accent_custom: "", intro_done: false,
+        auto_pairing: false, manual_mode: false,
       },
-      devices: separate ? [wallbox, auto] : [wallbox, auto],
+      devices: separate ? [wallbox, auto, wp] : [wallbox, auto, wp],
       wp_test_results: {},
     };
   }
@@ -226,6 +233,8 @@
     ensureEntity("switch.wallbox_garage_freigabe", "Wallbox Garage Freigabe", "on");
     ensureEntity("number.wallbox_garage_max", "Wallbox Garage Max", "16", { unit_of_measurement: "A" });
     ensureEntity("switch.poolpumpe", "Poolpumpe", "off");
+    ensureEntity("sensor.wp_vorlauf", "Wärmepumpe Vorlauf", "52.0", { unit_of_measurement: "°C", device_class: "temperature" });
+    ensureEntity("number.wp_soll", "Wärmepumpe Soll-Temperatur", "60.0", { unit_of_measurement: "°C" });
   }
 
   function entityMapFor(config) {
@@ -264,6 +273,7 @@
       sets.push({ role: "grid", title: "SolarNet Leistung Netz", fields: { entity: "sensor.solarnet_leistung_netz" } });
     }
     sets.push({ role: "verbraucher", title: "Poolpumpe", fields: { switch_entity: "switch.poolpumpe", power_sensor: null } });
+    sets.push({ role: "wp", title: "Wärmepumpe", fields: { temp_sensor: "sensor.wp_vorlauf", temp_entity: "number.wp_soll", switch_entity: null } });
     return sets;
   }
 

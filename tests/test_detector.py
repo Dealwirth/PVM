@@ -265,3 +265,22 @@ def test_car_for_wallbox_respects_assignments_of_other_wallbox():
     assert detector.car_for_wallbox(
         config, "wb2", assignments={"car1": "wb1"}, wallbox_charging=True
     ) is None
+
+
+def test_suggest_sets_wp_with_temp_entity_without_switch():
+    # Wärmepumpe, die sich NICHT schalten lässt – nur Ziel-Temperatur
+    # (number mit °C) einstellbar -> Steuerungsart „wp_temp“ vorschlagen.
+    entities = [
+        {**ent("sensor.wp_vorlauf", "Wärmepumpe Vorlauftemperatur", "temperature", "°C"),
+         "device_id": "dev_wp", "device_name": "Wärmepumpe", "manufacturer": "Vaillant"},
+        {**ent("number.wp_soll", "Wärmepumpe Soll-Temperatur", "", "°C"),
+         "device_id": "dev_wp", "device_name": "Wärmepumpe", "manufacturer": "Vaillant"},
+    ]
+    sets = detector.suggest_sets(entities)
+    wp_sets = [s for s in sets if s["role"] == "wp"]
+    assert wp_sets
+    found = wp_sets[0]
+    assert found["fields"]["temp_sensor"] == "sensor.wp_vorlauf"
+    assert found["fields"]["temp_entity"] == "number.wp_soll"
+    assert found["fields"]["switch_entity"] is None
+    assert found["control"] == "wp_temp"

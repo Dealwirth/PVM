@@ -9,6 +9,22 @@ beiden Taster-Entitäten zu. PVM braucht dann zusätzlich den
 **Ladeleistungs-Sensor** (Pflicht), um zu erkennen, ob das Laden läuft – und
 drückt die Taster nur bei echten Zustandswechseln (kein Doppel-Start/-Stopp).
 
+## Meine Wärmepumpe hat keinen Schalter – nur eine Soll-Temperatur
+
+Wähle beim Gerät die Steuerungsart **„Nur Ziel-Temperatur (kein Ein/Aus)“**
+und ordne die Ziel-Temperatur-Entität zu (eine Nummern-Entität in °C). PVM
+stellt dann bei genügend Überschuss die **„Ziel bei Überschuss“**-Temperatur
+und bei zu wenig Überschuss wieder die normale Soll-Temperatur ein. Die
+Geräte-Erkennung schlägt diese Art automatisch vor, wenn sie eine
+einstellbare Temperatur findet.
+
+## Meine Wallbox zeigt keinen Akku-Stand mehr
+
+Der Akku-Stand gehört jetzt zum **Auto**, nicht zur Wallbox – die
+Wallbox-Karte zeigt nur Leistung, zugeordnetes Auto und Ziel. Ist ein
+Auto mit SoC-Sensor angelegt, siehst du den Akku auf der Auto-Karte. Ohne
+SoC-Sensor zeigt PVM gar keine Akku-Leiste an (statt „–“ zu erfinden).
+
 ## Fehler „expected (sensor)“ beim Einrichten
 
 Dieser kryptische Hinweis kam früher von zu eng gefassten Entitäten-Feldern.

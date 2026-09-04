@@ -70,10 +70,10 @@ deiner Auswahl passen** – nichts Kompliziertes nebenher.
 
 | Rolle | Steuerung | Optionale Sensoren | Besonderheiten |
 | --- | --- | --- | --- |
-| **Wallbox** | Schalter an/aus, zwei Taster oder Schalter + Leistungs-/Strom-Limit | Ladeleistung | Max. Ladeleistung & Mindest-Überschuss (versteckt unter „Erweiterte Einstellungen“) |
+| **Wallbox** | Ein Schalter oder zwei Taster, plus „Leistungs-Begrenzer vorhanden“ | Ladeleistung | Zwei Schieberegler: maximale Ladeleistung & Mindest-Überschuss |
 | **Auto (E-Auto)** | keine (reine Überwachung) | SoC, Ladeleistung | Mindest-/Max-SOC, Frist-Ziele, Power Charge, Netz-Freigaben – alles **am Auto**, nicht an der Wallbox |
-| **Wärmepumpe** | Schalter (Heizbetrieb erlauben) | Temperatur (Pflicht), Leistung | Soll-Temperatur, Sicherheits-Minimum, Kalibrierungstest |
-| **Verbraucher** | Schalter | Leistung | Nennleistung für die Entscheidung |
+| **Wärmepumpe** | Schalter oder **Nur Ziel-Temperatur** (kein Ein/Aus) | Temperatur (Pflicht), Leistung | Soll-/Boost-Temperatur, Sicherheits-Minimum, Kalibrierungstest |
+| **Verbraucher** | Ein Schalter oder zwei Taster, plus „Leistungs-Begrenzer vorhanden“ | Leistung | Nennleistung & Mindest-Überschuss als Schieberegler |
 
 **Karte antippen = alles einstellen:** Ein Klick auf eine Geräte-Karte öffnet
 das komplette Formular (Typ, Steuerung, Sensoren, Ziele). Entitäts-Felder
@@ -82,8 +82,9 @@ kennt, muss nicht suchen; getippte Werte bleiben auch beim Blättern erhalten.
 
 **Ganz einfach gehalten:** Der Dialog zeigt immer nur die wichtigen Felder.
 Seltenere Optionen stecken bewusst unter **„Erweiterte Einstellungen“**
-(klickbar aufklappbar) – nichts wirkt nach dem Öffnen überladen, alles bleibt
-erreichbar und wird gespeichert.
+(klickbar aufklappbar), lange Beschreibungen hinter einem **ⓘ**-Symbol –
+nichts wirkt nach dem Öffnen überladen, alles bleibt erreichbar und wird
+gespeichert.
 
 **Steuerungsarten – du wählst eine, die Felder erscheinen automatisch:**
 
@@ -94,10 +95,18 @@ erreichbar und wird gespeichert.
   **Ladeleistungs-Sensor** als Pflichtfeld abgefragt – an ihm erkennt PVM,
   ob das Gerät wirklich läuft, und drückt die Taster nur bei echten
   Zustandswechseln (kein Doppel-Start/-Stopp).
-- **Schalter + Leistungs-/Strom-Begrenzung:** Zusätzlich setzt PVM einen
-  Sollwert an eine Nummern-Entität (z. B. „Max-Strom“ einer Wallbox). Damit
-  kann der Überschuss fein verteilt werden. Einheit (`W`, `kW`, `A`, `mA`) und
+- **Leistungs-Begrenzer vorhanden?** Ein eigenes Feld pro Gerät: „Hat mein
+  Gerät eine Leistungs-Begrenzung?“ (z. B. Max-Strom einer Wallbox). Ist es
+  an, setzt PVM zusätzlich einen Sollwert an eine Nummern-Entität und kann
+  den Überschuss fein verteilen. Einheit (`W`, `kW`, `A`, `mA`) und
   Phasenzahl fragt das Formular ab und rechnet Watt ↔ Ampere selbst um.
+- **Nur Ziel-Temperatur (Wärmepumpe):** Für Wärmepumpen, die sich **nicht**
+  an-/ausschalten lassen – nur die gewünschte Speichertemperatur einstellbar
+  ist. PVM hebt die Ziel-Temperatur bei Überschuss an und stellt sie bei zu
+  wenig Überschuss wieder auf die normale Soll-Temperatur zurück.
+
+Alle Schieberegler zeigen **live ihren aktuellen Wert** an – du musst nie
+raten, auf welcher Zahl du gerade stehst.
 
 **Automatik-Schalter:** Jedes Gerät hat einen Schalter
 „**Automatik (Überschuss)**“. Nur wenn er an ist, steuert PVM das Gerät.
@@ -127,16 +136,18 @@ Die Batteriekapazität (kWh) wird benötigt, um aus dem SoC (Prozent) den
 Energiebedarf zu berechnen. Der SoC-Sensor aktualisiert oft nur langsam –
 PVM berücksichtigt das automatisch und lädt nicht blind weiter.
 
-**Wo ist welches Auto?** PVM erkennt die Zuordnung automatisch über den
-**Einsteck-Zeitpunkt**: Steigt die Ladeleistung einer Wallbox und eines Autos
-im selben Moment an (z. B. beide um 12:33), kombiniert PVM beides und
-**speichert** die Zuordnung dauerhaft – die „Heimat-Wallbox“ des Autos. Lädt
-nur ein Auto, ist die Zuordnung trivial; bei mehreren zählen zusätzlich die
-(unterschiedlichen) Ladeleistungen. Im Auto-Dialog kannst du die Heimat-
-Wallbox jederzeit selbst festlegen („Wo ist dieses Auto zu Hause?“). Auf der
-Wallbox-Karte steht dann 🚗 *Auto* (lädt gerade) bzw. 🏠 *Auto (zu Hause)*
-(gelernt); der Auto-Status-Sensor `sensor.pvm_car_status_*` liefert zusätzlich
-die Attribute `home_wallbox_id`/`home_wallbox_name`.
+**Wo ist welches Auto?** Standardmäßig ist die **automatische Auto-
+Erkennung aus** (Einstellungen → Steuerung): PVM nutzt dann nur die
+**Heimat-Wallbox**, die du im Auto-Dialog wählst („Wo ist dieses Auto zu
+Hause?“). Schaltest du die Auto-Erkennung ein, erkennt PVM die Zuordnung
+automatisch über den **Einsteck-Zeitpunkt**: Steigt die Ladeleistung einer
+Wallbox und eines Autos im selben Moment an (z. B. beide um 12:33),
+kombiniert PVM beides und **speichert** die Zuordnung dauerhaft. Lädt nur
+ein Auto, ist die Zuordnung trivial; bei mehreren zählen zusätzlich die
+(unterschiedlichen) Ladeleistungen. Auf der Wallbox-Karte steht dann
+🚗 *Auto* (lädt gerade) bzw. 🏠 *Auto (zu Hause)* (gelernt); der
+Auto-Status-Sensor `sensor.pvm_car_status_*` liefert zusätzlich die
+Attribute `home_wallbox_id`/`home_wallbox_name`.
 
 **Auto und Wallbox sind getrennt, koppeln sich aber automatisch:** Alle
 Lade-Wünsche (Mindest-/Max-SOC, Frist-Ziele, Power Charge, Netz-Freigaben)
@@ -150,6 +161,13 @@ Wallbox es hängt.
 ## Wärmepumpe
 
 - **Soll-Temperatur:** Bei Unterschreitung + Überschuss heizt die WP.
+- **Nur Ziel-Temperatur (ohne Ein/Aus):** Kann deine Wärmepumpe nicht
+  geschaltet werden, wähle diese Steuerungsart und weise die
+  Ziel-Temperatur-Entität zu. PVM stellt dann bei genügend Überschuss die
+  **Ziel bei Überschuss**-Temperatur ein und bei zu wenig Überschuss wieder
+  die **normale Soll-Temperatur** – mit Hysterese, damit es nicht
+  hin- und herspringt. Die Auto-Erkennung schlägt diese Art selbst vor,
+  wenn sie eine einstellbare Temperatur findet.
 - **Netz im Notfall:** Fällt die Temperatur unter das Sicherheits-Minimum
   (Standard 40 °C), heizt die WP auch ohne Überschuss – Frostschutz.
 - **WP-Test (Kalibrierung):** Heizt bis zur Zieltemperatur (Standard 70 °C),
@@ -159,6 +177,11 @@ Wallbox es hängt.
   die Services `pvm.wp_test_start` / `pvm.wp_test_abort`.
 
 ## Modus (global)
+
+**Automatik / Manuell:** Der große Umschalter in **Einstellungen → Steuerung**
+bestimmt, ob PVM überhaupt steuert. **Automatik** (Standard): PVM verteilt
+den Überschuss. **Manuell:** PVM misst nur noch mit (Überschuss bleibt
+aktuell) und lässt alle Geräte in Ruhe – du steuerst selbst.
 
 Der Betriebsmodus sitzt oben auf der Seite (und existiert zusätzlich als
 Entität `select.pvm_mode`):
@@ -179,7 +202,8 @@ Device-Registry** aller Integrationen – inklusive Hersteller-/Modell-
 Informationen (z. B. SMA, go-e, openWB, Vaillant). Gefundene Messungen und
 Geräte werden **mit Begründung und aktuellem Messwert** vorgeschlagen; bei
 mehreren Treffern fragt PVM nach. Übernehmen heißt: Klick auf „Übernehmen“ –
-bei Geräten öffnet sich das **vorausgefüllte Formular** zum Bestätigen.
+der Vorschlag verschwindet sofort aus der Liste (und wird bestätigt), bei
+Geräten öffnet sich das **vorausgefüllte Formular** zum Bestätigen.
 Nichts wird ohne deine Bestätigung konfiguriert.
 
 ## Design & Darstellung

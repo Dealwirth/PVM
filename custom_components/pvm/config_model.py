@@ -14,6 +14,7 @@ from .const import (
     CONTROL_SWITCH,
     CONTROL_SWITCH_NUMBER,
     CONTROL_TYPES,
+    CONTROL_WP_TEMP,
     DEFAULT_CAPACITY_KWH,
     DEFAULT_CONFIG,
     DEFAULT_CONSUMER_NOMINAL_W,
@@ -24,6 +25,7 @@ from .const import (
     DEFAULT_PHASES,
     DEFAULT_POWER_LIMIT_W,
     DEFAULT_UI_THEME,
+    DEFAULT_WP_BOOST_C,
     DEFAULT_WP_EST_POWER_W,
     DEFAULT_WP_SAFETY_MIN_C,
     DEFAULT_WP_TARGET_C,
@@ -103,6 +105,8 @@ def default_device(role: str, name: str = "Gerät") -> dict:
             "number_entity": None,
             "on_entity": None,   # Zwei Taster: Start-Taster
             "off_entity": None,  # Zwei Taster: Stopp-Taster
+            "temp_entity": None, # Nur Ziel-Temperatur (Wärmepumpe)
+            "has_limiter": False,  # Leistungs-Begrenzung vorhanden?
             "number_unit": "W",
             "phases": DEFAULT_PHASES,
         },
@@ -156,6 +160,10 @@ def default_device(role: str, name: str = "Gerät") -> dict:
             "est_power_w": DEFAULT_WP_EST_POWER_W,
             "grid_fallback_allowed": True,
             "test_active": False,
+            # Ziel-Temperatur bei Überschuss („Boosten“) – wird bei genügend
+            # Überschuss gesetzt, bei zu wenig wieder auf die Soll-Temperatur
+            # zurückgestellt.
+            "boost_c": DEFAULT_WP_BOOST_C,
         }
     else:  # Verbraucher
         device["limits"]["nominal_power_w"] = DEFAULT_CONSUMER_NOMINAL_W
@@ -194,14 +202,28 @@ def normalize_device(device: dict) -> dict:
     control = merged.setdefault("control", {})
     if control.get("type") not in CONTROL_TYPES:
         control["type"] = CONTROL_SWITCH
-    for key in ("switch_entity", "number_entity", "on_entity", "off_entity"):
+    for key in ("switch_entity", "number_entity", "on_entity", "off_entity", "temp_entity"):
         control[key] = control.get(key) or None
+    # Leistungsbegrenzer: alte „Schalter + Limit“-Steuerung wird in das neue
+    # Modell überführt (ein Schalter + eigenes „hat eine Begrenzung“-Flag).
+    has_limiter = bool(control.get("has_limiter"))
+    if control["type"] == CONTROL_SWITCH_NUMBER:
+        control["type"] = CONTROL_SWITCH
+        has_limiter = has_limiter or bool(control.get("number_entity"))
+    control["has_limiter"] = has_limiter
+    if control["type"] == CONTROL_SWITCH and has_limiter and not control.get("number_entity"):
+        # Begrenzer angekündigt, aber keine Entität -> als einfacher Schalter
+        # behandeln (nie mit kaputter Steuerung arbeiten).
+        control["has_limiter"] = False
     # Unvollständige/kaputte Steuerungen auf sichere Varianten zurückstufen
     if control["type"] == CONTROL_BUTTONS and not (
         control.get("on_entity") and control.get("off_entity")
     ):
         control["type"] = CONTROL_SWITCH
     if control["type"] == CONTROL_SWITCH_NUMBER and not control.get("number_entity"):
+        control["type"] = CONTROL_SWITCH
+    # „Nur Ziel-Temperatur“ (Wärmepumpe) braucht eine Temperatur-Entität
+    if control["type"] == CONTROL_WP_TEMP and not control.get("temp_entity"):
         control["type"] = CONTROL_SWITCH
     if control.get("number_unit") not in ("W", "kW", "A", "mA"):
         control["number_unit"] = "W"
@@ -257,6 +279,13 @@ def normalize_device(device: dict) -> dict:
         wp["est_power_w"] = _clamp(_clean(wp.get("est_power_w")), (50.0, 22000.0))
         wp["grid_fallback_allowed"] = bool(wp.get("grid_fallback_allowed", True))
         wp["test_active"] = bool(wp.get("test_active", False))
+        # Ziel-Temperatur bei Überschuss („Boosten“) – immer über der normalen
+        # Soll-Temperatur, sonst wäre das Anheben sinnlos.
+        boost = _clamp(_clean(wp.get("boost_c")), (40.0, 70.0))
+        comfort = wp["comfort_c"]
+        wp["boost_c"] = max(boost, min(comfort + 1.0, 70.0)) if boost is not None else min(comfort + 5.0, 70.0)
+        if wp["boost_c"] is None:
+            wp["boost_c"] = min(DEFAULT_WP_BOOST_C, 70.0)
     else:
         merged["wp"] = None
 
@@ -308,6 +337,9 @@ def normalize_config(data: dict | None) -> dict:
         settings["mode"] = MODE_AUTO
     if settings.get("ui_theme") not in UI_THEMES:
         settings["ui_theme"] = DEFAULT_UI_THEME
+    # Neue Schalter-Einstellungen (Auto-Erkennung, manueller Modus)
+    settings["auto_pairing"] = bool(settings.get("auto_pairing", False))
+    settings["manual_mode"] = bool(settings.get("manual_mode", False))
     defaults = DEFAULT_CONFIG["settings"]
     for key, value in settings.items():
         if value is None and key in defaults:
