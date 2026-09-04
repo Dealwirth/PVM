@@ -88,7 +88,7 @@
     entities: {},   // entity_id -> {state, attributes}
     scan: { sets: [] },
     setup: "start",
-    version: "1.5.0-sandbox",
+    version: "1.6.0-sandbox",
     carMode: "charging", // "charging" | "away"
     listeners: [],
   };
@@ -143,12 +143,13 @@
     const auto = defaultDevice("fahrzeug", "Enyaq");
     auto.id = "car1";
     auto.sensors = { power: "sensor.auto_leistung", soc: "sensor.auto_soc", temp: null };
-    auto.car = { capacity_kwh: 62, min_soc: 30, max_soc: 80, min_charge_power_w: 4000, grid_min_allowed: true, grid_deadline_allowed: true, manual_force: false, deadline_time: null, deadline_soc: 0 };
+    auto.car = { capacity_kwh: 62, min_soc: 30, max_soc: 80, min_charge_power_w: 4000, grid_min_allowed: true, grid_deadline_allowed: true, manual_force: false, deadline_time: null, deadline_soc: 0, home_wallbox: "wb1" };
     return {
       energy,
       settings: {
         mode: "auto", reserve_w: 100, cycle_s: 30, min_on_s: 120, min_off_s: 60,
         wp_test_target_c: 70, wp_test_max_duration_min: 120, ui_theme: "ha",
+        accent: "auto", intro_done: false,
       },
       devices: separate ? [wallbox, auto] : [wallbox, auto],
       wp_test_results: {},

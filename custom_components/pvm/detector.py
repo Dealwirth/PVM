@@ -683,6 +683,44 @@ def assign_cars_to_wallboxes(
     return assignments
 
 
+def pair_by_plug_time(
+    wallbox_events: list[dict],
+    car_events: list[dict],
+    max_delta_s: float = 150.0,
+) -> dict[str, str]:
+    """Ordnet Autos Wallboxen über den Einsteck-Zeitpunkt zu.
+
+    ``wallbox_events`` / ``car_events``: Listen von Dicts mit ``id`` und
+    ``plug_ts`` (Zeitpunkt, an dem das Laden begonnen hat – also der Moment,
+    in dem das Auto angesteckt wurde). Liefert ``{wallbox_id: car_id}``.
+
+    Idee: Steckt ein Auto um 12:33 an Wallbox A und ein anderes Auto genau
+    dann an Wallbox B, gehören sie zusammen – die Einsteck-Zeitpunkte sind
+    ein starkes, unabhängiges Signal. Es wird gierig die zeitlich
+    ähnlichste Kombination gebildet; nur Paare innerhalb von
+    ``max_delta_s`` werden übernommen (jede Wallbox/ jedes Auto nur einmal).
+    """
+    if not wallbox_events or not car_events:
+        return {}
+    wb_sorted = sorted(wallbox_events, key=lambda e: e.get("plug_ts", 0.0))
+    car_sorted = sorted(car_events, key=lambda e: e.get("plug_ts", 0.0))
+    used_cars: set[str] = set()
+    pairs: dict[str, str] = {}
+    for wb in wb_sorted:
+        best: tuple[float, str] | None = None
+        for car in car_sorted:
+            car_id = str(car.get("id"))
+            if car_id in used_cars:
+                continue
+            delta = abs(float(wb.get("plug_ts", 0.0)) - float(car.get("plug_ts", 0.0)))
+            if delta <= max_delta_s and (best is None or delta < best[0]):
+                best = (delta, car_id)
+        if best is not None:
+            pairs[str(wb.get("id"))] = best[1]
+            used_cars.add(best[1])
+    return pairs
+
+
 def match_power_soc(
     power_series: list[tuple[float, float]],
     soc_series: list[tuple[float, float]],

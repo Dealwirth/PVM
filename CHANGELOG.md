@@ -2,6 +2,42 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.6.0] – 2026-09-04
+
+### Auto ↔ Wallbox: Einsteck-Zeitpunkt + gelernte Zuordnung
+- **Erkennung über den Einsteck-Zeitpunkt:** Beginnt die Ladeleistung einer
+  Wallbox und eines Autos im selben Moment, kombiniert PVM beides und
+  **speichert** die Zuordnung dauerhaft (Heimat-Wallbox des Autos). Damit weiß
+  PVM auch nach Neustarts, welches Auto an welcher Wallbox hängt.
+- **Individuell einstellbar:** Im Auto-Dialog gibt es die Auswahl „Wo ist
+  dieses Auto zu Hause?“ (Wallbox wählen oder „Automatisch – PVM lernt es
+  selbst“). Wallbox-Karten zeigen das ladende Auto (🚗) bzw. das gelernte
+  (🏠 „zu Hause“); der Auto-Status-Sensor liefert zusätzlich
+  `home_wallbox_id`/`home_wallbox_name`.
+- **Rückfall für „nur ein Auto“:** Lädt genau eine Wallbox und es gibt nur ein
+  Auto (ohne eigene Leistungsmeldung), ordnet PVM es der gelernten Wallbox zu.
+
+### Bedienung & Dashboard
+- **Geräte-Karten sind antippbar** – ein Klick auf die Karte öffnet alle
+  Details und Einstellungen (vorher nur über den ✏️-Button).
+- **Eigene Eingaben statt nur Auswahl:** Entitäts-Felder im Dialog sind jetzt
+  frei tippbar („Entitäts-ID tippen oder wählen“); getippte Werte bleiben auch
+  beim Zurück-/Weiter-Blättern erhalten.
+- **Einführung (Tutorial):** großes „🎉 Einführung beenden“, sobald alles
+  eingerichtet ist – danach verschwinden die Schritte und das Dashboard ist
+  aufgeräumt (kleiner „Einführung überspringen“-Link, wenn noch etwas fehlt;
+  „erneut ansehen“ jederzeit möglich).
+- **Akzentfarbe (2. Farbe):** unter Einstellungen → Design & Darstellung
+  wählbar (Automatisch/Grün/Orange/Lila/Rot/Türkis/Blau) – passt Verläufe,
+  Fortschritt und Details an; hell/dunkel folgt weiterhin dem HA-Theme.
+- **Reihenfolge-Pfeile korrigiert:** Autos belegen keinen Rang mehr – Anzeige,
+  Nummerierung, Pfeile und Backend (Engine-Priorität, Rang-Sensor) zählen nur
+  noch steuerbare Geräte. Vorher verschoben die Pfeile unsichtbar Autos mit.
+
+### Behoben
+- Frei getippte Entitäts-IDs gingen beim Seitenwechsel im Geräte-Dialog
+  verloren (jetzt werden die Felder vor jedem Schrittwechsel übernommen).
+
 ## [1.5.0] – 2026-09-04
 
 ### Behoben – „Geräte hinzufügen“ reagierte nicht (wirkliche Ursache gefunden)

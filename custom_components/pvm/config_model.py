@@ -145,6 +145,9 @@ def default_device(role: str, name: str = "Gerät") -> dict:
             "manual_force": False,
             "deadline_time": None,
             "deadline_soc": 0.0,
+            # Gelernte/manuell gesetzte Heimat-Wallbox (device_id): PVM lernt
+            # sie aus dem Einsteck-Zeitpunkt und speichert sie dauerhaft.
+            "home_wallbox": None,
         }
     elif role == ROLE_WAERMEPUMPE:
         device["wp"] = {
@@ -235,6 +238,14 @@ def normalize_device(device: dict) -> dict:
         car["manual_force"] = bool(car.get("manual_force", False))
         deadline_time = car.get("deadline_time")
         car["deadline_time"] = str(deadline_time) if deadline_time else None
+        # Heimat-Wallbox: nur für Fahrzeuge sinnvoll, sonst entfernen
+        home = car.get("home_wallbox")
+        if merged.get("role") == ROLE_FAHRZEUG:
+            car["home_wallbox"] = (
+                str(home).strip() if home and str(home).strip() not in ("", "none", "None") else None
+            )
+        else:
+            car.pop("home_wallbox", None)
     else:
         merged["car"] = None
 
@@ -310,6 +321,27 @@ def normalize_config(data: dict | None) -> dict:
             seen.add(normalized["id"])
             devices.append(normalized)
     merged["devices"] = devices
+
+    # Heimat-Wallbox konsistent halten: Verweis muss auf eine echte Wallbox
+    # zeigen (sonst fällt PVM auf „automatisch lernen“ zurück).
+    wallbox_ids = {
+        str(d["id"]) for d in devices if d.get("role") == ROLE_WALLBOX
+    }
+    for device in devices:
+        car = device.get("car")
+        if car and isinstance(car, dict) and car.get("home_wallbox"):
+            if str(car["home_wallbox"]) not in wallbox_ids:
+                car["home_wallbox"] = None
+
+    # Neue Settings-Felder (Akzentfarbe, Tutorial) sauber übernehmen
+    raw_settings = (data or {}).get("settings") if isinstance(data, dict) else {}
+    if isinstance(raw_settings, dict):
+        if "accent" not in raw_settings:
+            settings["accent"] = "auto"
+        if "intro_done" not in raw_settings:
+            settings["intro_done"] = False
+    if settings.get("intro_done") is None:
+        settings["intro_done"] = False
 
     results = merged.get("wp_test_results") or {}
     merged["wp_test_results"] = {str(k): v for k, v in results.items()}

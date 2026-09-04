@@ -192,3 +192,40 @@ def test_deadline_next_ts_today_and_tomorrow():
     # ungültig -> None
     assert cm.deadline_next_ts(now, None) is None
     assert cm.deadline_next_ts(now, "kaputt") is None
+
+
+def test_fahrzeug_home_wallbox_normalized():
+    device = cm.default_device("fahrzeug", "Enyaq")
+    device["car"]["home_wallbox"] = "wb1"
+    normalized = cm.normalize_device(device)
+    assert normalized["car"]["home_wallbox"] == "wb1"
+    # Wallboxen tragen keine Heimat-Wallbox (gehört dem Auto)
+    wallbox = cm.default_device("wallbox", "Garage")
+    wallbox["car"]["home_wallbox"] = "wb1"
+    assert cm.normalize_device(wallbox)["car"].get("home_wallbox") is None
+
+
+def test_home_wallbox_must_reference_existing_wallbox():
+    config = {
+        "devices": [
+            cm.default_device("wallbox", "Garage"),
+            cm.default_device("fahrzeug", "Enyaq"),
+        ],
+        "settings": {},
+    }
+    config["devices"][0]["id"] = "wb1"
+    car = config["devices"][1]
+    car["id"] = "car1"
+    car["car"]["home_wallbox"] = "unbekannt"
+    normalized = cm.normalize_config(config)
+    car_out = next(d for d in normalized["devices"] if d["id"] == "car1")
+    assert car_out["car"]["home_wallbox"] is None
+
+
+def test_settings_accent_and_intro_defaults():
+    config = cm.normalize_config({"settings": {}})
+    assert config["settings"]["accent"] == "auto"
+    assert config["settings"]["intro_done"] is False
+    config = cm.normalize_config({"settings": {"accent": "gruen", "intro_done": True}})
+    assert config["settings"]["accent"] == "gruen"
+    assert config["settings"]["intro_done"] is True

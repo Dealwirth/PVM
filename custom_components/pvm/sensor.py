@@ -300,6 +300,14 @@ class PvmCarStatusSensor(_PvmDeviceSensor):
         if wallbox_id:
             wallbox = self.manager.get_device(wallbox_id)
             attrs["wallbox_name"] = wallbox.get("name") if wallbox else None
+        # Gelernte/manuell gesetzte Heimat-Wallbox (für Automationen sichtbar)
+        home = (self.device.get("car") or {}).get("home_wallbox")
+        attrs["home_wallbox_id"] = home or None
+        if home:
+            home_wallbox = self.manager.get_device(home)
+            attrs["home_wallbox_name"] = (
+                home_wallbox.get("name") if home_wallbox else None
+            )
         return attrs
 
 

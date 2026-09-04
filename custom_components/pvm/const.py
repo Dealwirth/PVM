@@ -7,7 +7,7 @@ Logik-Modulen und Tests.
 
 DOMAIN = "pvm"
 NAME = "PV Manager"
-VERSION = "1.5.0"
+VERSION = "1.6.0"
 
 # Von der Integration bereitgestellte Plattformen.
 PLATFORMS = ["sensor", "number", "switch", "button", "select", "time"]
@@ -219,6 +219,10 @@ DEFAULT_CONFIG = {
         "wp_test_max_duration_min": WP_TEST_MAX_DURATION_MIN,
         "wp_test_disturbance_w": WP_TEST_DISTURBANCE_W,
         "ui_theme": DEFAULT_UI_THEME,
+        # Akzentfarbe (2. Farbe) für Verläufe/Details: "auto" = Theme-Standard
+        "accent": "auto",
+        # Tutorial/Einführung auf der Startseite beendet (vom Nutzer per Button)
+        "intro_done": False,
     },
     "devices": [],
     # WP-Test-Ergebnisse (dauerhaft, damit nach Neustart noch abrufbar)

@@ -88,7 +88,24 @@
       natur: "Natur-frisch",
       klar: "Kühl & klar",
     },
+    accents: {
+      auto: "Automatisch (wie dein Design)",
+      gruen: "Grün",
+      orange: "Orange",
+      lila: "Lila",
+      rot: "Rot",
+      tuerkis: "Türkis",
+      blau: "Blau",
+    },
   };
+  // Akzentfarben (2. Farbe) für Verläufe, Fortschritt und kleine Details
+  const ACCENT_COLORS = {
+    gruen: "#43a047", orange: "#ef6c00", lila: "#7c4dff",
+    rot: "#e53935", tuerkis: "#00b3a6", blau: "#039be5",
+  };
+  function accentColorOf(key) {
+    return (key && ACCENT_COLORS[key]) || "";
+  }
 
   /* ------------------------------------------------------------------ *
    * Styles (eingebettet – die Seite ist komplett autark)
@@ -181,8 +198,14 @@ p.sub { color:var(--mut); margin:2px 0 14px; font-size:13.5px; line-height:1.5; 
 
 .hero { border-radius:var(--r); padding:26px 24px; margin-top:16px; position:relative; overflow:hidden;
   border:1px solid var(--line); background:var(--card2); box-shadow:var(--sh); }
+.hero.compact { padding:18px 22px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.hero.compact h2 { margin:0; font-size:19px; }
+.hero.compact p { margin:0; font-size:13.5px; }
 .hero h2 { margin:0 0 8px; font-size:22px; }
 .hero p { margin:0 0 18px; color:var(--mut); max-width:600px; line-height:1.6; }
+button.linkbtn { background:none; border:none; color:var(--acc); font:inherit; font-size:12.5px;
+  cursor:pointer; padding:6px 4px; text-decoration:underline; text-underline-offset:3px; }
+button.linkbtn:hover { opacity:.8; }
 .sun { position:absolute; right:-60px; top:-60px; width:260px; height:260px; border-radius:50%; pointer-events:none;
   background:radial-gradient(circle, rgba(255,180,60,.35), rgba(255,120,40,.12) 55%, transparent 70%); }
 .steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; margin-top:4px; }
@@ -241,8 +264,8 @@ svg.flow { width:100%; height:auto; display:block; }
 
 .devices { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; margin-top:12px; }
 .dev { background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:13px 14px;
-  transition:.2s; position:relative; box-shadow:var(--sh); }
-.dev:hover { border-color: rgba(255,159,28,.5); transform:translateY(-2px); }
+  transition:.2s; position:relative; box-shadow:var(--sh); cursor:pointer; }
+.dev:hover { border-color: var(--acc); box-shadow:var(--sh), 0 6px 16px -6px rgba(0,0,0,.25); transform:translateY(-2px); }
 .dev .head { display:flex; align-items:center; gap:10px; }
 .dev .ic { width:38px;height:38px;border-radius:11px; display:grid;place-items:center; flex:0 0 auto;
   background:linear-gradient(140deg, rgba(255,159,28,.22), transparent); border:1px solid rgba(255,159,28,.35); }
@@ -535,7 +558,14 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   function entOf(deviceId) {
     return ((state.entities && state.entities.devices) || {})[deviceId] || {};
   }
-  function rankOf(deviceId) { return devicesOf().findIndex((d) => d.id === deviceId) + 1; }
+  // Rang unter den steuerbaren Geräten (Autos belegen keinen Rang – siehe
+  // Reihenfolge-Seite & Backend rank_of). Liefert 0, wenn das Gerät nicht
+  // steuerbar ist (z. B. Auto) oder nicht existiert.
+  function rankOf(deviceId) {
+    const controllable = devicesOf().filter((d) => d.role !== "fahrzeug");
+    const index = controllable.findIndex((d) => d.id === deviceId);
+    return index >= 0 ? index + 1 : 0;
+  }
 
   /* ------------------------------------------------------------------ *
    * WebSocket / Konfiguration
@@ -888,45 +918,54 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   function htmlStart() {
     const e = energyStatus();
     const devs = devicesOf();
+    const ctl = devs.filter((d) => d.role !== "fahrzeug"); // steuerbare Geräte
+    const s = configSettings();
+    const introDone = !!s.intro_done;
     const allSteps = ["energy", "devices", "order", "design"];
     const stepState = {
       energy: e.any,
-      devices: devs.length > 0,
-      order: devs.length > 1,
+      devices: ctl.length > 0,
+      order: ctl.length > 1,
       design: true,
     };
+    const complete = e.any && ctl.length >= 1;
     const stepText = {
       energy: e.any
         ? "Verbunden: " + e.text
         : "PV-/Netz-Sensor verbinden – erst dann kennt PVM deinen Überschuss.",
-      devices: devs.length
-        ? devs.length + " Gerät" + (devs.length > 1 ? "e" : "") + " konfiguriert"
+      devices: ctl.length
+        ? ctl.length + " Gerät" + (ctl.length > 1 ? "e" : "") + " konfiguriert"
         : "Wallbox, Wärmepumpe oder Verbraucher hinzufügen – Schritt für Schritt gefragt.",
-      order: devs.length > 1
+      order: ctl.length > 1
         ? "Prioritäten gesetzt – wer zuerst Überschuss bekommt."
         : "Bei mehreren Geräten legst du fest, wer zuerst bekommt.",
       design: "Design anpassen – dein Dashboard, deine Farben.",
     };
-    const firstOpen = allSteps.find((s) => !stepState[s]) || allSteps[allSteps.length - 1];
+    const firstOpen = allSteps.find((sStep) => !stepState[sStep]) || allSteps[allSteps.length - 1];
     const quick = `
       <div class="cards">
         ${statCard("pv", "PV-Erzeugung", liveSurplusText("pv"))}
         ${statCard("surplus", "Überschuss", liveSurplusText("surplus"))}
         ${gridSeparate() ? statCard("grid_import", "Netzbezug", "–") + statCard("grid_export", "Einspeisung", "–") : statCard("grid", "Netz", "–")}
       </div>`;
-    return `
+    const hero = introDone ? `
+      <div class="hero compact">
+        <div class="sun"></div>
+        <h2>Dein PV-Manager ☀️</h2>
+        <p>Überschuss intelligent verteilen – live auf dieser Seite. <button class="btn ghost" data-action="intro-restart" style="padding:4px 10px;font-size:12px">Einführung erneut ansehen</button></p>
+      </div>` : `
       <div class="hero">
         <div class="sun"></div>
         <h2>${(devs.length === 0 && !e.any) ? "Willkommen bei PV Manager ☀️" : "Dein PV-Manager"}</h2>
         <p>PV Manager verteilt deinen PV-Überschuss automatisch an Wallbox, Wärmepumpe und Verbraucher –
-           sparsam und zuverlässig. In vier Schritten bist du fertig – alles direkt hier auf dieser Seite.</p>
+           sparsam und zuverlässig. In wenigen Schritten bist du fertig – alles direkt hier auf dieser Seite.</p>
         <div class="steps">
-          ${allSteps.map((s, i) => `
-            <div class="step ${stepState[s] ? "done" : ""} ${s === firstOpen && !stepState[s] ? "active" : ""}"
-                 data-jump="${s}">
-              <div class="n">${stepState[s] ? I.check : i + 1}</div>
-              <b>${esc(stepLabel(s))}</b>
-              <span>${esc(stepText[s])}</span>
+          ${allSteps.map((stepKey, i) => `
+            <div class="step ${stepState[stepKey] ? "done" : ""} ${stepKey === firstOpen && !stepState[stepKey] ? "active" : ""}"
+                 data-jump="${stepKey}">
+              <div class="n">${stepState[stepKey] ? I.check : i + 1}</div>
+              <b>${esc(stepLabel(stepKey))}</b>
+              <span>${esc(stepText[stepKey])}</span>
             </div>`).join("")}
         </div>
         <div class="btnrow">
@@ -934,13 +973,18 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           <button class="btn ghost" data-action="add-device">${I.plus} Gerät hinzufügen</button>
           <button class="btn ghost" data-action="run-scan">${I.radar} Automatisch suchen</button>
         </div>
-      </div>
-      ${(devs.length || e.any) ? `<h2 class="sec">Aktueller Stand</h2><p class="sub">${esc(e.text)} · ${devs.length} Gerät${devs.length === 1 ? "" : "e"}</p>` + quick + (devs.length ? `<div class="devices">${devs.map(htmlDeviceCard).join("")}</div>` : "") : ""}
+        ${complete
+          ? `<div class="btnrow" style="margin-top:2px"><button class="btn primary" data-action="intro-finish" style="padding:14px 26px;font-size:15px">🎉 Einführung beenden</button></div>`
+          : `<div style="text-align:right;margin-top:6px"><button class="linkbtn" data-action="intro-skip">Einführung überspringen</button></div>`}
+      </div>`;
+    return `
+      ${hero}
+      ${(devs.length || e.any) ? `<h2 class="sec">Aktueller Stand</h2><p class="sub">${esc(e.text)} · ${ctl.length} Gerät${ctl.length === 1 ? "" : "e"}${ctl.length !== devs.length ? " (+ " + (devs.length - ctl.length) + " Auto" + (devs.length - ctl.length === 1 ? "" : "s") + ")" : ""}</p>` + quick + (devs.length ? `<div class="devices">${devs.map(htmlDeviceCard).join("")}</div>` : "") : ""}
     `;
   }
 
-  function stepLabel(s) {
-    return { energy: "Energie-Sensoren", devices: "Geräte hinzufügen", order: "Reihenfolge", design: "Design" }[s] || s;
+  function stepLabel(sStep) {
+    return { energy: "Energie-Sensoren", devices: "Geräte hinzufügen", order: "Reihenfolge", design: "Design" }[sStep] || sStep;
   }
   function statCard(id, name, value) {
     return `<div class="stat"><div class="k">${name === "PV-Erzeugung" ? I.sun : name === "Überschuss" ? I.bolt : I.grid} ${esc(name)}</div>
@@ -1279,7 +1323,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       </div>`;
     return `
       <h2 class="sec">Geräte & Verbraucher</h2>
-      <p class="sub">Jedes Gerät steuert PVM automatisch. Mit „Bearbeiten“ passt du Steuerung, Sensoren und Ziele an.</p>
+      <p class="sub">Tippe auf eine Karte, um alle Details und Einstellungen zu sehen (✏️ = Bearbeiten, 🗑️ = Entfernen, Schalter = Automatik).</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
         <button class="btn primary" data-action="add-device">${I.plus} Gerät hinzufügen</button>
         <button class="btn ghost" data-action="run-scan">${I.radar} Automatisch suchen</button>
@@ -1317,7 +1361,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       if (car.manual_force) goalTxt += " · Power Charge an";
     }
     return `
-      <div class="dev" data-device="${esc(device.id)}">
+      <div class="dev" data-device="${esc(device.id)}" data-action="open-device" title="Details & Einstellungen">
         <div class="head">
           <div class="ic">${ROLE_ICON[role] || I.plug}</div>
           <h3>${esc(device.name || "Gerät")}</h3>
@@ -1351,7 +1395,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const car = device.car || {};
     const goalTxt = "Ziel " + Math.round(car.min_soc || 0) + "–" + Math.round(car.max_soc || 100) + " %";
     return `
-      <div class="dev" data-device="${esc(device.id)}">
+      <div class="dev" data-device="${esc(device.id)}" data-action="open-device" title="Details & Einstellungen">
         <div class="head">
           <div class="ic">${I.car}</div>
           <h3>${esc(device.name || "Auto")}</h3>
@@ -1425,17 +1469,18 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       }
       const autoSw = $(card, '[data-action="toggle-auto"]');
       if (autoSw) autoSw.classList.toggle("on", isOn(entOf(d.id).auto));
-      // Wallbox: zeigt das automatisch zugeordnete Auto an
+      // Wallbox: zeigt das zugeordnete Auto an (live ladend, sonst gelernt)
       const assigned = $(card, '[data-el="assigned-car"]');
       if (assigned) {
-        const names = devicesOf()
-          .filter((c) => c.role === "fahrzeug")
-          .filter((c) => {
-            const s = st(entOf(c.id).car_status);
-            return s && s.attributes && s.attributes.wallbox_id === d.id;
-          })
-          .map((c) => c.name || "Auto");
-        const txt = names.length ? "🚗 " + names.join(", ") : "";
+        const all = devicesOf().filter((c) => c.role === "fahrzeug");
+        const live = all.filter((c) => {
+          const s = st(entOf(c.id).car_status);
+          return s && s.attributes && s.attributes.wallbox_id === d.id;
+        });
+        const home = all.filter((c) => (c.car || {}).home_wallbox === d.id && !live.includes(c));
+        const txt =
+          (live.length ? "🚗 " + live.map((c) => c.name || "Auto").join(", ") : "") +
+          (home.length ? (live.length ? " · " : "") + "🏠 " + home.map((c) => c.name || "Auto").join(", ") + " (zu Hause)" : "");
         if (assigned.textContent !== txt) assigned.textContent = txt;
       }
     });
@@ -1454,7 +1499,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     }
     return `
       <h2 class="sec">Reihenfolge (Prioritäten)</h2>
-      <p class="sub">Oben = höchste Priorität. Wer zuerst da ist, bekommt zuerst Überschuss.</p>
+      <p class="sub">Oben = höchste Priorität. Wer zuerst da ist, bekommt zuerst Überschuss.<br><small>Autos (reine Überwachung) stehen hier bewusst nicht – sie verbrauchen nur, wenn sie an einer Wallbox laden.</small></p>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px" data-el="orderlist">
         ${devs.map((d, i) => `
           <div class="row" style="background:var(--card);border:1px solid var(--line);border-radius:13px;padding:10px 12px" data-device="${esc(d.id)}">
@@ -1578,12 +1623,20 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         ${slider("wp_test_max", "Test: maximale Dauer", s.wp_test_max_duration_min, 10, 600, 10, "min", "Erreicht der Test das Ziel nicht rechtzeitig, bricht PVM ihn ab.")}
       `)}
       ${accordion("design", I.eye, "Design & Darstellung", `
-        <span class="lbl">Dein Look<small>„Home Assistant“ folgt deinem HA-Theme (hell/dunkel); die anderen Designs sind feste Stimmungen.</small></span>
+        <span class="lbl">Dein Look<small>„Home Assistant“ folgt deinem HA-Theme inkl. hell/dunkel; die anderen Designs sind feste Stimmungen.</small></span>
         <div class="pick">
           ${Object.keys(L.themes).map((t) => `
             <label class="${theme === t ? "sel" : ""}" data-theme-pick="${t}">
               <span class="rb"></span>
               <span class="tt"><b>${esc(L.themes[t])}</b><span>${themeDots(t)}</span></span>
+            </label>`).join("")}
+        </div>
+        <span class="lbl" style="margin-top:10px">Akzentfarbe (2. Farbe)<small>Für Verläufe, Fortschritt und kleine Details – „Automatisch“ nutzt die Farbe deines Designs.</small></span>
+        <div class="pick">
+          ${Object.keys(L.accents).map((a) => `
+            <label class="${(s.accent || "auto") === a ? "sel" : ""}" data-accent-pick="${a}">
+              <span class="rb" style="background:${a === "auto" ? "var(--acc2)" : (ACCENT_COLORS[a] || "var(--acc2)")}"></span>
+              <span class="tt"><b>${esc(L.accents[a])}</b>${a !== "auto" ? `<span><i style="display:inline-block;width:16px;height:16px;border-radius:50%;background:${ACCENT_COLORS[a]};vertical-align:-3px"></i> ${ACCENT_COLORS[a]}</span>` : ""}</span>
             </label>`).join("")}
         </div>
       `)}
@@ -1846,7 +1899,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       <div class="f">
         <label>${esc(label)}</label><small>${esc(hint)}</small>
         <div class="ent">
-          <input type="text" data-field="${field}" value="${esc(c[field] || "")}" readonly placeholder="${esc(placeholder || "Tippen zum Wählen")}" style="cursor:pointer">
+          <input type="text" data-field="${field}" value="${esc(c[field] || "")}" placeholder="${esc(placeholder || "Entitäts-ID tippen oder wählen")}" spellcheck="false">
           <button class="btn ghost" data-pick-field="${field}" type="button">${I.search} Wählen</button>
         </div>
       </div>`;
@@ -1894,17 +1947,28 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       <div class="f">
         <label>${esc(label)}</label><small>${esc(hint)}</small>
         <div class="ent">
-          <input type="text" data-field="${field}" value="${esc(d.sensors[field] || "")}" readonly placeholder="Tippen zum Wählen" style="cursor:pointer">
+          <input type="text" data-field="${field}" value="${esc(d.sensors[field] || "")}" placeholder="Entitäts-ID tippen oder wählen" spellcheck="false">
           <button class="btn ghost" data-pick-field="${field}" type="button">${I.search} Wählen</button>
         </div>
       </div>`;
     if (d.role === "fahrzeug") {
       const car = d.car;
       out.push(sensorRow("soc", "Akku-Stand (SoC)", "Ladezustand des Autos in % – z. B. vom Auto-Hersteller."));
-      out.push(sensorRow("power", "Aktuelle Ladeleistung", "Was das Auto gerade zieht – PVM vergleicht das mit den Wallboxen."));
+      out.push(sensorRow("power", "Aktuelle Ladeleistung", "Was das Auto gerade zieht – PVM vergleicht das mit den Wallboxen und erkennt so, wo es hängt."));
       out.push(numberField("capacity", "Batteriegröße", car.capacity_kwh, 1, 300, 1, "kWh"));
       out.push(numberField("min_soc", "Untergrenze (Minimum)", car.min_soc, 0, 100, 1, "%"));
       out.push(numberField("max_soc", "Obergrenze (Maximum)", car.max_soc, 10, 100, 1, "%"));
+      // Heimat-Wallbox: gelernt (Einsteck-Zeitpunkt) oder vom Nutzer gesetzt
+      const wallboxes = devicesOf().filter((x) => x.role === "wallbox");
+      out.push(`<div class="f">
+        <label>Wo ist dieses Auto zu Hause?</label>
+        <small>PVM lernt es automatisch aus dem Einsteck-Zeitpunkt. Du kannst es hier auch selbst festlegen – „Automatisch“ überlässt PVM die Entscheidung.</small>
+        <select data-field="home_wallbox" style="margin-top:6px">
+          <option value="" ${!car.home_wallbox ? "selected" : ""}>Automatisch (PVM lernt es selbst)</option>
+          ${wallboxes.map((w) => `<option value="${esc(w.id)}" ${car.home_wallbox === w.id ? "selected" : ""}>${esc(w.name || "Wallbox")}</option>`).join("")}
+          ${!wallboxes.length ? "<option disabled>Noch keine Wallbox konfiguriert</option>" : ""}
+        </select>
+      </div>`);
     } else if (d.role === "wallbox") {
       const car = d.car;
       out.push(sensorRow("power", "Leistung (lädt gerade)", "Zeigt live, wie viel die Wallbox zieht."));
@@ -2018,11 +2082,20 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       return;
     }
     if (ev.target.closest("[data-close]")) { closeModal(); return; }
-    if (ev.target.closest("[data-back]")) { navTo(dd.step - 1); return; }
+    if (ev.target.closest("[data-back]")) {
+      // Aktuelle Schritt-Felder sichern, bevor der Schritt neu aufgebaut wird
+      // (sonst gehen getippte Entitäts-IDs beim Zurückgehen verloren).
+      collectDialogFields(overlay, d);
+      navTo(dd.step - 1);
+      return;
+    }
     if (ev.target.closest("[data-next]")) {
       const name = $(overlay, "[data-el=dd-name]");
       if (name) d.name = name.value.trim();
       if (!d.name) { toast("Bitte vergib einen Namen für das Gerät.", "bad"); return; }
+      // Felder des aktuellen Schritts vor dem Umbau in die Konfiguration
+      // übernehmen – so bleiben auch frei getippte Entitäts-IDs erhalten.
+      collectDialogFields(overlay, d);
       navTo(dd.step + 1);
       return;
     }
@@ -2055,6 +2128,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       if (key in d.control) d.control[key] = v || null;
       else if (key in d.sensors) d.sensors[key] = v || null;
       else if (key === "deadline_time" && d.car) d.car.deadline_time = v || null;
+      else if (key === "home_wallbox" && d.car) d.car.home_wallbox = v || null;
     });
     $$(overlay, "[data-field-toggle]").forEach((el) => {
       const key = el.getAttribute("data-field-toggle");
@@ -2147,6 +2221,15 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       setTheme(themeEl.getAttribute("data-theme-pick"));
       return;
     }
+    const accentEl = ev.target.closest("[data-accent-pick]");
+    if (accentEl) {
+      const key = accentEl.getAttribute("data-accent-pick");
+      $$(root, "[data-accent-pick]").forEach((x) => x.classList.toggle("sel", x === accentEl));
+      configSettings().accent = key;
+      applyTheme();
+      saveAndRefresh("Akzentfarbe: „" + (L.accents[key] || key) + "“");
+      return;
+    }
     const gridModeEl = ev.target.closest("[data-grid-mode]");
     if (gridModeEl) {
       const mode = gridModeEl.getAttribute("data-grid-mode");
@@ -2200,9 +2283,21 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       }
       case "go-home": goHome(); break;
       case "add-device": openDeviceDialog(null); break;
-      case "edit-device": {
+      case "edit-device":
+      case "open-device": {
         const d = deviceById(devId);
         if (d) openDeviceDialog(d);
+        break;
+      }
+      case "intro-finish":
+      case "intro-skip": {
+        configSettings().intro_done = true;
+        saveAndRefresh("Einführung ausgeblendet – dein Dashboard ist jetzt aufgeräumt.");
+        break;
+      }
+      case "intro-restart": {
+        configSettings().intro_done = false;
+        saveAndRefresh("Einführung wieder aktiviert.");
         break;
       }
       case "del-device": {
@@ -2225,11 +2320,16 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         break;
       }
       case "move-dev": {
+        // Autos (reine Überwachung) belegen keinen Platz in der Reihenfolge –
+        // die Pfeile verschieben nur steuerbare Geräte (überspringen Autos).
         const dir = Number(el.getAttribute("data-dir"));
         const devs = devicesOf();
-        const i = devs.findIndex((x) => x.id === devId);
-        const j = i + dir;
-        if (i < 0 || j < 0 || j >= devs.length) return;
+        const order = devs.filter((d) => d.role !== "fahrzeug");
+        const k = order.findIndex((x) => x.id === devId);
+        const m = k + dir;
+        if (k < 0 || m < 0 || m >= order.length) return;
+        const i = devs.indexOf(order[k]);
+        const j = devs.indexOf(order[m]);
         [devs[i], devs[j]] = [devs[j], devs[i]];
         saveAndRefresh("Reihenfolge gespeichert.");
         break;
@@ -2455,6 +2555,11 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         /* Standard behalten */
       }
     }
+    // Akzentfarbe (2. Farbe) des Nutzers – überschreibt die Theme-Farbe.
+    const accentKey = (state.config && state.config.settings && state.config.settings.accent) || "auto";
+    const color = accentColorOf(accentKey);
+    if (color) host.style.setProperty("--acc2", color);
+    else host.style.removeProperty("--acc2");
   }
 
   /* ------------------------------------------------------------------ *

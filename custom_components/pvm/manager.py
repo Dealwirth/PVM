@@ -53,7 +53,12 @@ from .const import (
     STALE_SOC_AFTER_S,
     STALE_TEMP_AFTER_S,
 )
-from .detector import assign_cars_to_wallboxes, match_power_soc, suggest_sets
+from .detector import (
+    assign_cars_to_wallboxes,
+    match_power_soc,
+    pair_by_plug_time,
+    suggest_sets,
+)
 from .store import PvmStore
 from .wp_test import (
     STATUS_DONE,
@@ -120,6 +125,12 @@ class PvmManager:
         # Automatische Zuordnung Auto -> Wallbox (jeder Zyklus neu)
         self.car_assignments: dict[str, str] = {}  # car_id -> wallbox_id
         self.car_status: dict[str, str] = {}       # car_id -> Status-Text
+        # Einsteck-Erkennung: Leistung pro Gerät + Zeitpunkt des Ladestarts.
+        # Daraus lernt PVM, welches Auto an welcher Wallbox hängt, und
+        # speichert die Zuordnung dauerhaft (car.home_wallbox).
+        self._last_charge: dict[str, float] = {}   # dev_id -> letzte Leistung
+        self._plug_ts: dict[str, float] = {}       # dev_id -> Einsteck-Zeitpunkt
+        self._plug_pairs: dict[str, str] = {}      # car_id -> wallbox_id (frisch)
 
         # Zuletzt angewandte Aktionen (verhindert doppelte Service-Aufrufe)
         self._applied: dict[str, dict[str, Any]] = {}
@@ -374,14 +385,18 @@ class PvmManager:
         devices = []
         mode = self.config["settings"].get("mode", MODE_AUTO)
         now_local = dt_util.as_local(dt_util.utcnow())
-        for index, device in enumerate(self.config.get("devices", [])):
+        priority = 1
+        for device in self.config.get("devices", []):
             if device.get("role") == ROLE_FAHRZEUG:
-                # Autos sind reine Überwachung – keine Steuerung durch die Engine.
+                # Autos sind reine Überwachung – keine Steuerung durch die
+                # Engine und keine Prioritäts-Position (Pfeile im Dashboard
+                # verschieben nur steuerbare Geräte).
                 continue
             try:
                 devices.append(
-                    self._device_to_engine(device, index + 1, mode, now_local)
+                    self._device_to_engine(device, priority, mode, now_local)
                 )
+                priority += 1
             except Exception:  # noqa: BLE001
                 _LOGGER.exception(
                     "PVM: Gerät %s kann nicht ausgewertet werden", device.get("name")
@@ -774,17 +789,81 @@ class PvmManager:
         self.request_cycle()
 
     def move_priority(self, device_id: str, direction: int) -> None:
-        """Verschiebt ein Gerät in der Prioritätsliste (-1 = höher, +1 = tiefer)."""
+        """Verschiebt ein Gerät in der Prioritätsliste (-1 = höher, +1 = tiefer).
+
+        Autos (reine Überwachung) belegen keine Prioritäts-Position – die
+        Verschiebung springt über sie hinweg zum nächsten steuerbaren Gerät.
+        """
         devices = self.config.get("devices", [])
-        index = next((i for i, d in enumerate(devices) if d["id"] == device_id), None)
+        controllable = [
+            (i, d) for i, d in enumerate(devices)
+            if d.get("role") != ROLE_FAHRZEUG
+        ]
+        index = next((i for i, d in controllable if d["id"] == device_id), None)
         if index is None:
             return
-        target = index + direction
-        if target < 0 or target >= len(devices):
+        position = next((p for p, (i, d) in enumerate(controllable) if i == index), 0)
+        target_position = position + direction
+        if target_position < 0 or target_position >= len(controllable):
             return
+        target = controllable[target_position][0]
         devices[index], devices[target] = devices[target], devices[index]
         self.schedule_save()
         self.request_cycle()
+
+    # ------------------------------------------------------------------
+    # Einsteck-Zeitpunkt & gelernte Auto-Wallbox-Zuordnung
+    # ------------------------------------------------------------------
+    def _track_charge_plug(self, device_id: str, power_w: float, now: float) -> None:
+        """Erkennt den Ladestart (Leistung steigt über die Schwelle)."""
+        previous = self._last_charge.get(device_id, 0.0)
+        self._last_charge[device_id] = power_w
+        if previous < CHARGE_ON_W <= power_w:
+            self._plug_ts[device_id] = now
+
+    def _purge_plug_ts(self, now: float, keep_s: float = 900.0) -> None:
+        """Verwirft veraltete Einsteck-Zeitpunkte."""
+        for device_id in list(self._plug_ts):
+            if now - self._plug_ts[device_id] > keep_s:
+                self._plug_ts.pop(device_id, None)
+
+    def _fresh_plug_pairs(
+        self, wallbox_powers: dict[str, float], car_powers: dict[str, float], now: float
+    ) -> dict[str, str]:
+        """Paart Autos und Wallboxen über den (nahen) Einsteck-Zeitpunkt.
+
+        Beide müssen gerade laden, damit das Signal frisch und belastbar ist
+        (die Leistung kann nach dem Ladestart kurz „einpendeln“).
+        """
+        wallbox_events = [
+            {"id": dev_id, "plug_ts": ts}
+            for dev_id, ts in self._plug_ts.items()
+            if dev_id in wallbox_powers
+        ]
+        car_events = [
+            {"id": dev_id, "plug_ts": ts}
+            for dev_id, ts in self._plug_ts.items()
+            if dev_id in car_powers
+        ]
+        return pair_by_plug_time(wallbox_events, car_events)
+
+    def _learn_pairing(self, car_id: str, wallbox_id: str) -> bool:
+        """Speichert die gelernte Heimat-Wallbox eines Autos (einmalig)."""
+        device = find_device(self.config, car_id)
+        if device is None or device.get("role") != ROLE_FAHRZEUG:
+            return False
+        car = device.get("car")
+        if not car:
+            return False
+        if car.get("home_wallbox") != wallbox_id:
+            car["home_wallbox"] = wallbox_id
+            self.schedule_save()
+            _LOGGER.info(
+                "PVM: Auto-Zuordnung gelernt – %s lädt an Wallbox %s",
+                device.get("name", car_id),
+                wallbox_id,
+            )
+        return True
 
     def _devices_changed(self, new_config: dict) -> bool:
         """Hat sich die Geräteliste (IDs/Rollen) gegenüber dem Stand geändert?
@@ -1263,29 +1342,98 @@ class PvmManager:
     def _update_car_state(self) -> None:
         """Ordnet Autos Wallboxen zu und aktualisiert ihre Status-Texte.
 
-        Vergleich über die (unterschiedlichen) Ladeleistungen: Lädt nur ein
-        Auto, ist die Zuordnung trivial; bei mehreren wird nach ähnlichster
-        Leistung gematcht. Nicht ladende Autos gelten als „unterwegs“.
+        Signal-Kombination (jeder Zyklus):
+        1. **Einsteck-Zeitpunkt** – steigt die Ladeleistung von Wallbox und
+           Auto im selben Moment an, gehören sie zusammen (gelernt &
+           gespeichert als Heimat-Wallbox des Autos).
+        2. **Ladeleistung** – bei mehreren ladenden Autos/Wallboxen wird nach
+           der ähnlichsten Leistung gematcht (unterschiedliche Leistungen
+           bleiben unterscheidbar).
+        3. **Gelernte Heimat-Wallbox** – als Rückfall, wenn ein einziges Auto
+           keine eigene Leistung meldet, aber seine Wallbox lädt.
+        Nicht ladende Autos gelten als „unterwegs“.
         """
-        cars: list[dict] = []
-        for device in self.config.get("devices", []):
-            if device.get("role") == ROLE_FAHRZEUG:
-                power, valid = self.read_power(device.get("sensors", {}).get("power"))
-                cars.append({"id": device["id"], "power_w": power if valid else None})
-        wallboxes: list[dict] = []
-        for device in self.config.get("devices", []):
-            if device.get("role") == ROLE_WALLBOX:
-                power, valid = self.read_power(device.get("sensors", {}).get("power"))
-                wallboxes.append({"id": device["id"], "power_w": power if valid else None})
+        now = _time.time()
+        car_devices = [
+            d for d in self.config.get("devices", [])
+            if d.get("role") == ROLE_FAHRZEUG
+        ]
+        wallbox_devices = [
+            d for d in self.config.get("devices", [])
+            if d.get("role") == ROLE_WALLBOX
+        ]
 
-        self.car_assignments = assign_cars_to_wallboxes(cars, wallboxes)
+        cars: list[dict] = []
+        car_powers: dict[str, float] = {}
+        for device in car_devices:
+            power, valid = self.read_power(device.get("sensors", {}).get("power"))
+            value = power if valid else None
+            cars.append({"id": device["id"], "power_w": value})
+            if valid and power is not None:
+                car_powers[device["id"]] = power
+                self._track_charge_plug(device["id"], power, now)
+
+        wallboxes: list[dict] = []
+        wallbox_powers: dict[str, float] = {}
+        for device in wallbox_devices:
+            power, valid = self.read_power(device.get("sensors", {}).get("power"))
+            value = power if valid else None
+            wallboxes.append({"id": device["id"], "power_w": value})
+            if valid and power is not None:
+                wallbox_powers[device["id"]] = power
+                self._track_charge_plug(device["id"], power, now)
+        self._purge_plug_ts(now)
+
+        # 1) Einsteck-Zeitpunkt: nur Paare, die gerade beide laden
+        self._plug_pairs = {}
+        plug_pairs = self._fresh_plug_pairs(wallbox_powers, car_powers, now)
+        for wallbox_id, car_id in plug_pairs.items():
+            if (
+                wallbox_id in wallbox_powers
+                and wallbox_powers[wallbox_id] >= CHARGE_ON_W
+                and car_id in car_powers
+                and car_powers[car_id] >= CHARGE_ON_W
+            ):
+                self._plug_pairs[car_id] = wallbox_id
+                self._learn_pairing(car_id, wallbox_id)
+
+        # 2) Leistungs-Vergleich für den Rest
+        assignments = dict(self._plug_pairs)
+        rest_cars = [
+            c for c in cars
+            if c["id"] not in assignments and c["power_w"] is not None
+            and c["power_w"] >= CHARGE_ON_W
+        ]
+        rest_wb = [
+            w for w in wallboxes
+            if w["id"] not in assignments.values()
+            and w["power_w"] is not None and w["power_w"] >= CHARGE_ON_W
+        ]
+        for car_id, wallbox_id in assign_cars_to_wallboxes(rest_cars, rest_wb).items():
+            assignments[car_id] = wallbox_id
+            self._learn_pairing(car_id, wallbox_id)
+
+        # 3) Rückfall „nur ein Auto + gelernte Wallbox lädt“: das Auto meldet
+        #    selbst keine Leistung, kann also nur an seiner Wallbox sein.
+        active_wb = [w for w in wallboxes if w["power_w"] is not None and w["power_w"] >= CHARGE_ON_W]
+        if len(car_devices) == 1 and len(active_wb) == 1:
+            car = cars[0]
+            if (
+                car["power_w"] is None or car["power_w"] < CHARGE_ON_W
+            ) and car["id"] not in assignments:
+                device = car_devices[0]
+                home = device.get("car", {}).get("home_wallbox")
+                if home and home == active_wb[0]["id"]:
+                    assignments[car["id"]] = active_wb[0]["id"]
+
+        self.car_assignments = assignments
 
         statuses: dict[str, str] = {}
         for car in cars:
             car_id = car["id"]
             charging = car["power_w"] is not None and car["power_w"] >= CHARGE_ON_W
-            wallbox_id = self.car_assignments.get(car_id)
-            if charging and wallbox_id:
+            wallbox_id = assignments.get(car_id)
+            if wallbox_id and (charging or self._learned_only(car["power_w"])):
                 wallbox = find_device(self.config, wallbox_id)
                 statuses[car_id] = "lädt an " + (
                     wallbox.get("name", "Wallbox") if wallbox else "Wallbox"
@@ -1296,11 +1444,25 @@ class PvmManager:
                 statuses[car_id] = "unterwegs"
         self.car_status = statuses
 
+    @staticmethod
+    def _learned_only(power_w: float | None) -> bool:
+        """True, wenn die Zuordnung rein aus der gelernten Heimat stammt
+        (Auto ohne eigene Leistungsmeldung, aber Wallbox lädt)."""
+        return power_w is None or power_w < CHARGE_ON_W
+
     def rank_of(self, device_id: str) -> int:
-        """Rang (1 = höchste Priorität) eines Geräts."""
-        for index, device in enumerate(self.config.get("devices", [])):
+        """Rang (1 = höchste Priorität) eines Geräts.
+
+        Autos (reine Überwachung) belegen keinen Rang – gezählt werden nur
+        steuerbare Geräte, damit Nummern und Pfeile im Dashboard stimmen.
+        """
+        rank = 0
+        for device in self.config.get("devices", []):
+            if device.get("role") == ROLE_FAHRZEUG:
+                continue
+            rank += 1
             if device["id"] == device_id:
-                return index + 1
+                return rank
         return 0
 
     def wp_test_result(self, device_id: str) -> dict | None:

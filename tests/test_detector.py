@@ -203,3 +203,33 @@ def test_suggest_sets_detects_car():
     found = car_sets[0]
     assert found["fields"]["soc_sensor"] == "sensor.enyaq_battery"
     assert found["fields"]["power_sensor"] == "sensor.enyaq_charging_power"
+
+
+def test_pair_by_plug_time_same_moment():
+    """Auto und Wallbox starten gleichzeitig -> Paar wird gelernt."""
+    wallboxes = [{"id": "wb1", "plug_ts": 1000.0}, {"id": "wb2", "plug_ts": 1010.0}]
+    cars = [{"id": "car1", "plug_ts": 1003.0}, {"id": "car2", "plug_ts": 1009.0}]
+    pairs = detector.pair_by_plug_time(wallboxes, cars, max_delta_s=150.0)
+    # Jede Wallbox/jedes Auto genau einmal, zeitlich am nächsten
+    assert len(pairs) == 2
+    assert pairs["wb1"] == "car1"
+    assert pairs["wb2"] == "car2"
+
+
+def test_pair_by_plug_time_too_far_apart():
+    wallboxes = [{"id": "wb1", "plug_ts": 0.0}]
+    cars = [{"id": "car1", "plug_ts": 2000.0}]
+    assert detector.pair_by_plug_time(wallboxes, cars, max_delta_s=150.0) == {}
+
+
+def test_pair_by_plug_time_empty_sides():
+    assert detector.pair_by_plug_time([], [{"id": "car1", "plug_ts": 1.0}]) == {}
+    assert detector.pair_by_plug_time([{"id": "wb1", "plug_ts": 1.0}], []) == {}
+
+
+def test_pair_by_plug_time_no_double_use():
+    """Zwei Wallboxen, ein Auto -> nur die zeitlich beste Wallbox bekommt es."""
+    wallboxes = [{"id": "wb1", "plug_ts": 100.0}, {"id": "wb2", "plug_ts": 50.0}]
+    cars = [{"id": "car1", "plug_ts": 55.0}]
+    pairs = detector.pair_by_plug_time(wallboxes, cars, max_delta_s=150.0)
+    assert pairs == {"wb2": "car1"}

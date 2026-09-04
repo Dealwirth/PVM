@@ -74,6 +74,11 @@ deiner Auswahl passen** – nichts Kompliziertes nebenher.
 | **Wärmepumpe** | Schalter (Heizbetrieb erlauben) | Temperatur (Pflicht), Leistung | Soll-Temperatur, Sicherheits-Minimum, Kalibrierungstest |
 | **Verbraucher** | Schalter | Leistung | Nennleistung für die Entscheidung |
 
+**Karte antippen = alles einstellen:** Ein Klick auf eine Geräte-Karte öffnet
+das komplette Formular (Typ, Steuerung, Sensoren, Ziele). Entitäts-Felder
+sind dabei **frei tippbar** („Entitäts-ID tippen oder wählen“) – wer die ID
+kennt, muss nicht suchen; getippte Werte bleiben auch beim Blättern erhalten.
+
 **Steuerungsarten – du wählst eine, die Felder erscheinen automatisch:**
 
 - **Ein Schalter (An/Aus):** PVM schaltet die Entität. Das Gerät läuft mit
@@ -98,7 +103,9 @@ Schalter auch in Home Assistant direkt nutzen – er ist eine normale Entität.
 Die Reihenfolge der Geräte bestimmt, **wer zuerst Überschuss bekommt**
 (1 = höchste Priorität). Im Reiter **⬆️ Reihenfolge** verschiebst du Geräte
 mit **▲/▼-Buttons** – das Ergebnis wird sofort gespeichert und animiert
-angezeigt. Alternativ geht es über den Service `pvm.set_priority`.
+angezeigt. **Autos stehen dort bewusst nicht** (reine Überwachung – sie
+belegen keinen Rang); die Pfeile springen über sie hinweg. Alternativ geht es
+über den Service `pvm.set_priority`.
 
 ## E-Autos
 
@@ -113,6 +120,17 @@ angezeigt. Alternativ geht es über den Service `pvm.set_priority`.
 Die Batteriekapazität (kWh) wird benötigt, um aus dem SoC (Prozent) den
 Energiebedarf zu berechnen. Der SoC-Sensor aktualisiert oft nur langsam –
 PVM berücksichtigt das automatisch und lädt nicht blind weiter.
+
+**Wo ist welches Auto?** PVM erkennt die Zuordnung automatisch über den
+**Einsteck-Zeitpunkt**: Steigt die Ladeleistung einer Wallbox und eines Autos
+im selben Moment an (z. B. beide um 12:33), kombiniert PVM beides und
+**speichert** die Zuordnung dauerhaft – die „Heimat-Wallbox“ des Autos. Lädt
+nur ein Auto, ist die Zuordnung trivial; bei mehreren zählen zusätzlich die
+(unterschiedlichen) Ladeleistungen. Im Auto-Dialog kannst du die Heimat-
+Wallbox jederzeit selbst festlegen („Wo ist dieses Auto zu Hause?“). Auf der
+Wallbox-Karte steht dann 🚗 *Auto* (lädt gerade) bzw. 🏠 *Auto (zu Hause)*
+(gelernt); der Auto-Status-Sensor `sensor.pvm_car_status_*` liefert zusätzlich
+die Attribute `home_wallbox_id`/`home_wallbox_name`.
 
 ## Wärmepumpe
 
@@ -156,6 +174,14 @@ Nichts wird ohne deine Bestätigung konfiguriert.
   helle/dunkle Erscheinungsbild deines HA-Themes), ☀️ **Sonnenaufgang**
   (warme Gelb-/Orange-Töne), 🌿 **Natur-frisch** (Grün) und 🌊 **Kühl & klar**
   (Blau). Der Wechsel gilt sofort.
+- **Akzentfarbe (2. Farbe):** Zusätzlich wählst du die Akzentfarbe für
+  Verläufe, Fortschritt und Details (Automatisch = Farbe deines Designs,
+  Grün, Orange, Lila, Rot, Türkis, Blau). Damit bleibt PVM auch bei einem
+  dunklen HA-Theme lesbar, während du Akzente nach Geschmack setzt.
+- **Einführung ausblenden:** Auf „Erste Schritte“ steht „🎉 Einführung
+  beenden“, sobald alles eingerichtet ist – danach ist die Seite aufgeräumt.
+  Noch nicht fertig? Der kleine Link „Einführung überspringen“ erledigt das
+  ebenfalls; „Einführung erneut ansehen“ holt sie zurück.
 - Auch als Entität vorhanden: `select.pvm_theme` – nützlich für Automatisierungen
   (z. B. abends automatisch das Abend-Design).
 - Die Übersichts-Seite zeigt einen **animierten Energiefluss** (PV → Haus →
