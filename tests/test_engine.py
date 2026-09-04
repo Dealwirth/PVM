@@ -114,6 +114,7 @@ def wp(
     test_active: bool = False,
     grid_fallback: bool = True,
     enabled: bool = True,
+    measured: float | None = None,
 ) -> eng.Device:
     return eng.Device(
         id=device_id,
@@ -124,7 +125,7 @@ def wp(
         power_limit_w=est,
         min_on_power_w=500.0,
         nominal_power_w=est,
-        measured_power_w=None,
+        measured_power_w=measured,
         min_on_s=120,
         min_off_s=60,
         last_on_ts=None,
@@ -338,6 +339,33 @@ def test_car_above_min_soc_is_surplus_only():
     assert action_for(plan, "auto1") is None
 
 
+def test_wallbox_without_soc_charges_like_consumer():
+    # Wallbox ohne Auto- und ohne SoC-Sensor (kein car-Attribut in der
+    # Engine): Sie darf trotzdem mit Überschuss laden – PVM behandelt sie
+    # wie einen Verbraucher, statt sie nie zu starten.
+    dev = eng.Device(
+        id="wb1",
+        role=ROLE_WALLBOX,
+        priority=1,
+        state_on=False,
+        has_power_setpoint=False,
+        power_limit_w=11000.0,
+        min_on_power_w=1400.0,
+        nominal_power_w=11000.0,
+        measured_power_w=None,
+        min_on_s=120,
+        min_off_s=60,
+        last_on_ts=None,
+        last_off_ts=None,
+        enabled=True,
+        car=None,
+    )
+    plan = run([dev], surplus=11000.0)
+    action = action_for(plan, "wb1")
+    assert action is not None and action.set_on is True
+    assert action.reason == REASON_ON_SURPLUS
+
+
 # ---------------------------------------------------------------------------
 # Modus-Einschränkungen
 # ---------------------------------------------------------------------------
@@ -407,6 +435,34 @@ def test_wp_test_forces_on():
     action = action_for(plan, "wp1")
     assert action is not None and action.set_on is True
     assert action.reason == REASON_ON_WP_TEST
+
+
+def test_wp_stale_temp_keeps_running():
+    # Temperatur-Sensor kurzzeitig ungültig (z. B. meldet nur alle 15 min):
+    # eine laufende Wärmepumpe mit Messwert bleibt an – nie hektisch
+    # ausschalten (früher wurde sie bei ungültiger Temperatur abgeschaltet).
+    wp_dev = wp("wp1", 1, temp=None, temp_valid=False, state_on=True, measured=2000.0)
+    wp_dev.last_on_ts = NOW - 600
+    plan = run([wp_dev], surplus=3000.0)
+    action = action_for(plan, "wp1")
+    assert action is None or action.set_on is not False
+
+
+def test_wp_stale_temp_stays_off():
+    # Ohne gültige Temperatur wird nichts Neues gestartet.
+    wp_dev = wp("wp1", 1, temp=None, temp_valid=False)
+    plan = run([wp_dev], surplus=5000.0)
+    assert action_for(plan, "wp1") is None
+
+
+def test_wp_stale_temp_turns_off_without_surplus():
+    # Messwert da, aber der Überschuss bricht weg -> ausschalten (normal).
+    wp_dev = wp("wp1", 1, temp=None, temp_valid=False, state_on=True, measured=2000.0)
+    wp_dev.last_on_ts = NOW - 600
+    plan = run([wp_dev], surplus=200.0)
+    action = action_for(plan, "wp1")
+    assert action is not None and action.set_on is False
+    assert action.reason == REASON_OFF_NO_SURPLUS
 
 
 # ---------------------------------------------------------------------------

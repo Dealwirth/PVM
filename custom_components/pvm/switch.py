@@ -12,6 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import (
     DOMAIN,
     ENTITY_LABELS,
+    ROLE_FAHRZEUG,
     ROLE_WAERMEPUMPE,
     ROLE_WALLBOX,
 )
@@ -23,6 +24,14 @@ _LOGGER = logging.getLogger(__name__)
 DEVICE_SWITCHES = {
     ROLE_WALLBOX: [
         ("auto", "enabled", True),
+        # Legacy: Lade-Freigaben aus alten Konfigurationen funktionieren weiter.
+        ("power_charge", "car.manual_force", False),
+        ("grid_min", "car.grid_min_allowed", True),
+        ("grid_deadline", "car.grid_deadline_allowed", True),
+    ],
+    ROLE_FAHRZEUG: [
+        # Auto & Wallbox sind getrennt: Power Charge und Netz-Freigaben
+        # gehören zum Auto-Gerät (so findest du sie auch in Automationen).
         ("power_charge", "car.manual_force", False),
         ("grid_min", "car.grid_min_allowed", True),
         ("grid_deadline", "car.grid_deadline_allowed", True),

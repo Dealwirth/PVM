@@ -15,6 +15,7 @@ from .const import (
     DEFAULT_MIN_ON_S,
     DOMAIN,
     ENTITY_LABELS,
+    ROLE_FAHRZEUG,
     ROLE_VERBRAUCHER,
     ROLE_WAERMEPUMPE,
     ROLE_WALLBOX,
@@ -31,6 +32,13 @@ DEVICE_NUMBERS = {
         ("deadline_soc", "car.deadline_soc", 0.0, 100.0, 1.0, "%"),
         ("power_limit", "limits.power_limit_w", 500.0, 22000.0, 100.0, "W"),
         ("min_on_power", "limits.min_on_power_w", 100.0, 11000.0, 100.0, "W"),
+    ],
+    ROLE_FAHRZEUG: [
+        # Auto & Wallbox sind getrennt: Die Lade-Ziele gehören zum Auto –
+        # deshalb gibt es sie auch als Entitäten am Auto-Gerät (Automationen).
+        ("min_soc", "car.min_soc", 0.0, 100.0, 1.0, "%"),
+        ("max_soc", "car.max_soc", 10.0, 100.0, 1.0, "%"),
+        ("deadline_soc", "car.deadline_soc", 0.0, 100.0, 1.0, "%"),
     ],
     ROLE_WAERMEPUMPE: [
         ("comfort", "wp.comfort_c", 40.0, 70.0, 0.5, "°C"),

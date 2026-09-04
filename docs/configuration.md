@@ -202,6 +202,10 @@ Nichts wird ohne deine Bestätigung konfiguriert.
   ebenfalls; „Einführung erneut ansehen“ holt sie zurück.
 - Auch als Entität vorhanden: `select.pvm_theme` – nützlich für Automatisierungen
   (z. B. abends automatisch das Abend-Design).
+- **Auto-Ziele als Entitäten:** Seit der Trennung von Auto & Wallbox haben
+  auch Autos eigene Entitäten für Automationen – `number.pvm_min_soc_<id>` /
+  `max_soc` / `deadline_soc`, `time.pvm_deadline_time_<id>` sowie die Schalter
+  `switch.pvm_power_charge_<id>`, `grid_min` und `grid_deadline` (am Auto-Gerät).
 - Die Übersichts-Seite zeigt einen **animierten Energiefluss** (PV → Haus →
   Netz → Geräte) mit Live-Werten und Statusfarben; jede Kachel ist verlinkt
   (keine kryptischen IDs, sondern klickbare Namen).

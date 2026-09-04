@@ -233,6 +233,12 @@ def _surplus_want(device: Device) -> float:
         if wp.test_active:
             return 0.0  # Test läuft als Garantielauf
         if not wp.temp_valid or wp.temp_c is None:
+            # Temperatur kurzzeitig ungültig (z. B. Sensor meldet nur alle
+            # 15 min): einen bereits laufenden Heizvorgang mit Messwert
+            # halten, sonst nichts Neues starten – nie hektisch abschalten.
+            # (Analog zum Auto ohne gültigen SoC.)
+            if device.state_on and device.measured_power_w:
+                return device.measured_power_w
             return 0.0
         if wp.temp_c >= wp.comfort_c - 0.1:
             return 0.0  # Zieltemperatur erreicht

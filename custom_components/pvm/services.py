@@ -8,7 +8,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN, ROLE_WAERMEPUMPE
+from .const import DOMAIN, ROLE_FAHRZEUG, ROLE_WAERMEPUMPE
 from .manager import PvmManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -72,7 +72,12 @@ async def _async_handle_power_charge(hass: HomeAssistant, call: ServiceCall) -> 
 
 
 async def _async_handle_set_priority(hass: HomeAssistant, call: ServiceCall) -> None:
-    """Setzt die Priorität eines Geräts (1 = höchste)."""
+    """Setzt die Priorität eines Geräts (1 = höchste).
+
+    Autos (reine Überwachung) belegen keine Prioritäts-Position – gezählt
+    werden nur steuerbare Geräte, damit Nummern und Pfeile im Dashboard und
+    der Rang-Sensor (`rank_of`) konsistent bleiben.
+    """
     manager = _get_manager(hass)
     if manager is None:
         return
@@ -80,6 +85,8 @@ async def _async_handle_set_priority(hass: HomeAssistant, call: ServiceCall) -> 
     device = _resolve_device(hass, target["entity_id"])
     if device is None:
         raise ValueError("Kein PVM-Gerät an dieser Entität gefunden")
+    if device.get("role") == ROLE_FAHRZEUG:
+        raise ValueError("Autos sind reine Überwachung – sie haben keine Priorität")
     position = int(call.data.get("position", 1))
     if position < 1:
         position = 1
@@ -87,9 +94,19 @@ async def _async_handle_set_priority(hass: HomeAssistant, call: ServiceCall) -> 
     current = next((i for i, d in enumerate(devices) if d["id"] == device["id"]), None)
     if current is None:
         return
-    target_index = min(position - 1, len(devices) - 1)
-    devices.pop(current)
-    devices.insert(target_index, device)
+    controllable_idx = [
+        i for i, d in enumerate(devices) if d.get("role") != ROLE_FAHRZEUG
+    ]
+    rank = controllable_idx.index(current)  # Position unter den steuerbaren
+    target_rank = min(max(position - 1, 0), len(controllable_idx) - 1)
+    if rank == target_rank:
+        return
+    item = devices.pop(current)
+    insert_at = controllable_idx[target_rank]
+    # Nach dem Entfernen rutschen Indizes > current um 1 nach links.
+    if insert_at > current:
+        insert_at -= 1
+    devices.insert(insert_at, item)
     manager.schedule_save()
     manager.request_cycle()
 

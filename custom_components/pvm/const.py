@@ -7,7 +7,7 @@ Logik-Modulen und Tests.
 
 DOMAIN = "pvm"
 NAME = "PV Manager"
-VERSION = "1.7.0"
+VERSION = "1.7.1"
 
 # Von der Integration bereitgestellte Plattformen.
 PLATFORMS = ["sensor", "number", "switch", "button", "select", "time"]

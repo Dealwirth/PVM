@@ -451,17 +451,28 @@ class PvmManager:
             )
             car_source = assigned if assigned is not None else device
             if car_source.get("car"):
-                engine_device.car = self._car_to_engine(
-                    car_source,
-                    car_source["car"],
-                    now_local,
-                    soc_fallback_sensor=sensors.get("soc"),
-                    # Power Charge an der Wallbox (Entität/Schalter) soll
-                    # auch bei zugeordnetem Auto weiter funktionieren.
-                    extra_manual_force=bool(
-                        (device.get("car") or {}).get("manual_force")
-                    ),
+                # Nur mit SoC-Quelle an die Engine geben (Auto-Sensor oder
+                # eigener SoC-Sensor der Wallbox): Ohne SoC-Signal wüsste die
+                # Engine weder, ob geladen werden darf, noch wann das Ziel
+                # erreicht ist – die Wallbox würde **nie** starten. In dem
+                # Fall fällt sie auf reines Überschuss-Laden wie ein
+                # Verbraucher zurück (bis die Wallbox selbst abschaltet).
+                has_soc_source = bool(
+                    (car_source.get("sensors") or {}).get("soc")
+                    or sensors.get("soc")
                 )
+                if has_soc_source:
+                    engine_device.car = self._car_to_engine(
+                        car_source,
+                        car_source["car"],
+                        now_local,
+                        soc_fallback_sensor=sensors.get("soc"),
+                        # Power Charge an der Wallbox (Entität/Schalter) soll
+                        # auch bei zugeordnetem Auto weiter funktionieren.
+                        extra_manual_force=bool(
+                            (device.get("car") or {}).get("manual_force")
+                        ),
+                    )
         if role == ROLE_WAERMEPUMPE and device.get("wp"):
             engine_device.wp = self._wp_to_engine(device, device["wp"])
         return engine_device

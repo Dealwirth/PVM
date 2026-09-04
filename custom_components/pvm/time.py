@@ -10,12 +10,17 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, ENTITY_LABELS, ROLE_WALLBOX
+from .const import DOMAIN, ENTITY_LABELS, ROLE_FAHRZEUG, ROLE_WALLBOX
 from .manager import PvmManager
 
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_DEADLINE = Time(18, 0)
+
+# Rollen, deren Frist-Zeit eine Uhrzeit-Entität bekommt: die Wallbox (Legacy-
+# Konfigurationen) UND das Auto – denn seit der Trennung gehören die
+# Lade-Ziele (inkl. „Fertig bis“) zum Auto-Gerät.
+DEADLINE_ROLES = (ROLE_WALLBOX, ROLE_FAHRZEUG)
 
 
 def _to_time(value: str | None) -> Time:
@@ -33,12 +38,12 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Richtet die Frist-Zeiten für Wallboxen ein."""
+    """Richtet die Frist-Zeiten für Wallboxen und Autos ein."""
     manager: PvmManager = hass.data[DOMAIN][entry.entry_id]
     entities = [
         PvmDeadlineTime(manager, device["id"])
         for device in manager.config.get("devices", [])
-        if device.get("role") == ROLE_WALLBOX and device.get("car")
+        if device.get("role") in DEADLINE_ROLES and device.get("car")
     ]
     async_add_entities(entities)
 

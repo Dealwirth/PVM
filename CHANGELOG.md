@@ -2,6 +2,35 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.7.1] – 2026-09-04
+
+### Fehleranalyse & Verbesserungen („Alles nochmal geprüft“)
+
+**Gefundene und behobene Fehler:**
+- **Wärmepumpe wurde bei kurzzeitig ungültiger Temperatur abgeschaltet.**
+  Meldet der Temperatur-Sensor nur alle paar Minuten (z. B. alle 15 min),
+  galt die Messung zwischendurch als „ungültig“ – die WP wurde dann
+  ausgeschaltet statt gehalten. Jetzt bleibt ein laufender Heizvorgang mit
+  Messwert an (analog zum Auto ohne gültigen SoC); nur ohne Überschuss
+  wird abgeschaltet. (Neue Engine-Tests.)
+- **Wallbox ohne SoC-Sensor lud nie.** Eine Wallbox ohne Auto- und ohne
+  SoC-Sensor bekam automatisch die (leeren) Auto-Ziele – die Engine
+  startete sie deshalb nie. Jetzt erkennt PVM: ohne SoC-Quelle fällt die
+  Wallbox auf reines Überschuss-Laden wie ein Verbraucher zurück.
+- **Vorzeichen-Auswahl des Netz-Sensors wurde nicht gespeichert.** Die
+  Wahl „Bezug positiv / Einspeisung negativ“ usw. änderte nur den
+  Zwischenspeicher und ging beim nächsten Neuladen verloren – sie wird
+  jetzt sofort gespeichert (in der Sandbox verifiziert).
+- **`pvm.set_priority` zählte Autos als Position.** Der Service zählte die
+  Priorität über alle Geräte inkl. Autos – inkonsistent zu Rang-Sensor,
+  Pfeilen und `move_priority`. Jetzt zählen nur steuerbare Geräte; Autos
+  werden abgelehnt (sie haben keine Priorität).
+- **Auto-Ziele fehlten als Entitäten.** Seit der Trennung von Auto & Wallbox
+  gab es für das Auto keine `number`/`time`/`switch`-Entitäten
+  (Mindest-/Max-SOC, Frist-Ziel, Power Charge, Netz-Freigaben) – nur die
+  Wallbox hatte sie. Jetzt gehören sie zum Auto-Gerät (auch für
+  Automationen), die alten Wallbox-Entitäten bleiben als Fallback erhalten.
+
 ## [1.7.0] – 2026-09-04
 
 ### Auto & Wallbox getrennt – Einstellungen beim Auto, automatische Kopplung

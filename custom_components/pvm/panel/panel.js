@@ -2538,7 +2538,13 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       return;
     }
     const kind = ev.target.closest('[data-setting="grid_kind"]');
-    if (kind) state.config.energy.grid_kind = kind.value;
+    if (kind) {
+      // Vorzeichen-Wahl sofort speichern – sonst ginge sie beim nächsten
+      // Neuladen verloren (war ein echter Fehler: nur im Speicher geändert).
+      state.config.energy.grid_kind = kind.value;
+      saveAndRefresh("Vorzeichen gespeichert.");
+      return;
+    }
     const colorInp = ev.target.closest("[data-accent-color]");
     if (colorInp) {
       const hex = colorInp.value;

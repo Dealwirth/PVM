@@ -79,22 +79,39 @@ def test_build_entity_map_wp_roles():
     assert dev.get("power_charge") is None
 
 
-def test_build_entity_map_car_has_only_car_status():
+def test_build_entity_map_car_has_car_settings():
     device = default_device("fahrzeug", "Enyaq")
     config = {"devices": [device]}
     registry = FakeRegistry(
         {
             f"pvm_car_status_{device['id']}": f"sensor.auto_status_{device['id']}",
+            f"pvm_min_soc_{device['id']}": f"number.auto_min_soc_{device['id']}",
+            f"pvm_max_soc_{device['id']}": f"number.auto_max_soc_{device['id']}",
+            f"pvm_deadline_soc_{device['id']}": f"number.auto_deadline_soc_{device['id']}",
+            f"pvm_deadline_time_{device['id']}": f"time.auto_deadline_time_{device['id']}",
+            f"pvm_power_charge_{device['id']}": f"switch.auto_power_{device['id']}",
+            f"pvm_grid_min_{device['id']}": f"switch.auto_grid_min_{device['id']}",
+            f"pvm_grid_deadline_{device['id']}": f"switch.auto_grid_deadline_{device['id']}",
         }
     )
 
     entities = build_entity_map(registry, config)
     dev = entities["devices"][device["id"]]
     assert dev["car_status"] == f"sensor.auto_status_{device['id']}"
-    # Keine Steuer-Entitäten für reine Autos
+    # Auto & Wallbox sind getrennt: Lade-Ziele gehören zum Auto – auch als
+    # Entitäten für Automationen.
+    assert dev["min_soc"] == f"number.auto_min_soc_{device['id']}"
+    assert dev["max_soc"] == f"number.auto_max_soc_{device['id']}"
+    assert dev["deadline_soc"] == f"number.auto_deadline_soc_{device['id']}"
+    assert dev["deadline_time"] == f"time.auto_deadline_time_{device['id']}"
+    assert dev["power_charge"] == f"switch.auto_power_{device['id']}"
+    assert dev["grid_min"] == f"switch.auto_grid_min_{device['id']}"
+    assert dev["grid_deadline"] == f"switch.auto_grid_deadline_{device['id']}"
+    # Reine Autos haben trotzdem keine Priorität/Pfeile/Automatik
     assert dev.get("auto") is None
-    assert dev.get("min_soc") is None
-    assert dev.get("power_charge") is None
+    assert dev.get("rank") is None
+    assert dev.get("up") is None
+    assert dev.get("down") is None
 
 
 def test_payload_contains_config_scan_and_version():

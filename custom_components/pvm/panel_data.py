@@ -96,8 +96,19 @@ def _platform_of(kind: str) -> str:
 def _kinds_for_role(role: str) -> set[str]:
     """Welche Entitäten-Kinds eine Rolle besitzt (Spiegel der Plattformen)."""
     if role == "fahrzeug":
-        # Autos sind reine Überwachung: nur der Auto-Status (plus eigene Sensoren).
-        return {"car_status"}
+        # Autos sind reine Überwachung (keine Priorität/Pfeile), haben aber
+        # eigene Lade-Ziele als Entitäten – passend zur Trennung von Auto und
+        # Wallbox (siehe number.py/time.py/switch.py).
+        return {
+            "car_status",
+            "power_charge",
+            "grid_min",
+            "grid_deadline",
+            "min_soc",
+            "max_soc",
+            "deadline_soc",
+            "deadline_time",
+        }
     base = {"rank", "status", "up", "down", "auto"}
     if role == "wallbox":
         base |= {
