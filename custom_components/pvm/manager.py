@@ -506,6 +506,20 @@ class PvmManager:
                             (device.get("car") or {}).get("manual_force")
                         ),
                     )
+            # „Vorausschauendes Laden“ (Einstellung): Hat das zugeordnete Auto
+            # heute eine Frist (Ziel bis Uhrzeit), hält die Engine die Wallbox
+            # über kurze Wolkenphasen, statt abzuschalten – die Sonne kommt
+            # laut Prognose gleich wieder. Ohne aktive Frist fahren Wallboxen
+            # live herunter (kein unnötiger Netzbezug durch Halten).
+            car_cfg = car_source.get("car") if car_source is not None else None
+            if (
+                engine_device.car is not None
+                and car_cfg
+                and bool(settings.get("pre_charge", True))
+                and float(car_cfg.get("deadline_soc") or 0) > 0
+                and bool(car_cfg.get("deadline_time"))
+            ):
+                engine_device.hold_short_dip = True
         if role == ROLE_WAERMEPUMPE and device.get("wp"):
             engine_device.wp = self._wp_to_engine(device, device["wp"])
         return engine_device

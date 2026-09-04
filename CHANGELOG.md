@@ -2,6 +2,22 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.9.1] – 2026-09-04
+
+### Review-Runde: Vorausschauendes Laden & Statistik-Feinschliff
+- **„Vorausschauendes Laden“ funktioniert jetzt wirklich:** Hat das zugeordnete
+  Auto eine **aktive Frist** (Ziel bis Uhrzeit), hält PVM die Wallbox über eine
+  kurze Wolkenphase an, statt sie abzuschalten – die Prognose sagt, wann die
+  Sonne zurückkommt. Ohne Frist fahren Wallboxen weiter live herunter (kein
+  unnötiger Netzbezug durch Halten). Gilt für Wallboxen mit und ohne
+  Leistungs-Begrenzer (3 neue Engine-Tests).
+- **Statistik-Reihen bleiben sichtbar:** Abgewählte Reihen werden jetzt
+  ausgegraut angezeigt statt ganz zu verschwinden – ein Klick holt sie zurück,
+  ohne erst den Modus wechseln zu müssen.
+- **Prüf-Sandbox zeigt immer eine Sonnenkurve:** Verlauf und Prognose rechnen
+  mit fester „Solarzeit“ (jetzt = 11 Uhr) – auch abends/nachts bleibt die
+  Demo aussagekräftig.
+
 ## [1.9.0] – 2026-09-04
 
 ### Marke & Oberfläche

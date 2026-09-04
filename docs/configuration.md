@@ -220,8 +220,15 @@ Minuten, nächste 3 Stunden und für den Rest des Tages** – berechnet anonym
 über Open-Meteo (keine persönliche API, keine Anmeldung) mit lokalem
 Modell als Fallback. PVM nutzt diese Vorhersage, um kurze Wolkenphasen
 nicht zum Abschalten zu nutzen („erst abwarten, die Sonne kommt gleich
-wieder“) und bei Sonne schon untertags zu laden, wenn der Überschuss für
-Haus und spätere Lade-Wünsche reicht.
+wieder“).
+
+Unter **Einstellungen → PV-Prognose & smartes Laden** findest du zwei
+Schalter: **PV-Prognose** (an/aus) und **Vorausschauendes Laden**
+(Standard an). Letzteres bedeutet: Hat ein Auto eine **aktive Frist**
+(Ziel bis Uhrzeit), bleibt die Wallbox auch über eine kurze Wolkenphase an,
+statt abzuschalten – so geht untertags keine Ladezeit verloren und es wird
+seltener geschaltet. Ohne Frist fahren Wallboxen weiterhin live herunter,
+damit keine Energie aus dem Netz geholt wird.
 
 ## Gerätesuche (Auto-Erkennung)
 

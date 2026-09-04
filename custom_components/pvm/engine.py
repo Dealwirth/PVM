@@ -109,6 +109,11 @@ class Device:
     schedule_on: bool = False        # Fenster gerade aktiv
     schedule_grid: bool = False      # Netz im Fenster erlaubt
     schedule_power_w: float = 0.0
+    # „Vorausschauendes Laden“: Bei einer aktiven Frist (Ziel bis Uhrzeit)
+    # hält die Engine die Wallbox über eine kurze Wolkenphase, statt sie
+    # abzuschalten – die Sonne kommt laut Prognose gleich wieder. Normal
+    # fahren Wallboxen live herunter (kein Netzbezug durch Halten).
+    hold_short_dip: bool = False
 
     def draw_power_w(self) -> float:
         """Geschätzte aktuelle Leistungsaufnahme bei laufendem Gerät."""
@@ -454,9 +459,23 @@ def compute_plan(inp: CycleInput) -> CyclePlan:
             if dev.has_power_setpoint:
                 give = min(want, surplus_remaining)
                 if dev.state_on:
-                    # Läuft bereits: Leistung nachziehen oder stoppen
+                    # Läuft bereits: Leistung nachziehen, bei kurzer Wolke laut
+                    # Prognose halten (kein hektisches Abschalten) oder stoppen.
                     if give < dev.min_on_power_w:
-                        if _can_turn_off(dev, now):
+                        recovery = (
+                            inp.forecast_recovery_min is not None
+                            and inp.forecast_recovery_min <= FORECAST_HOLD_MIN
+                        )
+                        if recovery and (dev.car is None or dev.hold_short_dip):
+                            put(
+                                DeviceAction(
+                                    id=dev.id,
+                                    set_on=None,
+                                    set_power_w=None,
+                                    reason=REASON_HOLD_FORECAST,
+                                )
+                            )
+                        elif _can_turn_off(dev, now):
                             put(
                                 DeviceAction(
                                     id=dev.id,
@@ -503,7 +522,7 @@ def compute_plan(inp: CycleInput) -> CyclePlan:
                             inp.forecast_recovery_min is not None
                             and inp.forecast_recovery_min <= FORECAST_HOLD_MIN
                         )
-                        if recovery and dev.car is None:
+                        if recovery and (dev.car is None or dev.hold_short_dip):
                             put(
                                 DeviceAction(
                                     id=dev.id, set_on=None, set_power_w=None,

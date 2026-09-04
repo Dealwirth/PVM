@@ -99,6 +99,20 @@
     return Math.max(0, day) * 6.1;
   }
 
+  // Sandbox-Sonnenzeit: Egal, wann du die Vorschau öffnest – „jetzt“ ist immer
+  // 11:00 Uhr Solarzeit. So zeigen Verlauf und Prognose auch abends/nachts eine
+  // plausible Tageskurve (die Demo bleibt jederzeit aussagekräftig).
+  function solarHour(ts) {
+    const realNow = new Date();
+    const realH = realNow.getHours() + realNow.getMinutes() / 60;
+    const d = new Date(ts);
+    const real = d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
+    let h = real + (11.0 - realH);
+    while (h < 0) h += 24;
+    while (h >= 24) h -= 24;
+    return h;
+  }
+
   function freshEnergy(separate) {
     return separate
       ? {
@@ -423,7 +437,7 @@
         const t = start + ((end - start) * i) / (n - 1);
         const ph = 2.1 + ei * 1.7;
         const wob = Math.sin(i / 6 + ph) * 0.22 + Math.sin(i / 2.2 + ph) * 0.1;
-        const solar = pvCurveAt(new Date(t).getHours() + new Date(t).getMinutes() / 60) * 1000;
+        const solar = pvCurveAt(solarHour(t)) * 1000;
         let v;
         if (eid.indexOf("pv") >= 0) v = solar * (0.8 + 0.2 * Math.sin(i / 5));
         else if (eid.indexOf("wallbox") >= 0 || eid.indexOf("auto_leistung") >= 0)
@@ -440,10 +454,12 @@
   }
 
   function mockForecast() {
-    const now = new Date();
-    const hNow = now.getHours() + now.getMinutes() / 60;
+    const now = Date.now();
+    const hNow = solarHour(now); // immer ~11:00 -> mittägliche Kurve
+    const until = Math.max(hNow, Math.min(23.9, 18.2));
     const series = [];
-    for (let i = 0; i <= 12; i++) {
+    const nSeries = Math.min(13, Math.max(4, Math.round((until - hNow) / 0.25) + 1));
+    for (let i = 0; i < nSeries; i++) {
       let kw = pvCurveAt(hNow + i * 0.25);
       if (i === 1) kw *= 0.35; // kurze Wolke in 15 Minuten
       if (i === 2) kw *= 0.85;
@@ -451,13 +467,13 @@
     }
     const dayCurve = [];
     for (let m = 0; m < 48; m++) {
-      const h = hNow + (m / 48) * 12;
+      const h = hNow + (m / 48) * Math.max(0, 18.2 - hNow);
       dayCurve.push({ t: Math.round(m * 15), pv_w: Math.round(pvCurveAt(h) * 1000) });
     }
     let dayKwh = 0;
     for (let m = 0; m < 96; m++) {
-      const h = hNow + (m / 96) * 12;
-      dayKwh += pvCurveAt(h) * (12 / 96);
+      const h = hNow + (m / 96) * Math.max(0, 18.2 - hNow);
+      dayKwh += pvCurveAt(h) * (Math.max(0, 18.2 - hNow) / 96);
     }
     return {
       source: "openmeteo",

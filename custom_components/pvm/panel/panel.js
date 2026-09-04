@@ -1912,7 +1912,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const has = Object.keys(statSources()).length;
     return `
       <h2 class="sec">${I.chart} Statistik & Prognose</h2>
-      <p class="sub">Welche Leistung lief wann? Wähle einen Blick – jede Linie lässt sich einzeln an- und abwählen (Tippen auf die Punkte unten).</p>
+      <p class="sub">Welche Leistung lief wann? Wähle einen Blick – jede Reihe lässt sich unten einzeln an- und abwählen (ausgegraut = ausgeblendet).</p>
       <div class="stattools">
         <span class="chiprow" style="margin:0">${STAT_MODES.map((m) => `<button class="serieschip ${statState.mode === m.id ? "on" : ""}" data-action="stat-mode" data-stat-mode="${m.id}">${m.label}</button>`).join("")}</span>
         <button class="btn ghost" data-action="stat-range" data-stat-range="24" style="padding:5px 10px">24 h</button>
@@ -2061,11 +2061,16 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
       ${gridLines.join("")}${lines}${timeLines.join("")}</svg>`;
     if (chipsEl) {
-      chipsEl.innerHTML = statActiveSeries().map((k) => {
+      // Alle vorhandenen Reihen zeigen – abgewählte bleiben sichtbar, aber
+      // ausgegraut (ein Klick holt sie sofort zurück, kein Modus nötig).
+      const order = ["pv", "house", "grid", "grid_import", "grid_export", "batt", "wallbox", "devices"];
+      const keys = Object.keys(series).sort((a, b) => order.indexOf(a) - order.indexOf(b) || a.localeCompare(b));
+      chipsEl.innerHTML = keys.map((k) => {
         const s = series[k];
         const color = STAT_COLORS[k] || "#888";
         const last = s && s.points.filter((v) => v != null).pop();
-        return `<button class="serieschip on" data-action="stat-series" data-stat-series="${k}">
+        const on = statState.on[k] !== false;
+        return `<button class="serieschip ${on ? "on" : ""}" data-action="stat-series" data-stat-series="${k}" title="${on ? "Reihe ausblenden" : "Reihe anzeigen"}">
           <i class="dot" style="background:${color}"></i>${esc(s.label)}<span style="opacity:.75">${last == null ? "–" : fmtW(last)}</span></button>`;
       }).join("");
     }
@@ -2232,7 +2237,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           <span class="sw ${s.forecast_enabled !== false ? "on" : ""}" data-settings-toggle="forecast_enabled"><i></i></span>
         </div>
         <div class="row">
-          <span class="lbl grow">Vorausschauendes Laden<small>Reicht der erwartete Tages-Überschuss nicht für deine Autos, lädt PVM sie schon am Tag mit der Sonne (statt nachts auf Netz zu warten).</small></span>
+          <span class="lbl grow">Vorausschauendes Laden<small>Hat ein Auto eine aktive Frist (Ziel bis Uhrzeit), hält PVM die Wallbox über kurze Wolkenphasen an statt abzuschalten – die Sonne kommt laut Prognose gleich wieder. So geht keine Ladezeit verloren und es wird seltener geschaltet.</small></span>
           <span class="sw ${s.pre_charge !== false ? "on" : ""}" data-settings-toggle="pre_charge"><i></i></span>
         </div>
       `)}

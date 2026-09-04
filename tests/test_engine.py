@@ -71,6 +71,7 @@ def car(
     min_charge: float = 4000.0,
     enabled: bool = True,
     measured: float | None = None,
+    hold_dip: bool = False,
 ) -> eng.Device:
     return eng.Device(
         id=device_id,
@@ -100,6 +101,7 @@ def car(
             deadline_ts=deadline_ts,
             deadline_soc=deadline_soc,
         ),
+        hold_short_dip=hold_dip,
     )
 
 
@@ -142,9 +144,12 @@ def wp(
     )
 
 
-def run(devices, surplus=5000.0, valid=True, mode=MODE_AUTO) -> eng.CyclePlan:
+def run(devices, surplus=5000.0, valid=True, mode=MODE_AUTO, recovery=None) -> eng.CyclePlan:
     return eng.compute_plan(
-        eng.CycleInput(now=NOW, mode=mode, surplus_w=surplus, surplus_valid=valid, devices=devices)
+        eng.CycleInput(
+            now=NOW, mode=mode, surplus_w=surplus, surplus_valid=valid,
+            devices=devices, forecast_recovery_min=recovery,
+        )
     )
 
 
@@ -532,3 +537,43 @@ def test_forecast_dip_does_not_hold_wallbox():
     action = action_for(plan, "wb1")
     assert action is not None and action.set_on is False
     assert action.reason == REASON_OFF_NO_SURPLUS
+
+
+# ---------------------------------------------------------------------------
+# Vorausschauendes Laden: kurze Wolkenphase bei aktiver Auto-Frist
+# ---------------------------------------------------------------------------
+
+def test_wallbox_with_goal_holds_short_dip_when_precharge():
+    # Auto lädt, Frist-Ziel aktiv (hold_dip=True), Überschuss bricht kurz ein
+    # und die Prognose meldet Erholung in wenigen Minuten -> halten statt aus.
+    dev = car("auto1", 1, soc=55.0, state_on=True, has_setpoint=True,
+              hold_dip=True)
+    # last_on bleibt None -> der Ausschalt-Check wäre frei; der Hold-Zweig
+    # greift trotzdem zuerst.
+    plan = run([dev], surplus=900.0, recovery=5)
+    action = action_for(plan, "auto1")
+    assert action is not None
+    assert action.set_on is None  # Zustand halten
+    assert action.reason == REASON_HOLD_FORECAST
+
+
+def test_wallbox_without_goal_ramps_down_on_dip():
+    # Ohne aktive Frist (hold_dip=False) fährt die Wallbox live herunter.
+    dev = car("auto1", 1, soc=55.0, state_on=True, has_setpoint=True,
+              hold_dip=False)
+    plan = run([dev], surplus=900.0, recovery=5)
+    action = action_for(plan, "auto1")
+    assert action is not None and action.set_on is False
+    assert action.reason == REASON_OFF_NO_SURPLUS
+
+
+def test_switch_wallbox_with_goal_holds_short_dip():
+    # Wallbox ohne Leistungs-Begrenzer (nur Ein/Aus) hält ebenfalls, wenn die
+    # Prognose eine kurze Wolke meldet und eine Frist aktiv ist.
+    dev = car("auto1", 1, soc=55.0, state_on=True, has_setpoint=False,
+              hold_dip=True)
+    plan = run([dev], surplus=900.0, recovery=5)
+    action = action_for(plan, "auto1")
+    assert action is not None
+    assert action.set_on is None
+    assert action.reason == REASON_HOLD_FORECAST
