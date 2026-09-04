@@ -55,6 +55,7 @@ from .const import (
 )
 from .detector import (
     assign_cars_to_wallboxes,
+    car_for_wallbox,
     match_power_soc,
     pair_by_plug_time,
     suggest_sets,
@@ -436,17 +437,53 @@ class PvmManager:
         )
 
         role = device.get("role")
-        if role == ROLE_WALLBOX and device.get("car"):
-            engine_device.car = self._car_to_engine(device, device["car"], now_local)
+        if role == ROLE_WALLBOX:
+            # Auto & Wallbox sind getrennt bedienbar, koppeln sich aber
+            # automatisch: Für die Lade-Entscheidung zählen die Ziele des
+            # zugeordneten Autos (SoC-Grenzen, Zeit-Ziele, Power Charge) –
+            # nicht die der Wallbox. Fallback für Alt-Konfigurationen ohne
+            # Auto-Gerät: die bisherigen Wallbox-Werte.
+            assigned = car_for_wallbox(
+                self.config,
+                device_id,
+                self.car_assignments,
+                wallbox_charging=bool(measured is not None and measured >= CHARGE_ON_W),
+            )
+            car_source = assigned if assigned is not None else device
+            if car_source.get("car"):
+                engine_device.car = self._car_to_engine(
+                    car_source,
+                    car_source["car"],
+                    now_local,
+                    soc_fallback_sensor=sensors.get("soc"),
+                    # Power Charge an der Wallbox (Entität/Schalter) soll
+                    # auch bei zugeordnetem Auto weiter funktionieren.
+                    extra_manual_force=bool(
+                        (device.get("car") or {}).get("manual_force")
+                    ),
+                )
         if role == ROLE_WAERMEPUMPE and device.get("wp"):
             engine_device.wp = self._wp_to_engine(device, device["wp"])
         return engine_device
 
-    def _car_to_engine(self, device: dict, car: dict, now_local: datetime) -> eng.CarInfo:
+    def _car_to_engine(
+        self,
+        device: dict,
+        car: dict,
+        now_local: datetime,
+        soc_fallback_sensor: str | None = None,
+        extra_manual_force: bool = False,
+    ) -> eng.CarInfo:
         sensors = device.get("sensors", {})
         soc, soc_valid = self.read_number(
             sensors.get("soc"), stale_s=STALE_SOC_AFTER_S
         )
+        # Fallback: hat das Auto keinen eigenen SoC-Sensor (Alt-Konfiguration),
+        # wird der SoC-Sensor der Wallbox mitverwendet.
+        if (soc is None or not soc_valid) and soc_fallback_sensor:
+            soc, soc_valid = self.read_number(
+                soc_fallback_sensor, stale_s=STALE_SOC_AFTER_S
+            )
         deadline_ts = None
         deadline_soc = None
         if car.get("deadline_soc") and car.get("deadline_time"):
@@ -462,7 +499,7 @@ class PvmManager:
             min_charge_power_w=float(car.get("min_charge_power_w", 4000)),
             grid_min_allowed=bool(car.get("grid_min_allowed", True)),
             grid_deadline_allowed=bool(car.get("grid_deadline_allowed", True)),
-            manual_force=bool(car.get("manual_force", False)),
+            manual_force=bool(car.get("manual_force", False)) or extra_manual_force,
             deadline_ts=deadline_ts,
             deadline_soc=deadline_soc,
         )

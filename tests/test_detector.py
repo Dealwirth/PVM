@@ -233,3 +233,35 @@ def test_pair_by_plug_time_no_double_use():
     cars = [{"id": "car1", "plug_ts": 55.0}]
     pairs = detector.pair_by_plug_time(wallboxes, cars, max_delta_s=150.0)
     assert pairs == {"wb2": "car1"}
+
+
+def _car(id_, home=None):
+    return {"id": id_, "role": "fahrzeug", "car": {"home_wallbox": home}}
+
+
+def test_car_for_wallbox_no_cars():
+    assert detector.car_for_wallbox({"devices": []}, "wb1") is None
+    assert detector.car_for_wallbox({"devices": [{"id": "wb1", "role": "wallbox"}]}, "wb1") is None
+
+
+def test_car_for_wallbox_live_assignment_wins():
+    config = {"devices": [_car("car1", "wb2"), _car("car2", "wb1")]}
+    found = detector.car_for_wallbox(
+        config, "wb1", assignments={"car1": "wb1", "car2": "wb2"}, wallbox_charging=True
+    )
+    assert found is not None and found["id"] == "car1"
+
+
+def test_car_for_wallbox_learned_home_while_charging():
+    config = {"devices": [_car("car1", "wb1"), _car("car2", None)]}
+    found = detector.car_for_wallbox(config, "wb1", wallbox_charging=True)
+    assert found is not None and found["id"] == "car1"
+    # Wallbox lädt nicht -> keine Heimat-Zuordnung erzwingen
+    assert detector.car_for_wallbox(config, "wb1", wallbox_charging=False) is None
+
+
+def test_car_for_wallbox_respects_assignments_of_other_wallbox():
+    config = {"devices": [_car("car1", "wb1")]}
+    assert detector.car_for_wallbox(
+        config, "wb2", assignments={"car1": "wb1"}, wallbox_charging=True
+    ) is None

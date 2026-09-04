@@ -70,7 +70,8 @@ deiner Auswahl passen** – nichts Kompliziertes nebenher.
 
 | Rolle | Steuerung | Optionale Sensoren | Besonderheiten |
 | --- | --- | --- | --- |
-| **Wallbox (E-Auto)** | Schalter an/aus, zwei Taster oder Schalter + Leistungs-/Strom-Limit | Ladeleistung, SoC | Mindest-/Max-SOC, Frist-Ziele, Power Charge, Netz-Freigaben |
+| **Wallbox** | Schalter an/aus, zwei Taster oder Schalter + Leistungs-/Strom-Limit | Ladeleistung | Max. Ladeleistung & Mindest-Überschuss (versteckt unter „Erweiterte Einstellungen“) |
+| **Auto (E-Auto)** | keine (reine Überwachung) | SoC, Ladeleistung | Mindest-/Max-SOC, Frist-Ziele, Power Charge, Netz-Freigaben – alles **am Auto**, nicht an der Wallbox |
 | **Wärmepumpe** | Schalter (Heizbetrieb erlauben) | Temperatur (Pflicht), Leistung | Soll-Temperatur, Sicherheits-Minimum, Kalibrierungstest |
 | **Verbraucher** | Schalter | Leistung | Nennleistung für die Entscheidung |
 
@@ -78,6 +79,11 @@ deiner Auswahl passen** – nichts Kompliziertes nebenher.
 das komplette Formular (Typ, Steuerung, Sensoren, Ziele). Entitäts-Felder
 sind dabei **frei tippbar** („Entitäts-ID tippen oder wählen“) – wer die ID
 kennt, muss nicht suchen; getippte Werte bleiben auch beim Blättern erhalten.
+
+**Ganz einfach gehalten:** Der Dialog zeigt immer nur die wichtigen Felder.
+Seltenere Optionen stecken bewusst unter **„Erweiterte Einstellungen“**
+(klickbar aufklappbar) – nichts wirkt nach dem Öffnen überladen, alles bleibt
+erreichbar und wird gespeichert.
 
 **Steuerungsarten – du wählst eine, die Felder erscheinen automatisch:**
 
@@ -131,6 +137,15 @@ Wallbox jederzeit selbst festlegen („Wo ist dieses Auto zu Hause?“). Auf der
 Wallbox-Karte steht dann 🚗 *Auto* (lädt gerade) bzw. 🏠 *Auto (zu Hause)*
 (gelernt); der Auto-Status-Sensor `sensor.pvm_car_status_*` liefert zusätzlich
 die Attribute `home_wallbox_id`/`home_wallbox_name`.
+
+**Auto und Wallbox sind getrennt, koppeln sich aber automatisch:** Alle
+Lade-Wünsche (Mindest-/Max-SOC, Frist-Ziele, Power Charge, Netz-Freigaben)
+stellst du **am Auto** ein – nicht an der Wallbox. Die Wallbox-Konfiguration
+bleibt auf die Hardware beschränkt (Leistungs-Sensor, Steuerung, Limits).
+Beim Laden übernimmt PVM automatisch die Ziele des Autos, das an der
+Wallbox hängt – die Kachel der Wallbox zeigt dann „Ziel …“ des zugeordneten
+Autos. So kannst du jedes Auto individuell einstellen, egal an welcher
+Wallbox es hängt.
 
 ## Wärmepumpe
 

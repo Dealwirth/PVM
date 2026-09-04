@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from .const import DOMAIN, PLATFORMS
 from .manager import PvmManager
 from .panel import async_register_panel, async_unregister_panel
+from .store import PvmStore
 from .websocket import async_register_websocket
 
 _LOGGER = logging.getLogger(__name__)
@@ -68,7 +69,15 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     # Eigene Seite aus der Seitenleiste entfernen (inkl. altem Dashboard)
     await async_unregister_panel(hass)
 
-    # Gespeicherte Konfiguration löschen, damit nichts zurückbleibt
+    # Gespeicherte Konfiguration löschen, damit nichts zurückbleibt.
+    # Wichtig: Beim Löschen ist der Manager meist schon entladen (und aus
+    # hass.data entfernt) – der Store wird deshalb direkt gelöscht, damit
+    # garantiert nichts von PVM zurückbleibt.
+    try:
+        store = PvmStore(hass)
+        await store.async_delete()
+    except Exception:  # noqa: BLE001 - Aufräumen darf nie blockieren
+        _LOGGER.debug("PVM: Konfigurationsdatei konnte nicht gelöscht werden", exc_info=True)
     if manager is not None:
         await manager.async_delete_storage()
 

@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import re
 
+from .const import ROLE_FAHRZEUG
+
 # ---------------------------------------------------------------------------
 # Signal-Wörterbücher
 # ---------------------------------------------------------------------------
@@ -756,3 +758,44 @@ def match_power_soc(
         if max(soc_window) - min(soc_window) >= min_soc_rise_pct:
             return True
     return False
+
+
+def car_for_wallbox(
+    config: dict,
+    wallbox_id: str,
+    assignments: dict[str, str] | None = None,
+    wallbox_charging: bool = False,
+) -> dict | None:
+    """Findet das Auto, das an einer Wallbox hängt bzw. dort zu Hause ist.
+
+    Reine Logik auf der Konfiguration – liefert das Geräte-Dict des Autos
+    oder None. Reihenfolge:
+
+    1. **Live-Zuordnung** (Einsteck-Zeitpunkt / Leistungsvergleich):
+       ``assignments`` ist ``{car_id: wallbox_id}`` aus der laufenden
+       Erkennung – dieses Auto ist sicher an der Wallbox.
+    2. **Gelernte Heimat-Wallbox** (``car.home_wallbox``), solange die
+       Wallbox gerade lädt (``wallbox_charging=True``) – dann ist das Auto
+       dort so gut wie sicher angesteckt.
+
+    Damit gelten für eine Wallbox immer die Ziele des **Autos** (SoC-Grenzen,
+    Zeit-Ziele, Power Charge) und nicht die der Wallbox – Auto und Wallbox
+    sind in der Bedienung getrennt, koppeln sich aber automatisch.
+    """
+    cars = [
+        d
+        for d in (config.get("devices") or [])
+        if d.get("role") == ROLE_FAHRZEUG
+    ]
+    if not cars:
+        return None
+    if assignments:
+        for car in cars:
+            if assignments.get(car.get("id")) == wallbox_id:
+                return car
+    if wallbox_charging:
+        for car in cars:
+            home = (car.get("car") or {}).get("home_wallbox")
+            if home == wallbox_id:
+                return car
+    return None

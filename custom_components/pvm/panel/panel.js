@@ -384,6 +384,14 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
 .founditem .grow { flex:1; min-width:200px; }
 .founditem > .btn { margin-top:2px; flex:0 0 auto; }
 .founditem h4 { margin:0 0 3px; font-size:14.5px; }
+/* „Erweiterte Einstellungen“ im Geräte-Dialog: dezent, aufklappbar – so
+   wirkt der Dialog nie überladen, alle Optionen bleiben aber erreichbar. */
+.dlg-adv { border:1px dashed var(--line); border-radius:11px; padding:9px 12px; }
+.dlg-adv summary { cursor:pointer; font-size:13px; font-weight:600; color:var(--mut); user-select:none; list-style:none; display:flex; align-items:center; gap:6px; }
+.dlg-adv summary::before { content:"▸"; transition:transform .15s ease; font-size:11px; }
+.dlg-adv[open] summary::before { transform:rotate(90deg); }
+.dlg-adv summary:hover { color:var(--txt); }
+.dlg-adv-inner { display:flex; flex-direction:column; gap:12px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
 .founditem p { margin:0; color:var(--mut); font-size:12px; line-height:1.45; word-break:break-word; }
 
 #toasts { position:fixed; bottom:18px; right:18px; display:flex; flex-direction:column; gap:8px; z-index:400; }
@@ -1377,13 +1385,18 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const ctrl = device.control || {};
     if (ctrl.type === "buttons") tags.push({ t: "2 Taster", cls: "tag" });
     else if (ctrl.type === "switch_number") tags.push({ t: "Leistungs-Limit", cls: "tag" });
-    const car = device.car;
+    // Ziel-Kachel für Wallboxen setzt der Live-Update anhand des
+    // zugeordneten Autos (Auto & Wallbox sind getrennt, koppeln sich aber
+    // automatisch – siehe updateDeviceLives).
     let goalTxt = "";
-    if (role === "wallbox" && car) {
-      goalTxt = "Ziel " + Math.round(car.min_soc || 0) + "–" + Math.round(car.max_soc || 100) + " %";
-      if (Number(car.deadline_soc || 0) > 0 && car.deadline_time)
-        goalTxt += " · bis " + car.deadline_time + " → " + Math.round(car.deadline_soc) + " %";
-      if (car.manual_force) goalTxt += " · Power Charge an";
+    if (role !== "wallbox") {
+      const car = device.car;
+      if (car) {
+        goalTxt = "Ziel " + Math.round(car.min_soc || 0) + "–" + Math.round(car.max_soc || 100) + " %";
+        if (Number(car.deadline_soc || 0) > 0 && car.deadline_time)
+          goalTxt += " · bis " + car.deadline_time + " → " + Math.round(car.deadline_soc) + " %";
+        if (car.manual_force) goalTxt += " · Power Charge an";
+      }
     }
     return `
       <div class="dev" data-device="${esc(device.id)}" data-action="open-device" title="Details & Einstellungen">
@@ -1507,6 +1520,25 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           (live.length ? "🚗 " + live.map((c) => c.name || "Auto").join(", ") : "") +
           (home.length ? (live.length ? " · " : "") + "🏠 " + home.map((c) => c.name || "Auto").join(", ") + " (zu Hause)" : "");
         if (assigned.textContent !== txt) assigned.textContent = txt;
+        // Ziel-Kachel zeigt die Wünsche des zugeordneten Autos (Auto & Wallbox
+        // sind getrennt, koppeln sich aber automatisch).
+        const goalCar = live[0] || home[0] || d;
+        const gcar = (goalCar.car || {});
+        let goalTxt = "Ziel " + Math.round(gcar.min_soc || 0) + "–" + Math.round(gcar.max_soc || 100) + " %";
+        if (Number(gcar.deadline_soc || 0) > 0 && gcar.deadline_time)
+          goalTxt += " · bis " + gcar.deadline_time + " → " + Math.round(gcar.deadline_soc) + " %";
+        if (gcar.manual_force) goalTxt += " · Power Charge an";
+        const goalEl = $(card, '.goal[data-el="wb-goal"]');
+        if (!goalEl && goalTxt) {
+          const div = document.createElement("div");
+          div.className = "goal";
+          div.setAttribute("data-el", "wb-goal");
+          div.textContent = goalTxt;
+          const statusline = $(card, '[data-el="statusline"]');
+          assigned.insertAdjacentElement("afterend", div);
+        } else if (goalEl && goalEl.textContent !== goalTxt) {
+          goalEl.textContent = goalTxt;
+        }
       }
     });
   }
@@ -1991,54 +2023,66 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           <button class="btn ghost" data-pick-field="${field}" type="button">${I.search} Wählen</button>
         </div>
       </div>`;
+    // „Erweiterte Einstellungen“ klappt auf – so wirkt der Dialog nicht
+    // überladen, obwohl alle Optionen vorhanden und änderbar bleiben.
+    const adv = (inner) => `
+      <details class="dlg-adv">
+        <summary>Erweiterte Einstellungen</summary>
+        <div class="dlg-adv-inner">${inner}</div>
+      </details>`;
     if (d.role === "fahrzeug") {
+      // Auto: Hier gehören ALLE Lade-Wünsche hin – nicht an die Wallbox.
       const car = d.car;
       out.push(sensorRow("soc", "Akku-Stand (SoC)", "Ladezustand des Autos in % – z. B. vom Auto-Hersteller."));
       out.push(sensorRow("power", "Aktuelle Ladeleistung", "Was das Auto gerade zieht – PVM vergleicht das mit den Wallboxen und erkennt so, wo es hängt."));
       out.push(numberField("capacity", "Batteriegröße", car.capacity_kwh, 1, 300, 1, "kWh"));
-      out.push(numberField("min_soc", "Untergrenze (Minimum)", car.min_soc, 0, 100, 1, "%"));
-      out.push(numberField("max_soc", "Obergrenze (Maximum)", car.max_soc, 10, 100, 1, "%"));
-      // Heimat-Wallbox: gelernt (Einsteck-Zeitpunkt) oder vom Nutzer gesetzt
+      out.push(numberField("min_soc", "Mindest-Akku (Untergrenze)", car.min_soc, 0, 100, 1, "%"));
+      out.push(numberField("max_soc", "Ziel-Akku (Obergrenze)", car.max_soc, 10, 100, 1, "%"));
+      // Heimat-Wallbox: gelernt (Einsteck-Zeitpunkt) oder vom Nutzer gesetzt –
+      // daraus koppeln sich Auto & Wallbox automatisch.
       const wallboxes = devicesOf().filter((x) => x.role === "wallbox");
       out.push(`<div class="f">
         <label>Wo ist dieses Auto zu Hause?</label>
-        <small>PVM lernt es automatisch aus dem Einsteck-Zeitpunkt. Du kannst es hier auch selbst festlegen – „Automatisch“ überlässt PVM die Entscheidung.</small>
+        <small>PVM erkennt es automatisch und lernt die Zuordnung – nach dem ersten Laden steht sie hier. Du kannst sie jederzeit selbst festlegen.</small>
         <select data-field="home_wallbox" style="margin-top:6px">
           <option value="" ${!car.home_wallbox ? "selected" : ""}>Automatisch (PVM lernt es selbst)</option>
           ${wallboxes.map((w) => `<option value="${esc(w.id)}" ${car.home_wallbox === w.id ? "selected" : ""}>${esc(w.name || "Wallbox")}</option>`).join("")}
           ${!wallboxes.length ? "<option disabled>Noch keine Wallbox konfiguriert</option>" : ""}
         </select>
       </div>`);
+      out.push(adv(`
+        <div class="f">
+          <label>Fertig-Ziel (bis wann laden?)</label><small>Optional: Akku-Ziel und Uhrzeit – PVM lädt bis dahin (nötigenfalls mit Netz). 0 % = aus.</small>
+          <div class="ent" style="margin-top:4px">
+            <input type="range" data-num="deadline_soc" min="0" max="100" step="1" value="${Number(car.deadline_soc || 0)}" style="flex:1">
+            <span style="color:var(--mut);width:60px;font-size:13px">%</span>
+          </div>
+          <div class="ent" style="margin-top:6px">
+            <input type="time" data-field="deadline_time" value="${esc(car.deadline_time || "")}" style="flex:1">
+          </div>
+        </div>
+        ${toggleRow("manual_force", "Sofort voll laden (Power Charge)", !!car.manual_force, "Lädt jetzt mit voller Leistung bis zur Obergrenze – auch ohne Überschuss.")}
+        ${toggleRow("grid_min", "Netzstrom für den Mindest-Akku", car.grid_min_allowed, "Erlaubt PVM, bei fast leerem Akku kurz Strom aus dem Netz zu nutzen.")}
+        ${toggleRow("grid_deadline", "Netzstrom für das Fertig-Ziel", car.grid_deadline_allowed, "Damit dein Auto bis zur Abfahrtszeit sein Ziel erreicht.")}
+      `));
     } else if (d.role === "wallbox") {
-      const car = d.car;
+      // Wallbox: NUR die Hardware – Leistungs-Sensor + (versteckt) Limits.
+      // Akku-Grenzen, Ziele & Power Charge stellst du am Auto ein.
       out.push(sensorRow("power", "Leistung (lädt gerade)", "Zeigt live, wie viel die Wallbox zieht."));
-      out.push(sensorRow("soc", "Akku-Stand des Autos", "Ladezustand in % – z. B. sensor.auto_ladezustand."));
-      out.push(numberField("capacity", "Batteriegröße", car.capacity_kwh, 1, 300, 1, "kWh"));
-      out.push(numberField("min_soc", "Untergrenze (Minimum)", car.min_soc, 0, 100, 1, "%"));
-      out.push(numberField("max_soc", "Obergrenze (Maximum)", car.max_soc, 10, 100, 1, "%"));
-      out.push(`<div class="f">
-        <label>Fertig-Ziel (bis wann laden?)</label><small>Optional: Akku-Ziel und Uhrzeit – PVM lädt bis dahin (nötigenfalls mit Netz). 0 % = aus.</small>
-        <div class="ent" style="margin-top:4px">
-          <input type="range" data-num="deadline_soc" min="0" max="100" step="1" value="${Number(car.deadline_soc || 0)}" style="flex:1">
-          <span style="color:var(--mut);width:60px;font-size:13px">%</span>
-        </div>
-        <div class="ent" style="margin-top:6px">
-          <input type="time" data-field="deadline_time" value="${esc(car.deadline_time || "")}" style="flex:1">
-        </div>
-      </div>`);
-      out.push(toggleRow("manual_force", "Sofort voll laden (Power Charge)", !!car.manual_force, "Lädt jetzt mit voller Leistung bis zur Obergrenze – auch ohne Überschuss."));
-      out.push(numberField("power_limit", "Max. Ladeleistung", d.limits.power_limit_w, 500, 22000, 100, "W"));
-      out.push(numberField("min_on_power", "Mindest-Überschuss zum Laden", d.limits.min_on_power_w, 100, 11000, 100, "W"));
-      out.push(toggleRow("grid_min", "Netzstrom für die Untergrenze", car.grid_min_allowed, "Erlaubt PVM, bei fast leerem Akku kurz Strom aus dem Netz zu nutzen."));
-      out.push(toggleRow("grid_deadline", "Netzstrom für das Fertig-Ziel", car.grid_deadline_allowed, "Damit dein Auto bis zur Abfahrtszeit sein Ziel erreicht."));
+      out.push(adv(`
+        ${numberField("power_limit", "Maximale Ladeleistung der Wallbox", d.limits.power_limit_w, 500, 22000, 100, "W")}
+        ${numberField("min_on_power", "Mindest-Überschuss zum Laden", d.limits.min_on_power_w, 100, 11000, 100, "W")}
+      `));
     } else if (d.role === "waermepumpe") {
       const wp = d.wp;
       out.push(sensorRow("temp", "Temperatur-Sensor", "Vorlauf-/Speichertemperatur in °C."));
       out.push(sensorRow("power", "Leistung (im Betrieb)", "Für die Kalibrierung deiner Wärmepumpe."));
-      out.push(numberField("est_power", "Geschätzte Heizleistung", wp.est_power_w, 500, 22000, 100, "W"));
-      out.push(numberField("comfort", "Soll-Temperatur", wp.comfort_c, 40, 70, 0.5, "°C"));
-      out.push(numberField("safety", "Notfall-Minimum", wp.safety_min_c, 20, 50, 1, "°C"));
-      out.push(toggleRow("grid_fallback", "Netz im Notfall", wp.grid_fallback_allowed, "Unter dem Notfall-Minimum darf PVM kurz Netzstrom nutzen."));
+      out.push(adv(`
+        ${numberField("est_power", "Geschätzte Heizleistung", wp.est_power_w, 500, 22000, 100, "W")}
+        ${numberField("comfort", "Soll-Temperatur", wp.comfort_c, 40, 70, 0.5, "°C")}
+        ${numberField("safety", "Notfall-Minimum", wp.safety_min_c, 20, 50, 1, "°C")}
+        ${toggleRow("grid_fallback", "Netz im Notfall", wp.grid_fallback_allowed, "Unter dem Notfall-Minimum darf PVM kurz Netzstrom nutzen.")}
+      `));
     } else {
       out.push(sensorRow("power", "Leistung (im Betrieb)", "Optional – zeigt den Verbrauch live an."));
       out.push(numberField("nominal", "Leistung im Betrieb", d.limits.nominal_power_w, 50, 22000, 100, "W"));

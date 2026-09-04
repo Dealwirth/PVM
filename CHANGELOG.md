@@ -2,6 +2,31 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.7.0] – 2026-09-04
+
+### Auto & Wallbox getrennt – Einstellungen beim Auto, automatische Kopplung
+- **Wallbox-Dialog aufgeräumt:** Die Wallbox braucht nur noch Leistungs-Sensor
+  und Steuerung. Akku-Grenzen, Frist-Ziele, Power Charge und Netz-Freigaben
+  sind daraus entfernt – die stellst du jetzt **am Auto** ein („Wo ist dieses
+  Auto zu Hause?“ koppelt es automatisch mit der Wallbox).
+- **Wallbox nutzt die Ziele des zugeordneten Autos:** Die Engine liest für die
+  Lade-Entscheidung die Werte des Autos, das gerade an der Wallbox hängt
+  (Live-Zuordnung oder gelernte Heimat-Wallbox); Alt-Konfigurationen ohne
+  Auto-Gerät funktionieren weiter (Fallback auf die bisherigen Wallbox-Werte).
+- **Weniger überladen:** Selten genutzte Optionen stecken im Geräte-Dialog
+  unter „Erweiterte Einstellungen“ (aufklappbar) – Wallbox, Wärmepumpe und
+  Auto zeigen nur noch die wichtigen Felder, nichts geht verloren.
+- **Wallbox-Karte zeigt das Ziel des Autos:** Die Ziel-Kachel („Ziel … %“)
+  kommt vom zugeordneten Auto, nicht mehr von der Wallbox.
+
+### Einfacher Einstieg & saubere Deinstallation
+- **README-Button:** Großes, randloses blaues Pill-Symbol „PVM in HACS“ –
+  nur blaue Fläche, klickbar, HACS öffnet die Einrichtung direkt.
+- **Deinstallation räumt wirklich auf:** Wird PVM entfernt, wird die
+  gespeicherte Konfiguration auch dann gelöscht, wenn der Manager schon
+  entladen ist – es bleibt nichts von PVM zurück. (Die Einstellungen bleiben
+  gespeichert, solange die Integration installiert ist.)
+
 ## [1.6.2] – 2026-09-04
 
 ### Design-Auswahl repariert & freie Farbe

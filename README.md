@@ -2,7 +2,7 @@
 
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.2.0+-blue.svg)](https://www.home-assistant.io)
-[![GitHub Release](https://img.shields.io/badge/version-1.6.2-blue.svg)](https://github.com/Dealwirth/PVM/releases)
+[![GitHub Release](https://img.shields.io/badge/version-1.7.0-blue.svg)](https://github.com/Dealwirth/PVM/releases)
 [![License](https://img.shields.io/github/license/Dealwirth/PVM)](LICENSE)
 
 **PVM** ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deinen
@@ -10,12 +10,14 @@ PV-Überschuss automatisch an Wallboxen, Wärmepumpe, Waschmaschine & Co. – ü
 eigene, klar gestaltete **PV-Manager-Seite** in der Seitenleiste. Kein YAML, kein
 Setup-Wizard: Installieren, öffnen, Geräte per Klick übernehmen – fertig.
 
-<p align="center">
-<a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Dealwirth&repository=PVM&category=integration" style="text-decoration:none">
-<img src="https://img.shields.io/badge/⚡%20PVM%20in%20HACS%20installieren%20–%20ein%20Klick%20genügt-ffffff?style=for-the-badge&logo=homeassistant&logoColor=0f6cbd&labelColor=0f6cbd" alt="PVM in HACS installieren">
+<p align="center" style="margin:26px 0">
+<a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Dealwirth&repository=PVM&category=integration"
+   style="display:block;width:100%;max-width:560px;margin:0 auto;padding:20px 24px;border-radius:999px;background:#0f6cbd;color:#ffffff;text-decoration:none;font-weight:700;font-size:22px;letter-spacing:.3px;text-align:center;box-shadow:0 4px 14px rgba(15,108,189,.35);transition:transform .12s ease, box-shadow .12s ease;"
+   onmouseover="this.style.transform='scale(1.02)';this.style.boxShadow='0 6px 20px rgba(15,108,189,.45)'"
+   onmouseout="this.style.transform='';this.style.boxShadow=''">
+  PVM in HACS
 </a>
-<br>
-<em style="font-size:15px">Klick auf den Button – HACS öffnet sich automatisch und installiert PVM.<br>Alternativ: <i>HACS → Custom repositories →</i> <code>https://github.com/Dealwirth/PVM</code> <i>→ Typ „Integration“</i>.</em>
+<em style="font-size:14px;display:block;margin-top:10px">Ein Klick – HACS öffnet sich und installiert PVM.</em>
 </p>
 
 ---
