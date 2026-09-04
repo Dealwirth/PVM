@@ -188,6 +188,10 @@ class PvmManager:
 
         self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _on_started)
 
+    async def async_delete_storage(self) -> None:
+        """Löscht die gespeicherte Konfiguration dauerhaft (beim Entfernen)."""
+        await self._store.async_delete()
+
     async def async_stop(self) -> None:
         """Stoppt alle Tasks und speichert den Zustand."""
         self._closing = True

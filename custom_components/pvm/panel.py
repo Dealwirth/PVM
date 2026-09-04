@@ -111,6 +111,23 @@ async def async_rebuild_panel(hass: HomeAssistant, manager: PvmManager) -> None:
     await async_register_panel(hass, manager)
 
 
+async def async_unregister_panel(hass: HomeAssistant) -> None:
+    """Entfernt die eigene Seitenleisten-Seite (beim Löschen der Integration).
+
+    Damit verschwindet der „PV Manager“-Eintrag aus der Seitenleiste, sobald
+    die Integration in HA gelöscht wird – kein verwaister Eintrag mehr.
+    """
+    try:
+        from homeassistant.components import frontend
+
+        frontend.async_remove_panel(hass, PANEL_URL)
+        _LOGGER.info("PVM: Seitenleisten-Seite „%s“ entfernt", PANEL_URL)
+    except Exception:  # noqa: BLE001 - Entfernen darf nie blockieren
+        _LOGGER.debug("PVM: Panel konnte nicht entfernt werden", exc_info=True)
+    # Auch ein noch vorhandenes altes Lovelace-Dashboard entfernen
+    await _remove_old_lovelace_dashboard(hass)
+
+
 async def _remove_old_lovelace_dashboard(hass: HomeAssistant) -> None:
     """Entfernt das frühere Lovelace-Dashboard (wenn vorhanden)."""
     try:

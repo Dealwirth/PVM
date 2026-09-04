@@ -2,6 +2,14 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.3.1] – 2026-09-04
+
+### Behoben / Verbessert
+- **Beim Löschen der Integration wird alles automatisch entfernt:** Die eigene
+  PV-Manager-Seite verschwindet aus der Seitenleiste (inkl. altem
+  Lovelace-Dashboard), die gespeicherte Konfiguration und die
+  PVM-Benachrichtigungen werden gelöscht – kein verwaister Eintrag mehr.
+
 ## [1.3.0] – 2026-09-04
 
 ### Behoben

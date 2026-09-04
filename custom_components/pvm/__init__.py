@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, PLATFORMS
 from .manager import PvmManager
-from .panel import async_register_panel
+from .panel import async_register_panel, async_unregister_panel
 from .websocket import async_register_websocket
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,11 +54,39 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Aufräumen, wenn die Integration komplett entfernt wird."""
+    """Aufräumen, wenn die Integration komplett entfernt wird.
+
+    Entfernt die eigene Seitenleisten-Seite (Dashboard), löscht die
+    gespeicherte Konfiguration und räumt Benachrichtigungen auf –
+    damit bleibt nach dem Löschen nichts von PVM zurück.
+    """
     manager: PvmManager | None = hass.data.get(DOMAIN, {}).get(entry.entry_id)
     if manager is not None:
         await manager.async_stop()
         hass.data[DOMAIN].pop(entry.entry_id, None)
+
+    # Eigene Seite aus der Seitenleiste entfernen (inkl. altem Dashboard)
+    await async_unregister_panel(hass)
+
+    # Gespeicherte Konfiguration löschen, damit nichts zurückbleibt
+    if manager is not None:
+        await manager.async_delete_storage()
+
+    # Eigene Benachrichtigungen entfernen
+    for notification_id in (
+        f"{DOMAIN}_scan",
+        f"{DOMAIN}_dashboard_ready",
+        f"{DOMAIN}_dashboard",
+        f"{DOMAIN}_self_test",
+    ):
+        try:
+            await hass.services.async_call(
+                "persistent_notification",
+                "dismiss",
+                {"notification_id": notification_id},
+            )
+        except Exception:  # noqa: BLE001 - Aufräumen darf nie blockieren
+            _LOGGER.debug("PVM: Benachrichtigung konnte nicht entfernt werden", exc_info=True)
 
 
 async def async_setup_services(hass: HomeAssistant) -> None:

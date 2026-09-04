@@ -37,3 +37,14 @@ class PvmStore:
         normalized = normalize_config(config)
         await self._store.async_save(normalized)
         self._config = normalized
+
+    async def async_delete(self) -> None:
+        """Entfernt die gespeicherte Konfiguration dauerhaft (beim Löschen)."""
+        self._config = None
+        try:
+            await self._store.async_remove()
+        except Exception:  # noqa: BLE001 - Fehlen der Datei ist kein Fehler
+            _LOGGER.debug(
+                "PVM: Gespeicherte Konfiguration konnte nicht entfernt werden",
+                exc_info=True,
+            )
