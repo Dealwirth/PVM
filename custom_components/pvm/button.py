@@ -1,4 +1,4 @@
-"""Buttons für PVM (Scan, Dashboard, Prioritäten, WP-Test)."""
+"""Buttons für PVM (Scan, Dashboard, Prioritäten)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ from .const import (
     DOMAIN,
     ENTITY_LABELS,
     ROLE_FAHRZEUG,
-    ROLE_WAERMEPUMPE,
 )
 from .manager import PvmManager
 
@@ -36,9 +35,6 @@ async def async_setup_entry(
             continue  # Autos sind reine Überwachung (keine Prioritäts-Buttons)
         entities.append(PvmPriorityButton(manager, device["id"], "up"))
         entities.append(PvmPriorityButton(manager, device["id"], "down"))
-        if device.get("role") == ROLE_WAERMEPUMPE:
-            entities.append(PvmWpTestButton(manager, device["id"], start=True))
-            entities.append(PvmWpTestButton(manager, device["id"], start=False))
     async_add_entities(entities)
 
 
@@ -105,25 +101,4 @@ class PvmPriorityButton(PvmButton):
         self.manager.move_priority(self.device_id, -1 if self.direction == "up" else 1)
 
 
-class PvmWpTestButton(PvmButton):
-    """Startet bzw. bricht den WP-Kalibrierungstest ab."""
 
-    def __init__(self, manager: PvmManager, device_id: str, start: bool) -> None:
-        super().__init__(manager)
-        self.device_id = device_id
-        self._start = start
-        device = manager.get_device(device_id) or {}
-        name = device.get("name", "Gerät")
-        if start:
-            self._attr_icon = "mdi:play"
-            self._attr_name = f"{name} – {ENTITY_LABELS['test_start']}"
-        else:
-            self._attr_icon = "mdi:stop"
-            self._attr_name = f"{name} – {ENTITY_LABELS['test_abort']}"
-        self._attr_unique_id = f"{DOMAIN}_wp_test_{'start' if start else 'abort'}_{device_id}"
-
-    async def async_press(self) -> None:
-        if self._start:
-            await self.manager.wp_test_start(self.device_id)
-        else:
-            await self.manager.wp_test_abort(self.device_id)

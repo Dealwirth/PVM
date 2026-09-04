@@ -112,6 +112,23 @@ async def ws_list_entities(
     connection.send_result(msg["id"], {"entities": manager.collect_entities()})
 
 
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/forecast"})
+@websocket_api.async_response
+async def ws_forecast(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Liefert die aktuelle PV-Prognose (Open-Meteo / lokales Modell)."""
+    manager = _get_manager(hass)
+    if manager is None:
+        connection.send_error(msg["id"], "not_loaded")
+        return
+    connection.send_result(
+        msg["id"], getattr(manager, "forecast_data", None) or {}
+    )
+
+
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/reload"})
 @websocket_api.async_response
 async def ws_reload(
@@ -148,5 +165,6 @@ async def async_register_websocket(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_save_config)
     websocket_api.async_register_command(hass, ws_scan)
     websocket_api.async_register_command(hass, ws_list_entities)
+    websocket_api.async_register_command(hass, ws_forecast)
     websocket_api.async_register_command(hass, ws_reload)
     _LOGGER.debug("PVM-WebSocket-Kommandos registriert")

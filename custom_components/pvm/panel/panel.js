@@ -27,6 +27,7 @@
       devices: "Geräte",
       order: "Reihenfolge",
       found: "Gefunden",
+      stats: "Statistik",
       settings: "Einstellungen",
     },
     roles: {
@@ -39,7 +40,7 @@
       wallbox:
         "Lädt dein Auto mit PV-Überschuss – inkl. Mindest-SOC, Zeit-Zielen und Power Charge.",
       waermepumpe:
-        "Heizt bei Überschuss auf Komfort-Temperatur, mit Notfall-Schutz und Testlauf.",
+        "Heizt bei Überschuss auf Komfort-Temperatur – mit Notfall-Schutz gegen zu kaltes Wasser.",
       verbraucher:
         "Schaltet Geräte wie Pool, Boiler oder Waschmaschine bei Überschuss ein.",
       fahrzeug:
@@ -189,6 +190,7 @@ header { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:10p
 .logo { width:40px;height:40px;border-radius:12px;flex:0 0 auto; display:grid;place-items:center;color:#fff;
   background:linear-gradient(135deg,var(--acc),var(--acc2)); box-shadow:0 4px 12px rgba(0,0,0,.22); }
 .logo svg{width:23px;height:23px}
+.logo.brand svg { width:38px;height:38px; }
 .titles { flex:1 1 auto; min-width:150px; }
 .titles h1 { margin:0; font-size:18px; line-height:1.2; }
 .titles p { margin:2px 0 0; color:var(--mut); font-size:12px; }
@@ -420,6 +422,76 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
 .spin { width:34px;height:34px;border-radius:50%; border:3px solid var(--card2); border-top-color: var(--acc);
   animation:spin .8s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg) } }
+
+/* ---- Sensor-Status in den Energie-Einstellungen (Haken + Detail) ---- */
+.energycard { border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin-top:8px;
+  background:var(--card); cursor:pointer; transition:border-color .15s; }
+.energycard:hover { border-color: var(--acc); }
+.energycard .top { display:flex; align-items:center; gap:10px; }
+.echeck { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700;
+  padding:3px 9px; border-radius:20px; white-space:nowrap; }
+.echeck.ok { background:rgba(46,204,113,.14); color:var(--ok); }
+.echeck.no { background:var(--card2); color:var(--mut); }
+.energycard .edetail { display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--line);
+  font-size:12.5px; color:var(--mut); }
+.energycard.open .edetail { display:block; }
+.energycard .edetail b { color:var(--txt); }
+.energycard .eactions { display:flex; gap:8px; margin-top:10px; }
+
+/* ---- Temperatur-Regler mit Zonen-Skala (Bakterien-/Heizungs-Grenzen) ---- */
+.zrng { position:relative; flex:1.4; min-width:190px; }
+.zrng input[type=range] { width:100%; height:30px; margin:0; background:transparent; }
+.zrng .zscale { position:relative; height:14px; margin:-6px 2px 0; border-radius:7px;
+  background:linear-gradient(90deg, #e0454b 0%, #e0454b var(--coldP), #ffcf5c var(--coldP), #4caf6d var(--midP), #ffcf5c var(--hotP), #e0454b var(--hotP), #e0454b 100%);
+  opacity:.95; }
+.zrng .zscale i { position:absolute; top:-3px; width:2px; height:20px; background:rgba(0,0,0,.55); }
+.zrng .zscale i.cold { left:var(--coldP); } .zrng .zscale i.hot { left:var(--hotP); }
+.ztick { display:flex; justify-content:space-between; font-size:10.5px; color:var(--mut); margin-top:3px; }
+.zlegend { display:flex; gap:12px; flex-wrap:wrap; font-size:11px; color:var(--mut); margin-top:2px; }
+.zlegend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
+
+/* ---- Auto/Manuell-Umschalter auf der Geräte-Karte ---- */
+.seg { display:inline-flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+.seg button { border:0; background:transparent; color:var(--mut); font-size:11.5px; font-weight:700;
+  padding:5px 12px; cursor:pointer; }
+.seg button.on { background:var(--acc); color:#fff; }
+.seg button.man { background:var(--warn); color:#1c1c1c; }
+.devctl { margin-top:10px; border:1px solid var(--line); border-radius:12px; background:var(--card2);
+  padding:10px 12px; display:flex; flex-direction:column; gap:8px; font-size:12.5px; }
+.devctl .ctlline { display:flex; align-items:center; gap:10px; }
+.devctl .ctlline b { flex:1; }
+.devctl button.btn { padding:6px 12px; }
+
+/* ---- Geräte-Chips unter dem Energiefluss (dynamisch, skalierbar) ---- */
+.flowdevs { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; margin-top:10px; }
+.fdev { border:1px solid var(--line); border-radius:12px; padding:8px 10px; cursor:pointer;
+  background:var(--card); display:flex; gap:8px; align-items:center; }
+.fdev:hover { border-color: var(--acc); }
+.fdev .fic { width:26px; height:26px; flex:0 0 26px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+  background:color-mix(in srgb, var(--acc) 16%, transparent); color:var(--acc); }
+.fdev .fic svg { width:16px; height:16px; }
+.fdev .fname { font-size:12px; font-weight:600; line-height:1.15; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fdev .fpw { font-size:13px; font-weight:800; color:var(--acc); font-variant-numeric:tabular-nums; }
+.fdev.off { opacity:.62; }
+.fdev.off .fpw { color:var(--mut); font-weight:600; }
+
+/* ---- Statistik / Charts ---- */
+.stattools { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:8px 0 4px; }
+.chiprow { display:flex; gap:6px; flex-wrap:wrap; margin:6px 0; }
+.serieschip { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); background:var(--card);
+  border-radius:20px; padding:4px 11px; font-size:12px; cursor:pointer; color:var(--mut); user-select:none; }
+.serieschip .dot { width:10px; height:10px; border-radius:50%; }
+.serieschip.on { border-color:currentColor; color:var(--txt); }
+.chartbox { border:1px solid var(--line); border-radius:16px; background:var(--card); padding:12px; overflow-x:auto; }
+.chartbox svg { display:block; width:100%; }
+.legline { font-size:11.5px; color:var(--mut); }
+.fcstrip { display:flex; gap:8px; flex-wrap:wrap; }
+.fchip { flex:1; min-width:130px; border:1px solid var(--line); border-radius:12px; background:var(--card); padding:8px 10px; }
+.fchip b { display:block; font-size:15px; }
+.fchip span { font-size:11.5px; color:var(--mut); }
+.cloud-badge { display:inline-flex; align-items:center; gap:5px; font-size:11px; border-radius:20px; padding:2px 9px; }
+.cloud-badge.warn { background:rgba(255,152,0,.16); color:#ff9800; }
+.cloud-badge.ok { background:rgba(76,175,110,.16); color:var(--ok); }
 `;
 
   /* ------------------------------------------------------------------ *
@@ -446,7 +518,18 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     wifi: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 20h.01"/></svg>',
     car: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 16H4a2 2 0 0 1-2-2v-3l2.5-5A2 2 0 0 1 6.3 5h11.4a2 2 0 0 1 1.8 1.1L22 11v3a2 2 0 0 1-2 2h-1"/><path d="M2 13h20"/><circle cx="7" cy="16" r="1.6"/><circle cx="17" cy="16" r="1.6"/></svg>',
     back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>',
+    chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg>',
+    cloud: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17.5 19a4.5 4.5 0 0 0 .4-9A7 7 0 0 0 4.3 12.5 4 4 0 0 0 6 20h11.5z"/></svg>',
+    sunny: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
   };
+  // Firmenlogo PVM – Sonne + Blitz in einem abgerundeten Quadrat.
+  const LOGO_SVG = '<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">'
+    + '<defs><linearGradient id="pvlg" x1="0" y1="0" x2="1" y2="1">'
+    + '<stop offset="0" stop-color="var(--acc)"/><stop offset="1" stop-color="var(--acc2)"/></linearGradient></defs>'
+    + '<rect x="2" y="2" width="44" height="44" rx="12" fill="url(#pvlg)"/>'
+    + '<circle cx="24" cy="20" r="7" fill="none" stroke="#fff" stroke-width="2.6"/>'
+    + '<path d="M24 6v3M24 31v3M10 20h3M35 20h3M12.7 8.7l2.1 2.1M33.2 29.2l2.1 2.1M35.3 8.7l-2.1 2.1M14.8 29.2l-2.1 2.1" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>'
+    + '<path d="M27 15l-8 10h5.4L23 33l8-10h-5.4L27 15z" fill="#fff"/></svg>';
   const ROLE_ICON = { wallbox: I.bolt, waermepumpe: I.pump, verbraucher: I.plug, fahrzeug: I.car };
 
   /* ------------------------------------------------------------------ *
@@ -542,6 +625,10 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   function unitOf(entityId) {
     const s = st(entityId);
     return s && s.attributes ? s.attributes.unit_of_measurement || "" : "";
+  }
+  function _isPowerUnitJs(unit) {
+    const u = String(unit || "").trim();
+    return u === "W" || u === "kW" || u === "mW" || u.endsWith("W");
   }
   function isOn(entityId) {
     const s = st(entityId);
@@ -901,11 +988,16 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       else if (view === "devices") html = htmlDevices();
       else if (view === "order") html = htmlOrder();
       else if (view === "found") html = htmlFound();
+      else if (view === "stats") html = htmlStats();
       else if (view === "settings") html = htmlSettings();
       section.innerHTML = html;
       liveNow();
       updateHeaderChip();
       updateDeviceLives();
+      if (view === "stats") {
+        // Verlauf erst laden, wenn die Sektion wirklich im DOM steht
+        setTimeout(() => { drawStatChart(); loadStats(); }, 30);
+      }
     }
   }
   customElements.define("pvm-panel", PvmPanel);
@@ -915,9 +1007,9 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     root.className = "wrap";
     root.innerHTML = `
       <header>
-        <div class="logo">${I.sun}</div>
+        <div class="logo brand">${LOGO_SVG}</div>
         <div class="titles">
-          <h1>${esc(L.app)}</h1>
+          <h1>PVM</h1>
           <p>${esc(L.tagline)}</p>
         </div>
         <div class="chips">
@@ -932,6 +1024,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         <button data-view="devices">${I.plug} ${esc(L.nav.devices)}</button>
         <button data-view="order">${I.list} ${esc(L.nav.order)}</button>
         <button data-view="found">${I.radar} ${esc(L.nav.found)}</button>
+        <button data-view="stats">${I.chart} ${esc(L.nav.stats)}</button>
         <button data-view="settings">${I.gear} ${esc(L.nav.settings)}</button>
       </nav>
       <div id="view"></div>
@@ -1253,6 +1346,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           <small data-el="flowsmall">…</small>
         </div>
         <div data-flow-svg>${flowSvg(flowParams())}</div>
+        ${htmlFlowChips()}
       </div>
       <div class="flowbox">
         <div class="flowtitle">PVM-Geräte ${hasDevices ? "" : "– noch keine"}
@@ -1282,7 +1376,6 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const centerY = rowY + boxH / 2;      // 46
     const hubY = 138;                      // Überschuss-Hub
     const hubX = (W - 220) / 2;
-    const devY = 214;
     const batX = 20, batY = 128;
     const col = {
       pv: "#ffb020", haus: "#7cc4ff", netz: "#ff7b8a", surplus: "var(--acc)", green: "#2dd4a7",
@@ -1300,9 +1393,10 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       ${label ? `<text x="${lx}" y="${ly}" text-anchor="middle" class="lbl">${esc(label)}</text>` : ""}`;
 
     const parts = [];
+    const dash = (v) => v == null ? "–" : fmtW(v);
     // --- Knoten ---
-    parts.push(node(px, rowY, boxW, boxH, "PV", fmtW(o.pvRaw || 0), col.pv));
-    parts.push(node(hx, rowY, boxW, boxH, "Haus", fmtW(o.houseV || 0), col.haus));
+    parts.push(node(px, rowY, boxW, boxH, "PV", dash(o.pvRaw), col.pv));
+    parts.push(node(hx, rowY, boxW, boxH, "Haus", dash(o.houseV), col.haus));
     parts.push(node(gx, rowY, boxW, boxH, "Netz", netValue(o), col.netz));
     if (o.batt != null)
       parts.push(node(batX, batY, boxW, boxH - 6, "Speicher", fmtW(Math.abs(o.batt)), "#3ecf8e"));
@@ -1311,12 +1405,12 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     // --- Verbindungen (obere Reihe) ---
     // PV -> Haus
     if (o.pvRaw != null && o.pvRaw > 40)
-      parts.push(arrow(px + boxW, centerY, hx - 8, centerY, col.pv, "slow", "Eigenverbrauch", px + boxW + 60, centerY - 8));
+      parts.push(arrow(px + boxW, centerY, hx - 8, centerY, col.pv, "slow", "Eigenverbrauch", (px + boxW + hx - 8) / 2, centerY - 9));
     // Haus <-> Netz: Import (rot, rückwärts) oder Export (grün)
     if (o.importOn)
-      parts.push(arrow(gx, centerY, hx + boxW + 8, centerY, col.netz, "", "Netzbezug", gx - 60, centerY - 8));
+      parts.push(arrow(gx, centerY, hx + boxW + 8, centerY, col.netz, "", "Netzbezug", (gx + hx + boxW + 8) / 2, centerY - 9));
     else if (o.exportOn)
-      parts.push(arrow(hx + boxW, centerY, gx - 8, centerY, col.green, "slow", "Einspeisung", gx - 60, centerY - 8));
+      parts.push(arrow(hx + boxW, centerY, gx - 8, centerY, col.green, "slow", "Einspeisung", (hx + boxW + gx - 8) / 2, centerY - 9));
     // --- Speicher <-> Hub ---
     if (o.batt != null && Math.abs(o.batt) > 40) {
       const charging = o.batt > 0; // positiv = Laden (Hub -> Speicher)
@@ -1333,19 +1427,64 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     // --- zum Hub (aus PV, vertikal) ---
     if (o.surplusOn)
       parts.push(arrow(hx + boxW / 2, rowY + boxH, hx + boxW / 2, hubY - 8, col.surplus, "", "Überschuss", hx + boxW / 2 + 58, (rowY + boxH + hubY) / 2));
-    // --- Hub -> Geräte ---
+    // --- Hub -> Geräte (jedes Gerät ist eine eigene Box unter dem Fluss) ---
     if (o.surplusOn && o.devNames.length)
-      parts.push(arrow(hubX + 110, hubY + 54, hubX + 110, devY - 10, col.surplus, ""));
-    // --- Geräte-Streifen ---
-    if (o.devNames.length) {
-      const text = o.devNames.slice(0, 3).join("  ·  ") + (o.devNames.length > 3 ? "  ·  +" + (o.devNames.length - 3) : "");
-      parts.push(`
-        <g class="nbox">
-          <rect x="${hubX}" y="${devY}" width="220" height="30" rx="15" fill="rgba(255,255,255,.06)" stroke="var(--acc)" stroke-width="1.2"/>
-          <text x="${hubX + 110}" y="${devY + 20}" text-anchor="middle" fill="var(--txt)" font-size="11" font-weight="600">${esc(text)}</text>
-        </g>`);
-    }
+      parts.push(arrow(hubX + 110, hubY + 54, hubX + 110, H - 6, col.surplus, ""));
+    if (o.devNames.length)
+      parts.push(`<text x="${hubX + 118}" y="${H - 12}" text-anchor="middle" class="lbl">↓ an deine Geräte</text>`);
     return `<svg class="flow" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${parts.join("")}</svg>`;
+  }
+
+  /* Jedes Gerät wird unter dem Energiefluss zu einer eigenen, dynamischen
+   * Box – mit echter Leistung (Sensor) oder geschätzter Leistung (falls das
+   * Gerät keine Messung liefert, aber läuft). Skaliert bis zu vielen Geräten
+   * (auto-fill-Grid). */
+  function htmlFlowChips() {
+    const devs = devicesOf().filter((d) => d.role !== "fahrzeug");
+    if (!devs.length) return "";
+    return `<div class="flowdevs">${devs.map((d) => `
+      <div class="fdev" data-device="${esc(d.id)}" data-action="open-device" data-flowchip="1" title="${esc(d.name || "Gerät")} – Details & Einstellungen">
+        <span class="fic">${ROLE_ICON[d.role] || I.plug}</span>
+        <span style="min-width:0;flex:1">
+          <div class="fname">${esc(d.name || "Gerät")}</div>
+          <div class="fpw" data-el="chip-pw">–</div>
+        </span>
+      </div>`).join("")}</div>`;
+  }
+
+  /* Genaue oder geschätzte Leistung eines Geräts für die Fluss-Boxen */
+  function flowChipPower(d) {
+    const pid = d.sensors && d.sensors.power;
+    const v = pid ? numW(pid) : null;
+    if (v != null) return { text: fmtW(v), real: true };
+    const running = deviceIsRunning(d);
+    const est =
+      d.role === "waermepumpe" ? (d.wp && d.wp.est_power_w)
+      : d.role === "wallbox" ? (d.limits && d.limits.power_limit_w)
+      : (d.limits && d.limits.nominal_power_w);
+    if (running && est) return { text: "~ " + fmtW(est), real: false };
+    return null;
+  }
+
+  function deviceIsRunning(d) {
+    const s = st(entOf(d.id).status);
+    if (s && s.state === "on") return true;
+    const v = numW(d.sensors && d.sensors.power);
+    if (v != null) return v > 60;
+    return false;
+  }
+
+  function updateFlowChips() {
+    const root = state.root;
+    if (!root) return;
+    devicesOf().forEach((d) => {
+      const chip = $(root, '.fdev[data-flowchip="1"][data-device="' + cssEsc(d.id) + '"]');
+      if (!chip) return;
+      const pw = flowChipPower(d);
+      const el = $(chip, "[data-el=chip-pw]");
+      if (el && el.textContent !== (pw ? pw.text : "–")) el.textContent = pw ? pw.text : "–";
+      chip.classList.toggle("off", !pw);
+    });
   }
   function netValue(o) {
     // Netz-Knoten: getrennte Bezug-/Einspeisung-Sensoren -> beide anzeigen
@@ -1433,13 +1572,64 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         ${goalTxt ? `<div class="goal">${esc(goalTxt)}</div>` : ""}
         <div class="statusline" data-el="statusline">…</div>
         <div class="tags">${tags.map((t) => `<span class="${t.cls}">${esc(t.t)}</span>`).join("")}</div>
-        <div class="ops">
-          <span class="lbl" style="flex:1;font-size:12px">Automatik</span>
-          <span class="sw ${autoOn ? "on" : ""}" data-action="toggle-auto" data-device="${esc(device.id)}"><i></i></span>
+        <div class="ops" style="align-items:center;gap:8px">
+          <span class="seg" style="margin-right:auto" title="Automatisch: PVM entscheidet selbst. Manuell: du steuerst direkt – PVM lässt das Gerät in Ruhe.">
+            <button class="${autoOn ? "on" : ""}" data-action="set-dev-mode" data-automode="auto" data-device="${esc(device.id)}" title="Automatik: PVM entscheidet">Auto</button>
+            <button class="${autoOn ? "" : "man"}" data-action="set-dev-mode" data-automode="man" data-device="${esc(device.id)}" title="Manuell: du steuerst selbst">Manuell</button>
+          </span>
+          <button class="ico" data-action="manual-open" data-device="${esc(device.id)}" title="Jetzt steuern (nur bei Manuell)">${I.gear}</button>
           <button class="ico" data-action="edit-device" data-device="${esc(device.id)}" title="Bearbeiten">${I.edit}</button>
           <button class="ico" data-action="del-device" data-device="${esc(device.id)}" title="Entfernen">${I.del}</button>
         </div>
+        ${manualControlsHtml(device, autoOn)}
       </div>`;
+  }
+
+  /* Kleines Ausklapp-Menü für die manuelle Steuerung direkt auf der Karte */
+  function manualControlsHtml(device, autoOn) {
+    return `
+      <div class="devctl" data-el="devctl" data-device="${esc(device.id)}" data-auto="${autoOn ? "1" : "0"}" style="display:none">
+        ${manualControlsInner(device, autoOn)}
+      </div>`;
+  }
+  function manualControlsInner(device, autoOn) {
+    const c = device.control || {};
+    const ctl = [];
+    const hint = `<div class="ctlline"><small style="color:var(--mut)">${autoOn ? "PVM steuert – Umschalten auf „Manuell“ zum Selbersteuern." : "Manuell – PVM steuert dieses Gerät gerade nicht."}</small></div>`;
+    if (!autoOn) {
+      if (c.type === "wp_temp" && c.temp_entity) {
+        const v = num(c.temp_entity);
+        ctl.push(`
+          <div class="ctlline"><b>Ziel-Temperatur</b>
+            <input type="range" data-manual-temp min="40" max="80" step="0.5" value="${v == null ? (device.wp && device.wp.boost_c) || 60 : v}" style="flex:1" data-target="${esc(c.temp_entity)}" data-unit="°C">
+            <b class="numval">${esc(fmtNum(v == null ? (device.wp && device.wp.boost_c) || 60 : v, "°C"))}</b>
+          </div>`);
+      } else if (c.type === "buttons" && c.on_entity && c.off_entity) {
+        ctl.push(`<div class="ctlline"><b>Start / Stopp</b>
+          <button class="btn primary" data-action="dev-cmd" data-cmd="start" data-device="${esc(device.id)}" style="padding:6px 14px">Start</button>
+          <button class="btn ghost" data-action="dev-cmd" data-cmd="stop" data-device="${esc(device.id)}" style="padding:6px 14px">Stopp</button></div>`);
+      } else if (c.switch_entity) {
+        ctl.push(`<div class="ctlline"><b>Gerät</b>
+          <button class="btn primary" data-action="dev-cmd" data-cmd="on" data-device="${esc(device.id)}" style="padding:6px 14px">${I.bolt} Einschalten</button>
+          <button class="btn ghost" data-action="dev-cmd" data-cmd="off" data-device="${esc(device.id)}" style="padding:6px 14px">Ausschalten</button></div>`);
+      }
+      if (c.has_limiter && c.number_entity) {
+        const limit = manualLimitRange(c);
+        const v = num(c.number_entity);
+        ctl.push(`
+          <div class="ctlline"><b>Leistung ${c.number_unit || "W"}</b>
+            <input type="range" data-manual-limit min="${limit.lo}" max="${limit.hi}" step="${limit.step}" value="${v == null ? (limit.lo + limit.hi) / 2 : v}" style="flex:1" data-target="${esc(c.number_entity)}" data-unit="${esc(c.number_unit || "W")}">
+            <b class="numval">${esc(v == null ? "" : v + " " + (c.number_unit || ""))}</b>
+          </div>`);
+      }
+    }
+    if (!ctl.length && autoOn) ctl.push(`<div class="ctlline"><small style="color:var(--mut)">Automatik ist aktiv. Schalte auf „Manuell", um hier selbst zu steuern.</small></div>`);
+    return `${hint}${ctl.join("")}`;
+  }
+  function manualLimitRange(c) {
+    const u = c.number_unit || "W";
+    return { W: { lo: 500, hi: 22000, step: 100 }, kW: { lo: 0.5, hi: 22, step: 0.1 },
+      A: { lo: 3, hi: 63, step: 0.5 }, mA: { lo: 3000, hi: 63000, step: 500 } }[u] || { lo: 0, hi: 100, step: 1 };
   }
 
   function htmlCarCard(device) {
@@ -1508,6 +1698,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   function updateDeviceLives() {
     const root = state.root;
     if (!root || !state.config) return;
+    updateFlowChips();
     devicesOf().forEach((d) => {
       const card = $(root, '[data-device="' + cssEsc(d.id) + '"]');
       if (!card) return;
@@ -1524,8 +1715,25 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         const v = num(sid);
         bar.style.width = (v == null ? 0 : Math.max(0, Math.min(100, v))) + "%";
       }
-      const autoSw = $(card, '[data-action="toggle-auto"]');
-      if (autoSw) autoSw.classList.toggle("on", isOn(entOf(d.id).auto));
+      const autoNow = isOn(entOf(d.id).auto);
+      $$(card, '[data-action="set-dev-mode"]').forEach((b) => {
+        const man = b.getAttribute("data-automode") === "man";
+        b.classList.toggle("on", !man && autoNow);
+        b.classList.toggle("man", man && !autoNow);
+      });
+      // Auto/Manuell gewechselt: Ausklapp-Inhalt sofort aktualisieren,
+      // damit die Regler/Knöpfe ohne Neuladen erscheinen (und wieder
+      // verschwinden, wenn PVM die Steuerung zurücknimmt).
+      const devctl = $(card, '[data-el="devctl"]');
+      if (devctl) {
+        const flag = autoNow ? "1" : "0";
+        if (devctl.getAttribute("data-auto") !== flag) {
+          const wasOpen = devctl.style.display === "block";
+          devctl.setAttribute("data-auto", flag);
+          devctl.innerHTML = manualControlsInner(d, autoNow);
+          if (wasOpen) devctl.style.display = "block";
+        }
+      }
       // Wallbox: zeigt das zugeordnete Auto an (live ladend, sonst gelernt)
       const assigned = $(card, '[data-el="assigned-car"]');
       if (assigned) {
@@ -1631,6 +1839,321 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   }
 
   /* ------------------------------------------------------------------ *
+   * Statistik: Leistungs-Charts + PV-Prognose (alles selbst gebaut, SVG)
+   * ------------------------------------------------------------------ */
+  const STAT_COLORS = {
+    pv: "#ffb020", house: "#4fc3f7", grid: "#ff7b8a", grid_import: "#ef5350",
+    grid_export: "#26c6a0", batt: "#3ecf8e", wallbox: "#ab6bff", devices: "#ff9f6b",
+    forecast: "#90caf9",
+  };
+  const STAT_LABELS = {
+    pv: "PV", house: "Haus", grid: "Netz", grid_import: "Netzbezug",
+    grid_export: "Einspeisung", batt: "Speicher", wallbox: "Wallboxen", devices: "Geräte",
+  };
+  const STAT_MODES = [
+    { id: "all", label: "Alles" },
+    { id: "pv", label: "Nur PV" },
+    { id: "consum", label: "Verbraucher" },
+    { id: "walls", label: "Wallboxen" },
+    { id: "grid", label: "Netz" },
+  ];
+  const statState = {
+    rangeH: 24,
+    mode: "all",
+    type: "area",
+    // Standard = „Alles“: jede vorhandene Reihe ist an (statModeSets hält
+    // die Modi synchron, einzelne Reihen lassen sich per Chip abwählen).
+    on: { pv: true, house: true, grid: true, grid_import: true, grid_export: true, batt: true, wallbox: true, devices: true },
+    data: null,
+    forecast: null,
+    loading: false,
+  };
+  function statDefaultOn() { return { pv: true, house: true, grid: true, grid_import: true, grid_export: true, batt: true, wallbox: true, devices: true }; }
+
+  function statSources() {
+    // Entity-Quellen je Serie (die überhaupt konfiguriert sind)
+    const e = configEnergy();
+    const devs = devicesOf();
+    const src = {};
+    const put = (k, list) => { if (list.length) src[k] = list; };
+    put("pv", [e.pv_sensor].filter(Boolean));
+    put("house", [e.house_sensor].filter(Boolean));
+    put("batt", [e.battery_power_sensor].filter(Boolean));
+    if (gridSeparate()) {
+      put("grid_import", [e.grid_import_sensor].filter(Boolean));
+      put("grid_export", [e.grid_export_sensor].filter(Boolean));
+    } else {
+      put("grid", [e.grid_sensor].filter(Boolean));
+    }
+    put("wallbox", devs.filter((d) => d.role === "wallbox" && d.sensors && d.sensors.power)
+      .map((d) => d.sensors.power));
+    put("devices", devs.filter((d) => d.role !== "wallbox" && d.role !== "fahrzeug" && d.sensors && d.sensors.power)
+      .map((d) => d.sensors.power));
+    return src;
+  }
+
+  function statModeSets(mode) {
+    const base = { pv: true, house: true, grid: false, grid_import: false, grid_export: false, batt: false, wallbox: false, devices: false };
+    if (mode === "all") {
+      return { pv: true, house: true, grid: true, grid_import: true, grid_export: true, batt: true, wallbox: true, devices: true };
+    }
+    if (mode === "pv") { base.pv = true; base.house = false; return base; }
+    if (mode === "grid") { base.grid = true; base.grid_import = true; base.grid_export = true; return base; }
+    if (mode === "walls") {
+      base.pv = false; base.wallbox = true; return base;
+    }
+    if (mode === "consum") {
+      base.pv = false; base.house = true; base.devices = true; return base;
+    }
+    return base;
+  }
+
+  function htmlStats() {
+    const has = Object.keys(statSources()).length;
+    return `
+      <h2 class="sec">${I.chart} Statistik & Prognose</h2>
+      <p class="sub">Welche Leistung lief wann? Wähle einen Blick – jede Linie lässt sich einzeln an- und abwählen (Tippen auf die Punkte unten).</p>
+      <div class="stattools">
+        <span class="chiprow" style="margin:0">${STAT_MODES.map((m) => `<button class="serieschip ${statState.mode === m.id ? "on" : ""}" data-action="stat-mode" data-stat-mode="${m.id}">${m.label}</button>`).join("")}</span>
+        <button class="btn ghost" data-action="stat-range" data-stat-range="24" style="padding:5px 10px">24 h</button>
+        <button class="btn ghost" data-action="stat-range" data-stat-range="168" style="padding:5px 10px">7 Tage</button>
+        <button class="btn ghost" data-action="stat-type" data-stat-type="area" style="padding:5px 10px">Fläche</button>
+        <button class="btn ghost" data-action="stat-type" data-stat-type="line" style="padding:5px 10px">Linie</button>
+        <button class="btn ghost" data-action="stat-refresh" style="padding:5px 10px">${I.wifi} Aktualisieren</button>
+      </div>
+      ${has ? `
+        <div class="chartbox" data-el="stat-chart"><span style="color:var(--mut)">Lade Verlauf …</span></div>
+        <div class="chiprow" data-el="stat-series"></div>
+      ` : `<div class="empty" style="border:1px dashed var(--line);border-radius:16px;padding:22px">Verbinde zuerst Energie-Sensoren (PV, Netz) – dann erscheint hier dein Verlauf.</div>`}
+      <div class="flowbox" style="margin-top:14px">
+        <div class="flowtitle">${I.cloud} PV-Prognose
+          <small>erwartete Leistung: nächste 15 Min, 3 h, ganzer Tag</small>
+        </div>
+        <div data-el="stat-forecast"><span style="color:var(--mut)">…</span></div>
+      </div>
+    `;
+  }
+
+  function statActiveSeries() {
+    const src = statSources();
+    return Object.keys(statState.on).filter((k) => statState.on[k] && src[k]);
+  }
+
+  async function loadStats() {
+    if (statState.loading) return;
+    statState.loading = true;
+    const src = statSources();
+    const root = state.root;
+    const chartEl = root && $(root, "[data-el=stat-chart]");
+    try {
+      if (!state.hass || !state.hass.connection) {
+        statState.loading = false;
+        if (chartEl) {
+          chartEl.innerHTML =
+            `<div class="empty" style="padding:16px;color:var(--mut)">Der Verlauf wird direkt aus Home Assistant geladen – er erscheint hier, sobald PVM in HA läuft und Sensoren verbunden sind.</div>`;
+        }
+        return;
+      }
+      if (!Object.keys(src).length) {
+        statState.loading = false;
+        return;
+      }
+      const entityIds = Array.from(new Set(Object.values(src).reduce((a, b) => a.concat(b), [])));
+      const end = new Date();
+      const start = new Date(end.getTime() - statState.rangeH * 3600 * 1000);
+      const raw = await state.hass.connection.sendMessagePromise({
+        type: "recorder/history_during_period",
+        start_time: start.toISOString(),
+        end_time: end.toISOString(),
+        entity_ids: entityIds,
+        minimal_response: true,
+        no_attributes: true,
+      });
+      const series = {};
+      const per = Math.max(1, Math.round(statState.rangeH * 3600 / 120)); // ~120 Stützpunkte
+      const startTs = start.getTime();
+      const endTs = end.getTime();
+      const bucketT = (i) => startTs + ((i + 0.5) * (endTs - startTs)) / per;
+      Object.keys(src).forEach((key) => {
+        const vals = new Array(per).fill(null);
+        const sums = new Array(per).fill(0);
+        const cnts = new Array(per).fill(0);
+        src[key].forEach((entityId) => {
+          const states = (raw && raw[entityId]) || [];
+          states.forEach((stRec) => {
+            const v = parseFloat(stRec && (stRec.s != null ? stRec.s : stRec.state));
+            if (stRec == null || isNaN(v)) return;
+            const tsRaw = stRec.l || stRec.last_updated || stRec.last_changed;
+            const ts = typeof tsRaw === "number" ? tsRaw * 1000 : Date.parse(tsRaw);
+            if (isNaN(ts) || ts < startTs || ts > endTs) return;
+            const bi = Math.min(per - 1, Math.max(0, Math.floor(((ts - startTs) / (endTs - startTs)) * per)));
+            sums[bi] += v; cnts[bi] += 1;
+          });
+        });
+        for (let i = 0; i < per; i++) {
+          vals[i] = cnts[i] ? sums[i] / cnts[i] : null;
+        }
+        series[key] = { label: STAT_LABELS[key] || key, points: vals, t: bucketT };
+      });
+      statState.data = { series, startTs, endTs, per };
+      drawStatChart();
+    } catch (err) {
+      if (chartEl) chartEl.innerHTML = `<span style="color:var(--bad)">Verlauf konnte nicht geladen werden: ${esc(errText(err))}</span>`;
+    } finally {
+      statState.loading = false;
+    }
+    loadForecastPanel();
+  }
+
+  function drawStatChart() {
+    const root = state.root;
+    if (!root || !statState.data) return;
+    const box = $(root, "[data-el=stat-chart]");
+    const chipsEl = $(root, "[data-el=stat-series]");
+    if (!box) return;
+    const { series, startTs, endTs, per } = statState.data;
+    const active = statActiveSeries();
+    const W = 760, H = 250, padL = 46, padB = 26, padT = 12, padR = 14;
+    const iw = W - padL - padR, ih = H - padT - padB;
+    let max = 100;
+    active.forEach((k) => {
+      const s = series[k];
+      if (!s) return;
+      s.points.forEach((v) => { if (v != null) max = Math.max(max, Math.abs(v)); });
+    });
+    max = niceCeil(max);
+    const x = (i) => padL + (i / (per - 1)) * iw;
+    const y = (v) => padT + ih - (v / max) * ih;
+    const lines = active.map((k) => {
+      const s = series[k];
+      if (!s) return "";
+      const color = STAT_COLORS[k] || "#888";
+      let d = "";
+      let area = "";
+      let pen = false;
+      s.points.forEach((v, i) => {
+        if (v == null) { pen = false; return; }
+        const px = x(i), py = y(v);
+        d += (pen ? "L" : "M") + px.toFixed(1) + " " + py.toFixed(1);
+        area += (area ? "L" : "M") + px.toFixed(1) + " " + (padT + ih).toFixed(1) + " L" + px.toFixed(1) + " " + py.toFixed(1);
+        pen = true;
+      });
+      const fill = statState.type === "area"
+        ? `<path d="${area} L${x(per - 1)} ${padT + ih} Z" fill="${color}" opacity="0.12"/>` : "";
+      return `${fill}<path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    }).join("");
+    const gridLines = [];
+    const steps = 4;
+    for (let g = 0; g <= steps; g++) {
+      const v = (max / steps) * g;
+      const gy = y(v);
+      gridLines.push(`<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 4"/>`);
+      gridLines.push(`<text x="${padL - 7}" y="${gy + 4}" text-anchor="end" class="legline">${fmtW(v)}</text>`);
+    }
+    const tl = per; // Zeitachse: einige Stundenlabels
+    const hourStep = Math.max(1, Math.round(tl / 6));
+    const timeLines = [];
+    for (let i = 0; i < per; i += hourStep) {
+      const d = new Date(startTs + (i / per) * (endTs - startTs));
+      const label = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+      timeLines.push(`<text x="${x(i)}" y="${H - 8}" text-anchor="middle" class="legline">${label}</text>`);
+    }
+    box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+      ${gridLines.join("")}${lines}${timeLines.join("")}</svg>`;
+    if (chipsEl) {
+      chipsEl.innerHTML = statActiveSeries().map((k) => {
+        const s = series[k];
+        const color = STAT_COLORS[k] || "#888";
+        const last = s && s.points.filter((v) => v != null).pop();
+        return `<button class="serieschip on" data-action="stat-series" data-stat-series="${k}">
+          <i class="dot" style="background:${color}"></i>${esc(s.label)}<span style="opacity:.75">${last == null ? "–" : fmtW(last)}</span></button>`;
+      }).join("");
+    }
+  }
+
+  function niceCeil(v) {
+    if (v <= 200) return 200;
+    if (v <= 500) return 500;
+    if (v <= 1000) return 1000;
+    if (v <= 2000) return 2000;
+    const k = v / 1000;
+    const m = Math.ceil(k / 2) * 2;
+    return m * 1000;
+  }
+
+  async function loadForecastPanel() {
+    const root = state.root;
+    const el = root && $(root, "[data-el=stat-forecast]");
+    if (!el) return;
+    const s = configSettings();
+    if (s.forecast_enabled === false) {
+      el.innerHTML = `<div class="empty" style="padding:14px;color:var(--mut)">PV-Prognose ist in den Einstellungen ausgeschaltet.</div>`;
+      return;
+    }
+    try {
+      const fc = await wsTimeout("pvm/forecast", {}, 15000).catch(() => null);
+      statState.forecast = fc;
+      drawForecastPanel();
+    } catch (err) { /* Prognose optional */ }
+  }
+
+  function drawForecastPanel() {
+    const root = state.root;
+    const el = root && $(root, "[data-el=stat-forecast]");
+    if (!el) return;
+    const fc = statState.forecast || {};
+    const series = fc.series || [];
+    const dayCurve = fc.day_curve || [];
+    const nowVal = series.length ? series[0].pv_w : null;
+    const in15 = series.length > 1 ? series[1].pv_w : null;
+    const next3hW = series.filter((p) => p.pv_w != null);
+    const h3 = next3hW.length ? next3hW.map((p) => p.pv_w).reduce((a, b) => a + b, 0) * 0.25 / 1000 : null;
+    const cloudy = nowVal != null && in15 != null && in15 < nowVal * 0.6;
+    const chips = `
+      <div class="fcstrip">
+        <div class="fchip"><b>${nowVal == null ? "–" : fmtW(nowVal)}</b><span>jetzt (ca.)</span></div>
+        <div class="fchip"><b>${in15 == null ? "–" : fmtW(in15)}</b><span>in 15 Minuten</span></div>
+        <div class="fchip"><b>${h3 == null ? "–" : h3.toFixed(1) + " kWh"}</b><span>nächste 3 Stunden</span></div>
+        <div class="fchip"><b>${fc.day_kwh == null ? "–" : fc.day_kwh.toFixed(1) + " kWh"}</b><span>Rest des Tages (grob)</span></div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        ${fc.source === "openmeteo"
+          ? `<span class="cloud-badge ok">${I.cloud} Open-Meteo (anonym)</span>`
+          : fc.source === "local"
+            ? `<span class="cloud-badge ok">${I.sunny} lokales Modell</span>`
+            : `<span class="cloud-badge warn">${I.cloud} keine Prognose</span>`}
+        ${cloudy ? `<span class="cloud-badge warn">${I.cloud} Wolke in Sicht – kurze Phase</span>` : ""}
+        <span class="legline" style="flex:1;text-align:right">${esc(fc.note || "")}</span>
+      </div>`;
+    // Mini-Kurve der nächsten 3 h
+    const w = series.map((p) => p.pv_w).filter((v) => v != null);
+    const mini = w.length ? svgMini(w, Math.max(100, ...w)) : "";
+    el.innerHTML = chips + mini;
+  }
+  function svgMini(values, maxV) {
+    const W = 700, H = 70;
+    const pts = values.map((v, i) => {
+      const x = (i / Math.max(1, values.length - 1)) * W;
+      const y = H - (Math.max(0, v) / maxV) * (H - 8) - 4;
+      return x.toFixed(1) + "," + y.toFixed(1);
+    });
+    const area = "0," + (H - 4) + " " + pts.join(" ") + " " + W + "," + (H - 4);
+    return `<svg viewBox="0 0 ${W} ${H}" style="margin-top:8px" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="${area}" fill="var(--acc)" opacity="0.14"/>
+      <polyline points="${pts.join(" ")}" fill="none" stroke="var(--acc)" stroke-width="2.2"/>
+    </svg>`;
+  }
+
+  function refreshStatsView() {
+    const root = state.root;
+    const section = root && $(root, "#view .view");
+    if (!section || state.view !== "stats") return;
+    section.innerHTML = htmlStats();
+    drawStatChart();
+    loadForecastPanel();
+  }
+
+  /* ------------------------------------------------------------------ *
    * Einstellungen
    * ------------------------------------------------------------------ */
   /* Anschluss-Variante: die Auswahl des Nutzers wird in ``grid_mode``
@@ -1703,9 +2226,15 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         ${slider("min_on", "Mindest-Einschaltdauer", s.min_on_s, 30, 600, 10, "s", "So lange bleibt ein Gerät nach dem Einschalten mindestens an (kein Flackern).")}
         ${slider("min_off", "Mindest-Ausschaltdauer", s.min_off_s, 10, 300, 5, "s", "So lange bleibt ein Gerät nach dem Ausschalten mindestens aus.")}
       `)}
-      ${accordion("wp", I.pump, "Wärmepumpe", `
-        ${slider("wp_test_target", "Test-Zieltemperatur", s.wp_test_target_c, 50, 80, 1, "°C", "Bis zu dieser Temperatur misst der Testlauf die Leistung deiner Wärmepumpe.")}
-        ${slider("wp_test_max", "Test: maximale Dauer", s.wp_test_max_duration_min, 10, 600, 10, "min", "Erreicht der Test das Ziel nicht rechtzeitig, bricht PVM ihn ab.")}
+      ${accordion("prognose", I.cloud, "PV-Prognose & smartes Laden", `
+        <div class="row">
+          <span class="lbl grow">PV-Prognose<small>PVM schätzt die kommende PV-Leistung (nächste 15 Min genau, 3 h, ganzer Tag) – anonym über Open-Meteo, offline über das lokale Modell. Damit werden kurze Wolkenphasen nicht mehr zum Abschalten genutzt und die Heizung flackert nicht mehr.</small></span>
+          <span class="sw ${s.forecast_enabled !== false ? "on" : ""}" data-settings-toggle="forecast_enabled"><i></i></span>
+        </div>
+        <div class="row">
+          <span class="lbl grow">Vorausschauendes Laden<small>Reicht der erwartete Tages-Überschuss nicht für deine Autos, lädt PVM sie schon am Tag mit der Sonne (statt nachts auf Netz zu warten).</small></span>
+          <span class="sw ${s.pre_charge !== false ? "on" : ""}" data-settings-toggle="pre_charge"><i></i></span>
+        </div>
       `)}
       ${accordion("design", I.eye, "Design & Darstellung", `
         <span class="lbl">Dein Look<small>„Home Assistant“ folgt deinem HA-Theme inkl. hell/dunkel; die anderen Designs sind feste Stimmungen.</small></span>
@@ -1771,13 +2300,29 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   }
   function energyRow(key, label, hint, entityId) {
     const has = !!entityId;
+    const liveKey = { pv: "pv", house: "house", grid: "grid", grid_import: "grid_import",
+      grid_export: "grid_export", battery_power: "batt", battery_soc: "batt" }[key];
+    const live = liveKey ? liveValue(liveKey) : null;
+    const chip = has
+      ? `<span class="echeck ok" title="Mit diesem Sensor verbunden – tippen für Details">${I.check} Verbunden</span>`
+      : `<span class="echeck no" title="Noch kein Sensor gewählt">• ohne Sensor</span>`;
+    const detail = has ? `
+        <div><b>Verbunden mit:</b> ${esc(friendlyOf(entityId))}<br>
+        <span style="word-break:break-all">${esc(entityId)}</span>
+        ${live && live.text !== "–" ? `<br>Aktuell: <b>${esc(live.text)}</b>` : ""}</div>`
+      : `<div>Noch kein Sensor ausgewählt. Tippe auf „Sensor wählen“, um den passenden ${esc(label.toLowerCase())}-Sensor zu verbinden.</div>`;
     return `
-      <div class="row" data-energy-row="${key}">
-        <span class="lbl grow">${esc(label)}<small>${esc(hint)}</small>
-          ${has ? `<span class="entv" data-el="ent-${key}">${esc(friendlyOf(entityId))} (${esc(entityId)})</span>` : ""}
-        </span>
-        <button class="btn ghost" data-action="pick-energy" data-energy="${key}" style="padding:7px 12px">${I.search} Wählen</button>
-        <button class="btn ghost" data-action="clear-energy" data-energy="${key}" ${has ? "" : "disabled"} title="Sensor entfernen" style="padding:7px 10px">${I.del}</button>
+      <div class="energycard" data-energy-card="${key}" title="Tippen für Details">
+        <div class="top">
+          <span class="lbl grow" style="margin:0"><b>${esc(label)}</b><small style="display:block">${esc(hint)}</small></span>
+          ${chip}
+        </div>
+        <div class="edetail">${detail}
+          <div class="eactions">
+            <button class="btn ghost" data-action="pick-energy" data-energy="${key}" style="padding:7px 12px">${I.search} Sensor wählen</button>
+            <button class="btn ghost" data-action="clear-energy" data-energy="${key}" ${has ? "" : "disabled"} title="Sensor entfernen" style="padding:7px 10px">${I.del}</button>
+          </div>
+        </div>
       </div>`;
   }
   function slider(key, label, value, min, max, step, unit, hint) {
@@ -1790,7 +2335,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         <input type="range" data-slider="${key}" min="${min}" max="${max}" step="${step}" value="${v}" style="flex:1.2;min-width:160px">
       </div>`;
   }
-  const sliderUnit = (key) => ({ reserve: "W", cycle: "s", min_on: "s", min_off: "s", wp_test_target: "°C", wp_test_max: "min" }[key] || "");
+  const sliderUnit = (key) => ({ reserve: "W", cycle: "s", min_on: "s", min_off: "s" }[key] || "");
 
   /* ------------------------------------------------------------------ *
    * Dialoge (vollständig selbst gebaut)
@@ -2091,6 +2636,43 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     }[key] || "";
   }
 
+  /* Temperatur-Regler mit Zonen-Skala: rot = zu kalt (Bakterien/Legionellen),
+   * grün = gesunder Bereich, rot = unnötig heiß für die Heizung. */
+  const TEMP_COLD_C = 55.0;
+  const TEMP_HOT_C = 70.0;
+  function tempField(key, label, value, lo, hi, step, hint) {
+    const v = value == null ? lo : Number(value);
+    const pct = (x) => Math.max(0, Math.min(100, ((Number(x) - lo) / (hi - lo)) * 100));
+    const coldP = pct(TEMP_COLD_C);
+    const hotP = pct(TEMP_HOT_C);
+    const midP = Math.max(coldP + 2, Math.min(hotP - 2, pct(62)));
+    const ticks = [
+      [lo, lo + "°"],
+      [TEMP_COLD_C, TEMP_COLD_C + "° ⚠"],
+      [TEMP_HOT_C, TEMP_HOT_C + "° ⚠"],
+      [hi, hi + "°"],
+    ].filter(([x]) => x > lo && x < hi);
+    return `
+      <div class="f">
+        <label>${esc(label)}</label><small>${esc(hint || "")}</small>
+        <div class="ent" style="align-items:center">
+          <div class="zrng" style="--coldP:${coldP}%;--midP:${midP}%;--hotP:${hotP}%">
+            <input type="range" data-num="${key}" min="${lo}" max="${hi}" step="${step}" value="${v}" style="width:100%">
+            <div class="zscale"><i class="cold"></i><i class="hot"></i></div>
+          </div>
+          <b class="numval" data-numval="${key}">${esc(fmtNum(v, "°C"))}</b>
+        </div>
+        <div class="ztick" style="padding:0 ${100 - (pct(hi) - pct(lo)) / 2}%">
+          ${ticks.map(([x, t]) => `<span style="position:relative;flex:1;text-align:${x < (lo + hi) / 2 ? "left" : "right"}">${t}</span>`).join("")}
+        </div>
+        <div class="zlegend">
+          <span><i style="background:#e0454b"></i>unter ${TEMP_COLD_C} °C: Bakterien-/Legionellen-Gefahr</span>
+          <span><i style="background:#4caf6d"></i>${TEMP_COLD_C}–${TEMP_HOT_C} °C: gesund</span>
+          <span><i style="background:#e0454b"></i>über ${TEMP_HOT_C} °C: unnötig heiß für die Heizung</span>
+        </div>
+      </div>`;
+  }
+
   function roleFields(d) {
     const out = [];
     const sensorRow = (field, label, hint) => `
@@ -2155,17 +2737,17 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       const wp = d.wp;
       const tempMode = (d.control.type === "wp_temp");
       out.push(sensorRow("temp", "Temperatur-Sensor", "Vorlauf-/Speichertemperatur in °C."));
-      out.push(sensorRow("power", "Leistung (im Betrieb)", "Für die Kalibrierung deiner Wärmepumpe."));
+      out.push(sensorRow("power", "Leistung (im Betrieb)", "Optional – zeigt den Verbrauch live an."));
       if (tempMode) {
-        // „Nur Ziel-Temperatur“: zwei Schieberegler – normal & Boost.
-        out.push(numberField("comfort", "Normale Soll-Temperatur", wp.comfort_c, 40, 70, 0.5, "°C"));
-        out.push(numberField("boost", "Ziel bei Überschuss", wp.boost_c, 40, 70, 0.5, "°C"));
+        // „Nur Ziel-Temperatur“: zwei Zonen-Schieberegler – normal & Boost.
+        out.push(tempField("comfort", "Normale Soll-Temperatur", wp.comfort_c, 40, 80, 0.5, "Diese Temperatur hält deine Wärmepumpe, solange kein Überschuss da ist."));
+        out.push(tempField("boost", "Ziel bei Überschuss", wp.boost_c, 40, 80, 0.5, "Bei genügend PV-Überschuss hebt PVM die Temperatur bis hierhin an."));
       } else {
-        out.push(numberField("comfort", "Soll-Temperatur", wp.comfort_c, 40, 70, 0.5, "°C"));
+        out.push(tempField("comfort", "Soll-Temperatur", wp.comfort_c, 40, 80, 0.5, "Temperatur, auf die deine Wärmepumpe heizt."));
       }
       out.push(adv(`
         ${numberField("est_power", "Geschätzte Heizleistung", wp.est_power_w, 500, 22000, 100, "W")}
-        ${numberField("safety", "Notfall-Minimum", wp.safety_min_c, 20, 50, 1, "°C")}
+        ${tempField("safety", "Notfall-Minimum", wp.safety_min_c, 60, 80, 1, "Fällt der Speicher unter diesen Wert, heizt PVM zur Not auch mit Netz – nie darunter, damit keine Bakterien entstehen (Legionellen-Schutz).")}
         ${toggleRow("grid_fallback", "Netz im Notfall", wp.grid_fallback_allowed, "Unter dem Notfall-Minimum darf PVM kurz Netzstrom nutzen.")}
       `));
     } else {
@@ -2425,15 +3007,21 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       const key = settingsToggle.getAttribute("data-settings-toggle");
       const on = settingsToggle.classList.toggle("on");
       configSettings()[key] = on;
-      const label = key === "manual_mode"
-        ? (on ? "Manuell – PVM steuert nichts mehr" : "Automatik – PVM verteilt wieder Überschuss")
-        : (on ? "Automatische Auto-Erkennung an" : "Automatische Auto-Erkennung aus");
-      saveAndRefresh(label);
+      const labels = {
+        manual_mode: on ? "Manuell – PVM steuert nichts mehr" : "Automatik – PVM verteilt wieder Überschuss",
+        auto_pairing: on ? "Automatische Auto-Erkennung an" : "Automatische Auto-Erkennung aus",
+        forecast_enabled: on ? "PV-Prognose an" : "PV-Prognose aus",
+        pre_charge: on ? "Vorausschauendes Laden an" : "Vorausschauendes Laden aus",
+      };
+      saveAndRefresh(labels[key] || (on ? "An" : "Aus"));
       return;
     }
-    const modeEl = ev.target.closest("[data-mode]");
+    // Nur die Modus-Auswahl in den Einstellungen (label[data-mode]) – die
+    // Auto/Manuell-Knöpfe der Gerätekarten nutzen data-automode und landen
+    // über [data-action] im eigenen Handler (kein versehentliches setMode).
+    const modeEl = ev.target.closest("label[data-mode]");
     if (modeEl) {
-      $$(root, "[data-mode]").forEach((x) => x.classList.toggle("sel", x === modeEl));
+      $$(root, "label[data-mode]").forEach((x) => x.classList.toggle("sel", x === modeEl));
       setMode(modeEl.getAttribute("data-mode"));
       return;
     }
@@ -2477,6 +3065,15 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const actionEl = ev.target.closest("[data-action]");
     if (actionEl) {
       handleAction(root, actionEl);
+      return;
+    }
+    const ecard = ev.target.closest(".energycard[data-energy-card]");
+    if (ecard) {
+      // Nur eine Karte gleichzeitig offen – Details sind aufgeräumt
+      $$(root, ".energycard.open").forEach((c) => {
+        if (c !== ecard) c.classList.remove("open");
+      });
+      ecard.classList.toggle("open");
       return;
     }
     const jumpEl = ev.target.closest("[data-jump]");
@@ -2535,14 +3132,43 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         });
         break;
       }
-      case "toggle-auto": {
+      case "toggle-auto":
+      case "set-dev-mode": {
         const d = deviceById(devId);
         const id = d && entOf(d.id).auto;
         if (!id) { toast("Automatik-Schalter nicht gefunden.", "bad"); return; }
-        const next = !isOn(id);
-        callSvc("switch", next ? "turn_on" : "turn_off", { entity_id: id })
-          .then(() => { toast(next ? "Automatik an" : "Automatik aus", "ok"); })
+        const wantAuto = action === "toggle-auto" ? !isOn(id) : el.getAttribute("data-automode") !== "man";
+        callSvc("switch", wantAuto ? "turn_on" : "turn_off", { entity_id: id })
+          .then(() => toast(wantAuto ? "Automatik an – PVM steuert wieder" : "Manuell – du steuerst jetzt selbst", "ok"))
           .catch(() => toast("Umschalten fehlgeschlagen", "bad"));
+        break;
+      }
+      case "manual-open": {
+        const d = deviceById(devId);
+        if (!d) return;
+        const box = $(root, '.devctl[data-device="' + cssEsc(devId) + '"]');
+        if (!box) return;
+        const show = box.style.display !== "block";
+        box.style.display = show ? "block" : "none";
+        if (show) box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        break;
+      }
+      case "dev-cmd": {
+        const d = deviceById(devId);
+        if (!d) return;
+        const c = d.control || {};
+        const cmd = el.getAttribute("data-cmd");
+        const press = (entityId, service) => {
+          if (!entityId) { toast("Steuerelement nicht konfiguriert.", "bad"); return; }
+          const domain = String(entityId).split(".")[0];
+          callSvc(domain, service, { entity_id: entityId })
+            .then(() => toast("Gesendet.", "ok"))
+            .catch(() => toast("Konnte nicht gesendet werden", "bad"));
+        };
+        if (cmd === "start") press(c.on_entity, "turn_on");
+        else if (cmd === "stop") press(c.off_entity, "turn_off");
+        else if (cmd === "on") press(c.switch_entity, "turn_on");
+        else if (cmd === "off") press(c.switch_entity, "turn_off");
         break;
       }
       case "move-dev": {
@@ -2601,7 +3227,44 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           const eid = fields.entity;
           if (!eid) { toast("Keine passende Entität im Vorschlag.", "bad"); return; }
           const e = state.config.energy;
-          e[found.role + "_sensor"] = eid;
+          const slot = found.role + "_sensor";
+          if (e[slot] && e[slot] !== eid) {
+            // Eine Messung ist bereits verbunden – niemals stillschweigend
+            // überschreiben (das machte die PV-Anzeige kaputt).
+            toast("Dieser Sensor ist schon verbunden – Details findest du unter Einstellungen → Energie-Sensoren.", "bad");
+            removeFromScan();
+            return;
+          }
+          // Anschluss-Konflikt: kombiniert vs. getrennt – nie stillschweigend
+          // die andere Messung entfernen (sonst brechen die Anzeigen weg).
+          if (found.role === "grid" && (e.grid_import_sensor || e.grid_export_sensor)) {
+            toast("Du nutzt getrennte Zähler (Netzbezug + Einspeisung). Für den kombinierten Sensor erst unter Einstellungen → Energie-Sensoren umstellen.", "bad");
+            removeFromScan();
+            return;
+          }
+          if ((found.role === "grid_import" || found.role === "grid_export") && e.grid_sensor) {
+            toast("Du nutzt einen kombinierten Netz-Sensor. Für getrennte Zähler erst unter Einstellungen → Energie-Sensoren umstellen.", "bad");
+            removeFromScan();
+            return;
+          }
+          // Nur echte Leistungs-Sensoren übernehmen – ein Zählerstand (kWh)
+          // oder nicht-numerischer Sensor würde die Anzeige sonst zerstören.
+          const stEnt = st(eid);
+          const attrs = (stEnt && stEnt.attributes) || {};
+          const unit = attrs.unit_of_measurement || "";
+          const stVal = stEnt && stEnt.state;
+          const numeric = stVal != null && stVal !== "" && !isNaN(parseFloat(stVal)) && !["unknown", "unavailable"].includes(String(stVal));
+          if (unit && !_isPowerUnitJs(unit)) {
+            toast("„" + esc(eid) + "“ ist kein Leistungs-Sensor (Einheit: " + esc(unit) + "). PVM braucht W, kW oder mW.", "bad");
+            removeFromScan();
+            return;
+          }
+          if (!numeric) {
+            toast("„" + esc(eid) + "“ liefert gerade keinen Leistungswert – bitte prüfen, ob der Sensor aktiv ist.", "bad");
+            removeFromScan();
+            return;
+          }
+          e[slot] = eid;
           if (found.role === "grid") e.grid_mode = "combined";
           if (found.role === "grid_import" || found.role === "grid_export") e.grid_mode = "separate";
           saveAndRefresh("Sensor übernommen ✓ – er ist jetzt in den Energie-Sensoren verbunden.").then(removeFromScan);
@@ -2675,6 +3338,33 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           .then(() => toast("Selbsttest gestartet – Ergebnis erscheint als Benachrichtigung.", "ok"))
           .catch(() => toast("Selbsttest fehlgeschlagen", "bad"));
         break;
+      case "stat-mode": {
+        const m = el.getAttribute("data-stat-mode");
+        statState.mode = m;
+        Object.assign(statState.on, statModeSets(m));
+        refreshStatsView();
+        break;
+      }
+      case "stat-series": {
+        const k = el.getAttribute("data-stat-series");
+        if (statState.on[k] != null) statState.on[k] = !statState.on[k];
+        refreshStatsView();
+        break;
+      }
+      case "stat-range": {
+        statState.rangeH = Number(el.getAttribute("data-stat-range")) || 24;
+        loadStats();
+        break;
+      }
+      case "stat-type": {
+        statState.type = el.getAttribute("data-stat-type") === "line" ? "line" : "area";
+        drawStatChart();
+        break;
+      }
+      case "stat-refresh": {
+        loadStats();
+        break;
+      }
       case "reload": window.location.reload(); break;
       default: break;
     }
@@ -2682,6 +3372,12 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
 
   /* input-/change-Delegation (Slider + Selects) */
   function onRootInput(root, ev) {
+    const man = ev.target.closest("[data-manual-temp],[data-manual-limit]");
+    if (man) {
+      const valEl = man.closest(".ctlline") && $(man.closest(".ctlline"), ".numval");
+      if (valEl) valEl.textContent = fmtNum(parseFloat(man.value), man.getAttribute("data-unit") || "");
+      return;
+    }
     const slider = ev.target.closest("[data-slider]");
     if (slider) {
       const key = slider.getAttribute("data-slider");
@@ -2698,6 +3394,28 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     }
   }
   function onRootChange(root, ev) {
+    const man = ev.target.closest("[data-manual-temp],[data-manual-limit]");
+    if (man) {
+      const target = man.getAttribute("data-target");
+      const unit = man.getAttribute("data-unit") || "";
+      const label = man.hasAttribute("data-manual-temp") ? "Temperatur" : "Leistung";
+      if (!target) { toast("Steuerelement nicht konfiguriert.", "bad"); return; }
+      const domain = String(target).split(".")[0];
+      const value = parseFloat(man.value);
+      if (domain === "number" || domain === "input_number") {
+        callSvc(domain, "set_value", { entity_id: target, value })
+          .then(() => toast(label + " gesetzt: " + fmtNum(value, unit), "ok"))
+          .catch(() => toast("Konnte nicht gespeichert werden", "bad"));
+      } else if (domain === "select") {
+        // Manche Ziel-Temperatur-Regler sind als select umgesetzt
+        callSvc("select", "select_option", { entity_id: target, option: String(value) })
+          .then(() => toast(label + " gesetzt: " + fmtNum(value, unit), "ok"))
+          .catch(() => toast("Konnte nicht gespeichert werden", "bad"));
+      } else {
+        toast("Diesen Regler-Typ (" + domain + ") unterstützt PVM hier nicht.", "bad");
+      }
+      return;
+    }
     const slider = ev.target.closest("[data-slider]");
     if (slider) {
       const key = slider.getAttribute("data-slider");
@@ -2728,7 +3446,6 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const settings = state.config.settings;
     const cfgMap = {
       reserve: "reserve_w", cycle: "cycle_s", min_on: "min_on_s", min_off: "min_off_s",
-      wp_test_target: "wp_test_target_c", wp_test_max: "wp_test_max_duration_min",
     };
     const cfgKey = cfgMap[key];
     if (!cfgKey) return;
@@ -2915,7 +3632,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     if (role === "wallbox" || role === "fahrzeug") {
       base.car = { capacity_kwh: 60, min_soc: 50, max_soc: 80, min_charge_power_w: 4000, grid_min_allowed: true, grid_deadline_allowed: true, manual_force: false, deadline_time: null, deadline_soc: 0 };
     } else if (role === "waermepumpe") {
-      base.wp = { comfort_c: 60, safety_min_c: 40, est_power_w: 2000, grid_fallback_allowed: true, test_active: false, boost_c: 65 };
+      base.wp = { comfort_c: 60, safety_min_c: 60, est_power_w: 2000, grid_fallback_allowed: true, boost_c: 65 };
     } else {
       base.limits.nominal_power_w = 2000;
     }

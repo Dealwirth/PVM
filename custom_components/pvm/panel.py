@@ -1,8 +1,8 @@
 """Registrierung der eigenen PVM-Seite (Sidebar-Panel).
 
 Ersetzt das frühere Lovelace-Dashboard: PVM erscheint als eigenständige
-Seite in der Seitenleiste („PV Manager“) und lädt dort eine komplett
-selbst gebaute HTML/JS/CSS-Oberfläche – kein Lovelace, keine YAML.
+Seite in der Seitenleiste („PVM“) und lädt dort eine komplett selbst
+gebaute HTML/JS/CSS-Oberfläche – kein Lovelace, keine YAML.
 
 Mechanik (Stand HA 2025.x, identisch zu HACS):
 - ``hass.http.async_register_static_paths`` serviert die Panel-Dateien
@@ -21,7 +21,7 @@ import os
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN, NAME
+from .const import DOMAIN, NAME, SIDEBAR_NAME
 from .manager import PvmManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -61,8 +61,8 @@ async def async_register_panel(hass: HomeAssistant, manager: PvmManager) -> None
         async_register_built_in_panel(
             hass,
             "custom",
-            sidebar_title=NAME,
-            sidebar_icon="mdi:solar-power",
+            sidebar_title=SIDEBAR_NAME,
+            sidebar_icon="mdi:solar-power-variant",
             frontend_url_path=PANEL_URL,
             config={
                 "_panel_custom": {

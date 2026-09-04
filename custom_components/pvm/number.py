@@ -41,8 +41,8 @@ DEVICE_NUMBERS = {
         ("deadline_soc", "car.deadline_soc", 0.0, 100.0, 1.0, "%"),
     ],
     ROLE_WAERMEPUMPE: [
-        ("comfort", "wp.comfort_c", 40.0, 70.0, 0.5, "°C"),
-        ("safety", "wp.safety_min_c", 20.0, 50.0, 1.0, "°C"),
+        ("comfort", "wp.comfort_c", 40.0, 80.0, 0.5, "°C"),
+        ("safety", "wp.safety_min_c", 60.0, 80.0, 1.0, "°C"),
     ],
     ROLE_VERBRAUCHER: [
         ("nominal", "limits.nominal_power_w", 50.0, 22000.0, 100.0, "W"),

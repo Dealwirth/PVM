@@ -56,7 +56,7 @@ async def async_get_config_entry_diagnostics(
             "assignments": manager.car_assignments,
             "status": manager.car_status,
         },
-        "wp_test_results": manager.config.get("wp_test_results", {}),
+        "forecast": getattr(manager, "forecast_data", None),
         "last_scan": {
             k: v
             for k, v in (manager.last_scan or {}).items()

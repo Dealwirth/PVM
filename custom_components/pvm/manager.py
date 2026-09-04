@@ -27,6 +27,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from . import engine as eng
+from . import forecast as fc
 from .config_model import (
     compute_energy_flow,
     deadline_next_ts,
@@ -56,6 +57,7 @@ from .const import (
     STALE_SENSOR_AFTER_S,
     STALE_SOC_AFTER_S,
     STALE_TEMP_AFTER_S,
+    WP_TEMP_MAX_C,
 )
 from .detector import (
     assign_cars_to_wallboxes,
@@ -65,13 +67,6 @@ from .detector import (
     suggest_sets,
 )
 from .store import PvmStore
-from .wp_test import (
-    STATUS_DONE,
-    STATUS_NO_DATA,
-    STATUS_TIMEOUT,
-    WpTestConfig,
-    WpTestRunner,
-)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -101,8 +96,16 @@ class PvmManager:
         self._loop_task: asyncio.Task | None = None
         self._save_task: asyncio.Task | None = None
         self._extra_cycle: asyncio.Task | None = None
-        self._wp_task: asyncio.Task | None = None
         self._scan_lock = False
+        # PV-Prognose (Open-Meteo + lokales Modell)
+        self._forecast_task: asyncio.Task | None = None
+        self._forecast_lock = False
+        self.forecast_data: dict[str, Any] | None = None
+        self.forecast_recovery_min: int | None = None
+        self._last_forecast_refresh = 0.0
+        self._hist_pv: deque = deque(maxlen=2000)   # (ts, pv_w) für lokales Modell
+        self._hist_house: deque = deque(maxlen=1000)  # (ts, w)
+        self._pv_derate: float | None = None
         self._closing = False
         self._last_extra_cycle = 0.0
 
@@ -147,10 +150,6 @@ class PvmManager:
         # Verlaufs-Puffer für Korrelation (power/soc)
         self._power_buf: dict[str, deque] = {}
         self._soc_buf: dict[str, deque] = {}
-
-        # WP-Test
-        self.wp_runner: WpTestRunner | None = None
-        self.wp_test_device: str | None = None
 
         self._started_event_bound = False
         self._auto_scan_done = False
@@ -228,17 +227,15 @@ class PvmManager:
     async def async_stop(self) -> None:
         """Stoppt alle Tasks und speichert den Zustand."""
         self._closing = True
-        for task in (self._loop_task, self._extra_cycle, self._wp_task, self._save_task):
+        for task in (
+            self._loop_task,
+            self._extra_cycle,
+            self._save_task,
+            self._forecast_task,
+        ):
             if task and not task.done():
                 task.cancel()
-        self._wp_task = None
-        self.wp_runner = None
-        # Test-Flag zurücksetzen, damit nach einem Neustart/Reload nicht
-        # dauerhaft „aufgeheizt“ wird, ohne dass ein Test läuft.
-        for device in self.config.get("devices", []):
-            wp = device.get("wp")
-            if wp:
-                wp["test_active"] = False
+        self._forecast_task = None
         await self._store.async_save(self.config)
 
     def subscribe(self, callback: Callable[[], None]) -> Callable[[], None]:
@@ -332,7 +329,7 @@ class PvmManager:
         plan = eng.compute_plan(inp)
         await self._apply_plan(plan)
         await self._apply_temp_controls()
-        self._store_wp_samples(plan)
+        self._store_samples()
 
     # ------------------------------------------------------------------
     # Eingaben für die Engine
@@ -349,12 +346,20 @@ class PvmManager:
         self.house_w = house
 
         devices = await self._build_engine_devices()
+        recovery = None
+        if self.forecast_data is not None:
+            recovery = self.forecast_data.get("recovery_min")
+            if recovery is not None:
+                self.forecast_recovery_min = int(recovery)
+            else:
+                self.forecast_recovery_min = None
         return eng.CycleInput(
             now=_time.time(),
             mode=mode,
             surplus_w=self.surplus_w,
             surplus_valid=export_valid,
             devices=devices,
+            forecast_recovery_min=self.forecast_recovery_min,
         )
 
     def _read_energy(self) -> tuple[float, bool, float, float | None, float | None]:
@@ -454,6 +459,15 @@ class PvmManager:
             last_off_ts=self._off_timers.get(device_id),
             enabled=bool(device.get("enabled", True)),
         )
+        # Kalender-Zeitfenster für Verbraucher („nur in diesem Zeitraum laufen“)
+        if device.get("role") == ROLE_VERBRAUCHER:
+            has, active, grid = self._schedule_window_state(device)
+            engine_device.scheduled_window = has
+            engine_device.schedule_on = active
+            engine_device.schedule_grid = grid
+            engine_device.schedule_power_w = float(
+                limits.get("nominal_power_w") or limits.get("power_limit_w") or 0
+            )
 
         role = device.get("role")
         if role == ROLE_WALLBOX:
@@ -496,6 +510,68 @@ class PvmManager:
             engine_device.wp = self._wp_to_engine(device, device["wp"])
         return engine_device
 
+    def _local_ts(self, raw: Any) -> float | None:
+        """Wandelt eine lokale Zeitangabe (ISO, ohne tz) in epoch um."""
+        if not raw:
+            return None
+        try:
+            dt = dt_util.parse_datetime(str(raw))
+            if dt is None:
+                dt = datetime.fromisoformat(str(raw))
+        except (TypeError, ValueError):
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
+        return dt.timestamp()
+
+    def _schedule_window_state(self, device: dict) -> tuple[bool, bool, bool]:
+        """Liefert (hat-Fenster, gerade-aktiv, netz-erlaubt) für Verbraucher."""
+        entries = device.get("schedule") or []
+        has = False
+        active = False
+        grid = False
+        now = _time.time()
+        for entry in entries:
+            start = self._local_ts(entry.get("start"))
+            end = self._local_ts(entry.get("end"))
+            if start is None and end is None:
+                continue
+            has = True
+            start_ok = start is None or now >= start
+            end_ok = end is None or now < end
+            if start_ok and end_ok:
+                active = True
+                if bool(entry.get("grid")):
+                    grid = True
+        return has, active, grid
+
+    def _next_calendar_deadline(
+        self, device: dict, now_local: datetime, soc_pct: float | None
+    ) -> tuple[float | None, float | None, bool | None]:
+        """Nächster Kalender-Termin mit Ziel-SoC (Autos)."""
+        best: tuple[float, float, bool] | None = None
+        for entry in device.get("schedule") or []:
+            end = self._local_ts(entry.get("end") or entry.get("start"))
+            target = entry.get("target")
+            if end is None or not target:
+                continue
+            try:
+                target = float(target)
+            except (TypeError, ValueError):
+                continue
+            if target <= 0 or target > 100:
+                continue
+            if end <= _time.time():
+                continue  # Termin in der Vergangenheit
+            if soc_pct is not None and target <= soc_pct + 0.5:
+                continue  # Ziel bereits erreicht
+            grid_allowed = bool(entry.get("grid", True))
+            if best is None or end < best[0]:
+                best = (end, target, grid_allowed)
+        if best is None:
+            return None, None, None
+        return best[0], best[1], best[2]
+
     def _car_to_engine(
         self,
         device: dict,
@@ -516,10 +592,21 @@ class PvmManager:
             )
         deadline_ts = None
         deadline_soc = None
+        grid_deadline = bool(car.get("grid_deadline_allowed", True))
         if car.get("deadline_soc") and car.get("deadline_time"):
             if car["deadline_soc"] > 0:
                 deadline_ts = deadline_next_ts(now_local, car.get("deadline_time"))
                 deadline_soc = float(car["deadline_soc"])
+        # Kalender-Termin (einmalig, mit Datum): nimmt dem Tages-Ziel den
+        # Vortritt, wenn er näher liegt und noch nicht erreicht ist.
+        cal_ts, cal_soc, cal_grid = self._next_calendar_deadline(
+            device, now_local, soc
+        )
+        if cal_ts is not None:
+            if deadline_ts is None or cal_ts < deadline_ts:
+                deadline_ts = cal_ts
+                deadline_soc = cal_soc
+                grid_deadline = bool(cal_grid)
         return eng.CarInfo(
             soc_pct=soc,
             soc_valid=soc_valid,
@@ -528,7 +615,7 @@ class PvmManager:
             max_soc=float(car.get("max_soc", 80)),
             min_charge_power_w=float(car.get("min_charge_power_w", 4000)),
             grid_min_allowed=bool(car.get("grid_min_allowed", True)),
-            grid_deadline_allowed=bool(car.get("grid_deadline_allowed", True)),
+            grid_deadline_allowed=grid_deadline,
             manual_force=bool(car.get("manual_force", False)) or extra_manual_force,
             deadline_ts=deadline_ts,
             deadline_soc=deadline_soc,
@@ -539,23 +626,13 @@ class PvmManager:
         temp, temp_valid = self.read_number(
             sensors.get("temp"), stale_s=STALE_TEMP_AFTER_S
         )
-        # Test aktiv nur, wenn die Testschleife wirklich läuft (Schutz nach
-        # Neustart: ohne laufende Messung nie dauerhaft aufheizen)
-        test_active = bool(
-            wp.get("test_active", False)
-            and self.wp_runner is not None
-            and self.wp_runner.running
-            and self.wp_test_device == device["id"]
-        )
         return eng.WpInfo(
             temp_c=temp,
             temp_valid=temp_valid,
             comfort_c=float(wp.get("comfort_c", 60)),
-            safety_min_c=float(wp.get("safety_min_c", 40)),
+            safety_min_c=float(wp.get("safety_min_c", 60)),
             est_power_w=float(wp.get("est_power_w", 2000)),
             grid_fallback_allowed=bool(wp.get("grid_fallback_allowed", True)),
-            test_active=test_active,
-            test_max_power_w=None,
         )
 
     # ------------------------------------------------------------------
@@ -618,6 +695,27 @@ class PvmManager:
                 target = last
             else:
                 target = normal_c
+
+            # Kalender-Termin (z. B. „Sonntag 12 Uhr 65 °C für den Badetag“):
+            # solange das Zeitfenster läuft, wird die Ziel-Temperatur angehoben
+            # (mit Netz-Freigabe auch ohne Überschuss).
+            now = _time.time()
+            for entry in device.get("schedule") or []:
+                entry_target = entry.get("target")
+                if not entry_target:
+                    continue
+                try:
+                    entry_target = float(entry_target)
+                except (TypeError, ValueError):
+                    continue
+                start = self._local_ts(entry.get("start") or entry.get("end"))
+                end = self._local_ts(entry.get("end"))
+                if start is None or end is None or start > now or now >= end:
+                    continue
+                if entry_target <= 45.0:
+                    continue
+                if bool(entry.get("grid")) or surplus_ok:
+                    target = max(target, min(entry_target, WP_TEMP_MAX_C))
 
             current, valid = self.read_number(temp_entity, stale_s=STALE_CONTROL_AFTER_S)
             if (current is None or not valid) and target == normal_c and last is None:
@@ -1148,6 +1246,16 @@ class PvmManager:
             for sensor in device.get("sensors", {}).values()
             if sensor
         }
+        # Energie-Sensoren zählen mit: Ein bereits verbundener Sensor wird nicht
+        # erneut als „Gefunden“ vorgeschlagen – sonst überschreibt das Übernehmen
+        # eine funktionierende Messung versehentlich (PV-Werte fielen weg).
+        energy = self.config.get("energy", {}) or {}
+        for key in (
+            "pv_sensor", "grid_sensor", "grid_import_sensor",
+            "grid_export_sensor", "house_sensor",
+        ):
+            if energy.get(key):
+                configured_entities.add(str(energy[key]))
         fresh = [
             found
             for found in sets
@@ -1260,91 +1368,116 @@ class PvmManager:
         return missing
 
     # ------------------------------------------------------------------
-    # WP-Test
+    # PV-Prognose (Open-Meteo + lokales Modell)
     # ------------------------------------------------------------------
-    async def wp_test_start(self, device_id: str) -> None:
-        """Startet den Kalibrierungstest einer Wärmepumpe."""
-        device = find_device(self.config, device_id)
-        if device is None or device.get("role") != ROLE_WAERMEPUMPE:
+    def _maybe_refresh_forecast(self) -> None:
+        """Startet die Prognose-Aktualisierung, falls sie fällig ist.
+
+        Läuft als Hintergrund-Task (nie blockierend) und darf nie crashen:
+        bei Fehlern fällt PVM auf das lokale Modell bzw. auf „keine Prognose“
+        zurück – die Steuerung funktioniert dann wie bisher.
+        """
+        if self._forecast_lock or self._closing:
             return
-        if self.wp_runner and self.wp_runner.running:
+        settings = self.config.get("settings", {})
+        if not settings.get("forecast_enabled", True):
             return
-        settings = self.config["settings"]
-        self.wp_runner = WpTestRunner(
-            config=WpTestConfig(
-                target_temp_c=float(settings.get("wp_test_target_c", 70)),
-                max_duration_s=float(settings.get("wp_test_max_duration_min", 120))
-                * 60.0,
-                sample_interval_s=10.0,
-                disturbance_w=float(settings.get("wp_test_disturbance_w", 500)),
-            )
-        )
-        self.wp_test_device = device_id
-        sensors = device.get("sensors", {})
-        temp, _valid = self.read_number(sensors.get("temp"), stale_s=STALE_TEMP_AFTER_S)
-        self.wp_runner.start(_time.time(), temp)
-        device["wp"]["test_active"] = True
-        self.schedule_save()
-        self.request_cycle()
-        if self._wp_task and not self._wp_task.done():
-            self._wp_task.cancel()
-        self._wp_task = self.hass.async_create_task(
-            self._wp_sample_loop(device), name=f"{DOMAIN}_wp_test"
+        energy = self.config.get("energy", {})
+        if not (energy.get("pv_sensor") or energy.get("grid_export_sensor")):
+            return  # ohne PV-Messung keine sinnvolle Prognose
+        if _time.time() - self._last_forecast_refresh < 900.0:
+            return
+        self._last_forecast_refresh = _time.time()
+        self._forecast_lock = True
+        if self._forecast_task and not self._forecast_task.done():
+            self._forecast_task.cancel()
+        self._forecast_task = self.hass.async_create_task(
+            self._refresh_forecast(), name=f"{DOMAIN}_forecast"
         )
 
-    async def wp_test_abort(self, device_id: str) -> None:
-        """Bricht einen laufenden WP-Test ab."""
-        if not self.wp_runner or self.wp_test_device != device_id:
-            return
-        device = find_device(self.config, device_id)
-        temp, _valid = (
-            self.read_number(device["sensors"].get("temp"), stale_s=STALE_TEMP_AFTER_S)
-            if device
-            else (None, False)
-        )
-        result = self.wp_runner.finish(_time.time(), temp, aborted=True)
-        await self._wp_test_finished(device_id, result)
-
-    async def _wp_sample_loop(self, device: dict) -> None:
-        """Sammelt Messwerte, solange der Test läuft."""
-        sensors = device.get("sensors", {})
-        temp_id = sensors.get("temp")
-        power_id = sensors.get("power")
+    async def _refresh_forecast(self) -> None:
+        """Holt die PV-Prognose (Open-Meteo, sonst lokales Modell)."""
         try:
-            while self.wp_runner and self.wp_runner.running and not self._closing:
-                temp, _tv = self.read_number(temp_id, stale_s=STALE_TEMP_AFTER_S)
-                power, _pv = self.read_power(power_id)
-                status = self.wp_runner.sample(_time.time(), power, temp)
-                if status in (STATUS_DONE, STATUS_TIMEOUT, STATUS_NO_DATA):
-                    break
-                await asyncio.sleep(10.0)
-            # Läuft nicht mehr (Ziel erreicht/Timeout) -> Ergebnis speichern
-            if self.wp_runner is not None and not self.wp_runner.running:
-                device_id = self.wp_test_device or device["id"]
-                temp, _tv = self.read_number(temp_id, stale_s=STALE_TEMP_AFTER_S)
-                result = self.wp_runner.finish(_time.time(), temp)
-                await self._wp_test_finished(device_id, result)
-        except asyncio.CancelledError:
-            raise
+            energy = self.config.get("energy", {})
+            pv, _v = self.read_power(energy.get("pv_sensor"))
+            lat = float(getattr(self.hass.config, "latitude", 0.0) or 0.0)
+            lon = float(getattr(self.hass.config, "longitude", 0.0) or 0.0)
+            now = _time.time()
+            data: dict[str, Any] = {
+                "source": "off",
+                "ts": now,
+                "series": [],
+                "day_curve": [],
+                "day_kwh": None,
+                "recovery_min": None,
+                "note": "Keine Prognose verfügbar (offline / keine Koordinaten).",
+            }
+            meteo = None
+            if lat and lon and self.hass.helpers is not None:
+                try:
+                    session = self.hass.helpers.aiohttp_client.async_get_clientsession()
+                    meteo = await fc.fetch_open_meteo(session, lat, lon)
+                except Exception:  # noqa: BLE001
+                    meteo = None
+            if meteo:
+                rad_now = fc.radiation_now(meteo, now)
+                factor = fc._scale_to_now(rad_now, pv) or self._pv_derate
+                if factor is None:
+                    data["note"] = (
+                        "Prognose kalibriert sich noch – bei Sonne wird die "
+                        "PV-Leistung gelernt."
+                    )
+                else:
+                    full = fc.build_open_meteo_series(
+                        meteo["times"], meteo["radiation"], factor, now,
+                        horizon_s=36 * 3600,
+                    )
+                    series = fc.split_series(full, now, horizon_s=3 * 3600)
+                    dt_now = datetime.fromtimestamp(now)
+                    midnight = now - (
+                        dt_now.hour * 3600 + dt_now.minute * 60 + dt_now.second
+                    )
+                    day = fc.split_series(
+                        full, now, end_ts=midnight + 24 * 3600 - 60
+                    )
+                    data = {
+                        "source": "openmeteo",
+                        "ts": now,
+                        "series": series,
+                        "day_curve": fc.hourly_day_curve(day),
+                        "day_kwh": fc.energy_kwh(day),
+                        "recovery_min": fc.recovery_minutes(series, pv),
+                        "note": "Open-Meteo (anonym, ohne Schlüssel).",
+                    }
+                    self._pv_derate = fc._derate_from(pv, rad_now, self._pv_derate)
+            else:
+                local = fc.local_fallback_series(list(self._hist_pv), now)
+                if local:
+                    series = fc.split_series(local, now, horizon_s=3 * 3600)
+                    data = {
+                        "source": "local",
+                        "ts": now,
+                        "series": series,
+                        "day_curve": fc.hourly_day_curve(local),
+                        "day_kwh": fc.energy_kwh(
+                            fc.split_series(local, now, end_ts=now + 24 * 3600)
+                        ),
+                        "recovery_min": fc.recovery_minutes(series, pv),
+                        "note": (
+                            "Lokales Modell (gleiche Tageszeit der letzten "
+                            "Tage) – ohne Internet."
+                        ),
+                    }
+            self.forecast_data = data
         except Exception:  # noqa: BLE001
-            _LOGGER.exception("PVM: Fehler in der WP-Test-Schleife")
-
-    async def _wp_test_finished(self, device_id: str, result) -> None:
-        """Übernimmt das Testergebnis und beendet den Testmodus."""
-        device = find_device(self.config, device_id)
-        if device and device.get("wp"):
-            device["wp"]["test_active"] = False
-        self.config.setdefault("wp_test_results", {})[device_id] = result.as_dict()
-        self.wp_runner = None
-        self.wp_test_device = None
-        self.schedule_save()
-        self.request_cycle()
-        self._broadcast()
+            _LOGGER.exception("PVM: Prognose-Aktualisierung fehlgeschlagen")
+        finally:
+            self._forecast_lock = False
 
     # ------------------------------------------------------------------
     # Korrelations-Puffer (SoC-Anstieg ↔ Ladeleistung)
     # ------------------------------------------------------------------
-    def _store_wp_samples(self, plan: eng.CyclePlan) -> None:
+    def _store_samples(self) -> None:
         for device in self.config.get("devices", []):
             device_id = device["id"]
             sensors = device.get("sensors", {})
@@ -1587,6 +1720,3 @@ class PvmManager:
                 return rank
         return 0
 
-    def wp_test_result(self, device_id: str) -> dict | None:
-        """Letztes Testergebnis eines Geräts."""
-        return self.config.get("wp_test_results", {}).get(device_id)

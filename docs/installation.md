@@ -28,9 +28,9 @@ automatisch und zeigt dir das Repository zum Installieren an.
 
 1. Gehe zu **Einstellungen → Geräte & Dienste → Integration hinzufügen** und suche nach
    **„PV Manager“**. Es werden **keine Fragen gestellt** – die Installation ist sofort fertig.
-2. PVM erstellt automatisch die **„PV Manager“-Seite** in der Seitenleiste – eine
-   **komplett eigene Oberfläche** (kein Lovelace, kein YAML) und scannt beim Start
-   einmal nach passenden Sensoren und Geräten.
+2. PVM erstellt automatisch die **„PVM“-Seite** in der Seitenleiste (mit eigenem
+   Logo) – eine **komplett eigene Oberfläche** (kein Lovelace, kein YAML) und
+   scannt beim Start einmal nach passenden Sensoren und Geräten.
 3. Öffne die Seite: Der Reiter **„Erste Schritte“** führt dich in wenigen Schritten
    durch Sensoren, Geräte, Reihenfolge und Design – alles direkt auf dieser Seite.
 4. **Gefundene Vorschläge** (Reiter **„Gefunden“**) übernimmst du mit einem Klick;

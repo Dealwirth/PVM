@@ -14,7 +14,7 @@ HTML/JS/CSS-Seite** (`panel/panel.js`), kein Lovelace.
 | --- | --- | --- |
 | Konfigurations-Modell | `config_model.py`, `const.py` | nur Python |
 | Steuer-Engine (Logik) | `engine.py` | nur Python |
-| WP-Test (Zustandsmaschine) | `wp_test.py` | nur Python |
+| PV-Prognose | `forecast.py` | nur Python (Open-Meteo-Aufruf im Manager) |
 | Geräteerkennung | `detector.py` | nur Python |
 | Panel-Daten (Mapping/Payload) | `panel_data.py` | nur Python (Registry wird reingereicht) |
 | Laufzeit + Zyklus | `manager.py`, `store.py` | Home Assistant |

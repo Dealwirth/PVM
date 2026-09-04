@@ -47,9 +47,6 @@ DEVICE_PREFIXES = {
     "max_soc": "pvm_max_soc",
     "deadline_soc": "pvm_deadline_soc",
     "deadline_time": "pvm_deadline_time",
-    "test_start": "pvm_wp_test_start",
-    "test_abort": "pvm_wp_test_abort",
-    "wp_test_result": "pvm_wp_test_result",
     "car_status": "pvm_car_status",
 }
 
@@ -86,9 +83,6 @@ def _platform_of(kind: str) -> str:
         "max_soc": "number",
         "deadline_soc": "number",
         "deadline_time": "time",
-        "test_start": "button",
-        "test_abort": "button",
-        "wp_test_result": "sensor",
         "car_status": "sensor",
     }.get(kind, "sensor")
 
@@ -123,14 +117,7 @@ def _kinds_for_role(role: str) -> set[str]:
             "min_on_power",
         }
     elif role == "waermepumpe":
-        base |= {
-            "grid_fallback",
-            "comfort",
-            "safety",
-            "test_start",
-            "test_abort",
-            "wp_test_result",
-        }
+        base |= {"grid_fallback", "comfort", "safety"}
     elif role == "verbraucher":
         base |= {"nominal"}
     return base

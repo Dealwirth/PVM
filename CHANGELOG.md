@@ -2,6 +2,52 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.9.0] – 2026-09-04
+
+### Marke & Oberfläche
+- **Seitenleiste heißt jetzt schlicht „PVM“** – mit eigenem **PVM-Logo** im Kopf
+  der Seite, in der Seitenleiste und als Projekt-/HACS-Icon (`icon.png`).
+- **Energie-Sensoren mit Haken & Details:** verbundene Messungen tragen einen
+  grünen **✓ Verbunden**-Haken; ein Klick auf die Karte klappt Details auf
+  (Entität, Messwert, Sensor wählen/entfernen).
+- **Übernehmen schützt deine Werte:** Beim Übernehmen einer gefundenen Messung
+  prüft PVM Anschluss-Variante und Einheit – ein kWh-Zählerstand wird z. B.
+  abgelehnt statt die PV-Anzeige zu zerstören; nichts wird stillschweigend
+  überschrieben.
+
+### Statistik & PV-Prognose
+- **Neuer Reiter „📊 Statistik“:** Leistungs-Charts (PV, Haus, Netz(bezug/-
+  einspeisung), Wallboxen, Geräte) als Fläche oder Linie, 24 h / 7 Tage, mit
+  **Modi** (Alles, Nur PV, Verbraucher, Wallboxen, Netz) und **einzeln
+  an-/abwählbaren Reihen**; Farben folgen Design und Wunschfarbe.
+- **PV-Prognose:** erwartete Leistung **jetzt, in 15 Minuten, nächste 3 h und
+  Rest des Tages** – anonym über Open-Meteo (keine persönliche API) mit lokalem
+  Modell als Fallback. PVM nutzt sie zum **vorausschauenden Halten**: kurze
+  Wolkenphasen führen nicht mehr zum Abschalten (die Heizung flackert nicht),
+  und bei Sonne wird untertags geladen, wenn der Überschuss reicht.
+
+### Energiefluss & Geräte
+- **Jedes Gerät ist eine eigene Box** unter dem Energiefluss – mit **echter
+  Leistung** (Sensor) oder **geschätzter Leistung** („~ …“) und automatisch
+  mitwachsendem Raster (auch für viele Geräte).
+- **Energiefluss-Layout korrigiert:** Beschriftungen sitzen jetzt mittig auf den
+  Verbindungen (Eigenverbrauch, Netzbezug/Einspeisung, Überschuss); Knoten ohne
+  Sensor zeigen „–“ statt 0 W.
+- **Auto | Manuell direkt auf der Gerätekarte** mit kleinem Ausklapp-Menü
+  (Ein/Aus, Start/Stopp, Leistungs-Begrenzer, Ziel-Temperatur). Der Inhalt
+  wechselt sofort ohne Neuladen; Regler speichern ihren Wert live.
+- **Temperatur-Regler mit Zonen:** farbige Skala mit Strichen – rot unter
+  55 °C (Bakterien-/Legionellen-Gefahr), grün 55–70 °C, rot über 70 °C. Das
+  **Notfall-Minimum der Wärmepumpe startet bei 60 °C** (einstellbar ab 60).
+
+### Technik
+- **Kalibrier-Testlauf komplett entfernt** (Modul, Services, Entitäten, UI) –
+  die automatische Leistungsmessung der Wärmepumpe entfällt; wer mag, trägt
+  die Heizleistung als Schätzwert ein.
+- Ein Klick-Fehler behoben: Die Auto/Manuell-Knöpfe der Gerätekarten kollidierten
+  mit der Modus-Auswahl der Einstellungen (dort landete der Klick statt auf der
+  Karte) – jetzt getrennte Attribute, inkl. Test im Prüf-Sandbox.
+
 ## [1.8.0] – 2026-09-04
 
 ### Bedienung & neue Steuerungsarten

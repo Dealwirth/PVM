@@ -72,7 +72,7 @@ deiner Auswahl passen** – nichts Kompliziertes nebenher.
 | --- | --- | --- | --- |
 | **Wallbox** | Ein Schalter oder zwei Taster, plus „Leistungs-Begrenzer vorhanden“ | Ladeleistung | Zwei Schieberegler: maximale Ladeleistung & Mindest-Überschuss |
 | **Auto (E-Auto)** | keine (reine Überwachung) | SoC, Ladeleistung | Mindest-/Max-SOC, Frist-Ziele, Power Charge, Netz-Freigaben – alles **am Auto**, nicht an der Wallbox |
-| **Wärmepumpe** | Schalter oder **Nur Ziel-Temperatur** (kein Ein/Aus) | Temperatur (Pflicht), Leistung | Soll-/Boost-Temperatur, Sicherheits-Minimum, Kalibrierungstest |
+| **Wärmepumpe** | Schalter/Zwei Taster oder **Nur Ziel-Temperatur** (kein Ein/Aus) | Temperatur (Pflicht), Leistung | Soll-/Boost-Temperatur, Notfall-Minimum |
 | **Verbraucher** | Ein Schalter oder zwei Taster, plus „Leistungs-Begrenzer vorhanden“ | Leistung | Nennleistung & Mindest-Überschuss als Schieberegler |
 
 **Karte antippen = alles einstellen:** Ein Klick auf eine Geräte-Karte öffnet
@@ -168,13 +168,16 @@ Wallbox es hängt.
   die **normale Soll-Temperatur** – mit Hysterese, damit es nicht
   hin- und herspringt. Die Auto-Erkennung schlägt diese Art selbst vor,
   wenn sie eine einstellbare Temperatur findet.
-- **Netz im Notfall:** Fällt die Temperatur unter das Sicherheits-Minimum
-  (Standard 40 °C), heizt die WP auch ohne Überschuss – Frostschutz.
-- **WP-Test (Kalibrierung):** Heizt bis zur Zieltemperatur (Standard 70 °C),
-  misst alle 10 s Leistung und Temperatur, erkennt und entfernt Störungen
-  (z. B. laufende Waschmaschine) und speichert Dauer, Verbrauch und
-  Durchschnittsleistung. Start/Stopp über die Buttons im Geräte-Dialog oder
-  die Services `pvm.wp_test_start` / `pvm.wp_test_abort`.
+- **Netz im Notfall:** Fällt die Speichertemperatur unter das
+  **Notfall-Minimum** (Standard **60 °C** – Legionellen-/Bakterienschutz),
+  heizt die WP zur Not auch mit Netzstrom, damit das Wasser nie zu kalt
+  wird. Der Wert ist einstellbar, aber erst ab 60 °C möglich.
+- **Temperatur-Regler mit Zonen:** Alle Temperatur-Schieberegler (Soll-,
+  Boost- und Notfall-Minimum) zeigen farbig die Bereiche: **rot = zu kalt**
+  (unter 55 °C – Bakterien-/Legionellen-Gefahr), **grün = gesund**
+  (55–70 °C) und **rot = unnötig heiß** für die Heizung (über 70 °C).
+  Striche markieren die Grenzen – so siehst du beim Einstellen sofort, ob
+  dein Wert sicher ist.
 
 ## Modus (global)
 
@@ -192,6 +195,33 @@ Entität `select.pvm_mode`):
 | **Nur Überschuss** | Kein Netzstrom – auch nicht für Fristen (Fristen dann „best effort“). |
 | **Nur Ziele** | Nur Frist-/Mindest-Ziele und Power Charge; kein Überschuss-Laden. |
 | **Aus** | Keine automatische Steuerung (laufende Geräte bleiben wie sie sind). |
+
+## Pro Gerät: Automatik / Manuell (direkt auf der Karte)
+
+Jede Gerätekarte hat einen **Auto | Manuell**-Umschalter: In **Auto**
+entscheidet PVM selbst (Prioritätsliste, Ziele, Prognose). In **Manuell**
+lässt PVM das Gerät in Ruhe – du steuerst direkt. Über das ⚙-Symbol klappt
+sich ein **kleines Bedien-Menü** auf (nicht größer als nötig): Ein/Aus-
+Knöpfe bei Schaltern, Start/Stopp bei zwei Tastern, den **Leistungs-
+Begrenzer**-Regler (falls vorhanden) und bei „Nur Ziel-Temperatur“-Wärme-
+pumpen die Ziel-Temperatur. Jeder Regler zeigt seinen Wert live und
+speichert sofort.
+
+## Statistik & Prognose
+
+Der Reiter **📊 Statistik** zeigt deine Leistungen als farbige Charts
+(Fläche oder Linie) – einstellbar über **Modi** (Alles, Nur PV, Verbraucher,
+Wallboxen, Netz) und Zeiträume (24 h / 7 Tage). **Jede Reihe lässt sich
+einzeln an- und abwählen** über die Punkte unter dem Diagramm; die Farben
+folgen deinem Design und deiner Wunschfarbe.
+
+Darunter steht die **PV-Prognose**: erwartete Leistung **jetzt, in 15
+Minuten, nächste 3 Stunden und für den Rest des Tages** – berechnet anonym
+über Open-Meteo (keine persönliche API, keine Anmeldung) mit lokalem
+Modell als Fallback. PVM nutzt diese Vorhersage, um kurze Wolkenphasen
+nicht zum Abschalten zu nutzen („erst abwarten, die Sonne kommt gleich
+wieder“) und bei Sonne schon untertags zu laden, wenn der Überschuss für
+Haus und spätere Lade-Wünsche reicht.
 
 ## Gerätesuche (Auto-Erkennung)
 
@@ -220,6 +250,14 @@ Nichts wird ohne deine Bestätigung konfiguriert.
   Rot, Türkis, Blau – oder **Eigene Farbe …** mit einem freien Farbfeld
   (beliebiger Hex-Wert, wird gespeichert und überlebt Neustarts). Die Wahl
   wirkt in allen vier Designs und ersetzt dort die jeweilige Standardfarbe.
+- **Energie-Sensoren mit Haken & Details:** In **Einstellungen → Energie-
+  Sensoren** trägt jede verbundene Messung einen grünen **✓ Verbunden**-
+  Haken. Ein **Klick auf die Karte** klappt die Details auf: welche Entität
+  verbunden ist, mit welchem Wert und dem aktuellen Messwert – plus
+  „Sensor wählen“ / „Entfernen“.
+- **Seitenleiste & Logo:** Die Seite heißt in der Seitenleiste schlicht
+  **PVM** und zeigt das eigene PVM-Logo (auch im Kopf der Seite und als
+  HACS-/Projekt-Logo verwendet).
 - **Einführung ausblenden:** Auf „Erste Schritte“ steht „🎉 Einführung
   beenden“, sobald alles eingerichtet ist – danach ist die Seite aufgeräumt.
   Noch nicht fertig? Der kleine Link „Einführung überspringen“ erledigt das
@@ -232,7 +270,11 @@ Nichts wird ohne deine Bestätigung konfiguriert.
   `switch.pvm_power_charge_<id>`, `grid_min` und `grid_deadline` (am Auto-Gerät).
 - Die Übersichts-Seite zeigt einen **animierten Energiefluss** (PV → Haus →
   Netz → Geräte) mit Live-Werten und Statusfarben; jede Kachel ist verlinkt
-  (keine kryptischen IDs, sondern klickbare Namen).
+  (keine kryptischen IDs, sondern klickbare Namen). Unter dem Fluss steht
+  **jedes Gerät als eigene Box** mit seiner **echten Leistung** (Sensor)
+  oder **geschätzten Leistung** („~ …“, wenn es ohne Sensor läuft und PVM
+  die Nenn-/Heizleistung kennt) – die Boxen sind modular und wachsen mit
+  der Gerätezahl mit (auch 10er/100er-Setups bleiben übersichtlich).
 
 ## Services (für Automationen)
 
@@ -242,7 +284,6 @@ Nichts wird ohne deine Bestätigung konfiguriert.
 | `pvm.set_priority` | Priorität setzen (`entity_id` + `position`). |
 | `pvm.set_deadline` | Frist-Ziel setzen (`time` + `target_soc`). |
 | `pvm.clear_deadline` | Frist-Ziel löschen. |
-| `pvm.wp_test_start` / `pvm.wp_test_abort` | WP-Kalibrierungstest. |
 | `pvm.scan_devices` | Gerätesuche starten. |
 | `pvm.rebuild_dashboard` | Seite in der Seitenleiste neu registrieren (nach Problemen). |
 | `pvm.run_self_test` | Selbsttest (Meldung mit Problemen). |

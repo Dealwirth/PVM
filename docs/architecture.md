@@ -31,10 +31,10 @@ PVM/
 │       ├── config_model.py            Geräte- und Integrations-Datenmodell (pure Logik)
 │       ├── config_flow.py             Ein-Klick-Installation (keine Fragen, kein Options-Flow)
 │       ├── store.py                   JSON-Persistenz (speichert alle Einstellungen)
-│       ├── manager.py                 Herzstück: Steuerzyklus, Service-Aufrufe, WP-Test, Scan
+│       ├── manager.py                 Herzstück: Steuerzyklus, Service-Aufrufe, Scan, Prognose
 │       ├── engine.py                  Prioritäts-Engine (reine Logik, keine HA-Importe)
 │       ├── detector.py                Automatische Geräteerkennung (pure Logik)
-│       ├── wp_test.py                 WP-Kalibrierung als Zustandsmaschine (pure Logik)
+│       ├── forecast.py                PV-Prognose (Open-Meteo, anonym, mit lokalem Modell)
 │       ├── panel.py                   Seitenleisten-Panel registrieren, alte Dashboards entfernen
 │       ├── panel_data.py              Entitäten-Mapping + Datenpaket für die Seite (testbar)
 │       ├── websocket.py               WebSocket-Kommandos (get_config/save_config/scan/list)
@@ -63,7 +63,7 @@ PVM/
     ├── test_config_model.py           Datenmodell-Tests
     ├── test_detector.py               Erkennungs-Tests
     ├── test_engine.py                 Engine-Tests (Prioritäten, Ziele, Hysterese)
-    ├── test_wp_test.py                WP-Test-Tests
+    ├── test_forecast.py               Prognose-Tests
     ├── test_panel_data.py             Entitäten-Mapping/Payload-Tests
     └── test_imports.py                Import-Smoke-Tests (alle Module laden ohne HA)
 ```
@@ -76,7 +76,7 @@ PVM folgt einem **dreischichtigen Design**:
 
 | Schicht | Dateien | Aufgabe |
 | :--- | :--- | :--- |
-| **Pure Logik** | `engine.py`, `wp_test.py`, `detector.py`, `config_model.py`, `panel_data.py` (Kern) | Reines Python ohne Home-Assistant-Importe → vollständig unit-testbar, läuft überall |
+| **Pure Logik** | `engine.py`, `forecast.py`, `detector.py`, `config_model.py`, `panel_data.py` (Kern) | Reines Python ohne Home-Assistant-Importe → vollständig unit-testbar, läuft überall |
 | **HA-Anbindung** | `manager.py`, `config_flow.py`, alle Plattformen, `store.py`, `websocket.py`, `panel.py` | Übersetzt Home Assistant in die pure Logik und zurück; stellt der Seite die Daten bereit |
 | **Eigene Oberfläche** | `panel/panel.js` | Komplett selbst gebaute Seite im Browser – kein Lovelace, keine YAML, keine HA-Dialoge |
 
@@ -101,29 +101,29 @@ Vorteil: Die kritischen Entscheidungen (wer bekommt wann wie viel Strom) sind **
 
 | Datei | Beschreibung |
 | :--- | :--- |
-| `manager.py` | **Der Steuerzyklus**: alle 30 Sekunden Energie lesen → Engine aufrufen → Befehle ausführen. Verwaltet außerdem WP-Test, Geräte-Scan, Frist-Ziele, Fehler-Backoff (3 Fehler → Pause → Neustart), die letzten gültigen Messwerte sowie `async_replace_config` (Speichern aus dem Panel). |
-| `engine.py` | **Die Prioritäts-Engine** (pure Logik): verteilt Überschuss nach Prioritätsliste, beachtet Mindest-Ladeleistung, Leistungs-Limits, Hysterese, Mindest-Ein-/Ausschaltzeiten, Frist-Ziele, Mindest-/Max-SOC und Power Charge. |
-| `wp_test.py` | WP-Kalibrierung als Zustandsmaschine (pure Logik): heizt auf Soll-Temperatur, misst Leistung/Temperatur, filtert Störungen (z. B. Waschmaschine) heraus, speichert Ergebnis (Dauer, Verbrauch, Ø-Leistung). |
+| `manager.py` | **Der Steuerzyklus**: alle 30 Sekunden Energie lesen → Engine aufrufen → Befehle ausführen. Verwaltet außerdem Geräte-Scan, Frist-Ziele, PV-Prognose, vorausschauendes Halten, Fehler-Backoff (3 Fehler → Pause → Neustart), die letzten gültigen Messwerte sowie `async_replace_config` (Speichern aus dem Panel). |
+| `engine.py` | **Die Prioritäts-Engine** (pure Logik): verteilt Überschuss nach Prioritätsliste, beachtet Mindest-Ladeleistung, Leistungs-Limits, Hysterese, Mindest-Ein-/Ausschaltzeiten, Frist-Ziele, Mindest-/Max-SOC, Power Charge und Zeitfenster (Wochenplan). |
+| `forecast.py` | PV-Prognose (pure Logik): ruft Open-Meteo anonym auf (keine API-Instanz nötig) und fällt ohne Netz auf ein lokales Tagesmodell zurück. |
 | `detector.py` | Automatische Erkennung (pure Logik): bewertet Entitäten nach Name, Geräteklasse, Einheit, Domain sowie Hersteller-/Modell- und Integrations-Signalen (Wortgrenzen statt „irgendwo im Namen“), gruppiert Geräte-Sets (z. B. Wallbox mit Leistung + Start-/Stopp-Tastern) und liefert Kandidaten mit Begründung und Live-Wert. Der Benutzer bestätigt immer. |
 
 ### Eigene Oberfläche (Panel – ersetzt Lovelace)
 
 | Datei | Beschreibung |
 | :--- | :--- |
-| `panel.py` | Registriert die Seitenleisten-Seite „PV Manager“ (`/pvm`) als Custom-Panel mit `embed_iframe` (Mechanik wie HACS), serviert `panel/panel.js` über `async_register_static_paths` und entfernt ein früheres Lovelace-Dashboard (`pvm-dashboard`) automatisch. |
+| `panel.py` | Registriert die Seitenleisten-Seite „PVM“ (`/pvm`) als Custom-Panel mit `embed_iframe` (Mechanik wie HACS), serviert `panel/panel.js` über `async_register_static_paths` und entfernt ein früheres Lovelace-Dashboard (`pvm-dashboard`) automatisch. |
 | `panel_data.py` | Baut das **Entitäten-Mapping** (unique_id → entity_id über die Registry) und das komplette Datenpaket für die Seite (Konfiguration, Scan-Ergebnis, Setup-Stufe, Version). Bewusst weitgehend pur gehalten → unit-testbar. |
-| `websocket.py` | Vier WebSocket-Kommandos, über die die Seite ausschließlich mit HA spricht: `pvm/get_config`, `pvm/save_config` (normalisiert + speichert), `pvm/scan`, `pvm/list_entities`. |
-| `panel/panel.js` | Die **komplett selbst gebaute Oberfläche** (HTML/CSS/JS, keine Frameworks): Reiter Erste Schritte/Übersicht/Geräte/Reihenfolge/Gefunden/Einstellungen, animierter Energiefluss, eigene Geräte-Dialoge mit dynamischen Feldern (je Steuerungsart), Design-Wechsel mit Animation, deutsche Texte. Liest Live-Zustände über das `hass`-Objekt und schreibt Änderungen per WebSocket zurück. |
+| `websocket.py` | WebSocket-Kommandos, über die die Seite ausschließlich mit HA spricht: `pvm/get_config`, `pvm/save_config` (normalisiert + speichert), `pvm/scan`, `pvm/list_entities`, `pvm/reload` und `pvm/forecast` (Prognose). |
+| `panel/panel.js` | Die **komplett selbst gebaute Oberfläche** (HTML/CSS/JS, keine Frameworks): Reiter Erste Schritte/Übersicht/Geräte/Reihenfolge/Gefunden/Statistik/Einstellungen, animierter Energiefluss mit dynamischen Geräte-Boxen (echte oder geschätzte Leistung), Leistungs-Charts mit Modi, PV-Prognose, eigene Geräte-Dialoge mit dynamischen Feldern (je Steuerungsart, Auto/Manuell direkt auf der Karte), Design-Wechsel mit eigener Farbe, deutsche Texte. Liest Live-Zustände über das `hass`-Objekt und schreibt Änderungen per WebSocket zurück. |
 
 ### Entitäten-Plattformen
 
 | Datei | Stellt bereit | Beispiele |
 | :--- | :--- | :--- |
-| `sensor.py` | Sensoren | PV-Überschuss, PVM-Status, Setup-Stufe, Geräte-Status, WP-Test-Ergebnis |
+| `sensor.py` | Sensoren | PV-Überschuss, PVM-Status, Setup-Stufe, Geräte-Status |
 | `number.py` | Zahlen | Mindest-/Max-SOC, Leistungs-Limits, Soll-/Notfall-Temperatur, Reserve, Zyklus- und Mindestzeiten |
 | `switch.py` | Schalter | Gerät-Automatik, Power Charge, Netzstrom-Freigaben (normale HA-Entitäten, vom Panel wie von HA aus bedienbar) |
-| `button.py` | Buttons | Geräte suchen, Seite neu registrieren, WP-Test starten/abbrechen |
-| `select.py` | Auswahl | Betriebsmodus (Auto/Nur Überschuss/Nur Ziele/Aus), Design (3 Themes) |
+| `button.py` | Buttons | Geräte suchen, Seite neu registrieren |
+| `select.py` | Auswahl | Betriebsmodus (Auto/Nur Überschuss/Nur Ziele/Aus), Design (Themes) |
 | `time.py` | Uhrzeit | Frist-Ziele (bis wann soll das Ziel erreicht sein) |
 
 > Die Entitäten bleiben normale Home-Assistant-Entitäten (für Automatisierungen,
@@ -134,7 +134,7 @@ Vorteil: Die kritischen Entscheidungen (wer bekommt wann wie viel Strom) sind **
 
 | Datei | Beschreibung |
 | :--- | :--- |
-| `services.py` | Implementiert die 9 Services: `power_charge`, `set_priority`, `set_deadline`, `clear_deadline`, `wp_test_start`, `wp_test_abort`, `scan_devices`, `rebuild_dashboard` (Seite neu registrieren), `run_self_test`. |
+| `services.py` | Implementiert die Services: `power_charge`, `set_priority`, `set_deadline`, `clear_deadline`, `scan_devices`, `rebuild_dashboard` (Seite neu registrieren), `run_self_test`. |
 | `services.yaml` | Service-Definitionen mit deutschen Beschreibungen – für die Service-UI in Home Assistant. |
 | `diagnostics.py` | Strukturierter Diagnose-Export (Einstellungen, Geräte, Fehlerzähler, Store-Status). |
 | `translations/de.json`, `en.json` | Alle Texte der Entitäten – deutsch primär, englisch als Fallback, vollständig abgestimmt. |
@@ -171,7 +171,7 @@ panel/panel.js (Browser)
    │  haptic: Klick auf „Speichern“, Scan, Gerät hinzufügen …
    ▼
 WebSocket (authentifiziert, Same-Origin-iframe)
-   │  pvm/get_config · pvm/save_config · pvm/scan · pvm/list_entities
+   │  pvm/get_config · pvm/save_config · pvm/scan · pvm/list_entities · pvm/reload · pvm/forecast
    ▼
 websocket.py ──► manager.async_replace_config() / scan_devices() / collect_entities()
    │                 │
@@ -187,7 +187,7 @@ panel_data.py    store.py (JSON) → Engine (nächster Zyklus)
 | :--- | :--- |
 | Fehler-Backoff + Engine-Neustart nach 3 Fehlern | `manager.py` |
 | Letzte gültige Messwerte statt Raten bei Sensorausfall | `manager.py`, `engine.py` |
-| Pure Logik ohne HA-Importe → testbar ohne Installation | `engine.py`, `wp_test.py`, `panel_data.py`, … |
+| Pure Logik ohne HA-Importe → testbar ohne Installation | `engine.py`, `forecast.py`, `panel_data.py`, … |
 | Kein YAML, keine Eingriffe in `configuration.yaml` | `store.py` |
 | Seite statisch ausgeliefert, ohne Cache | `panel.py` (`cache_headers=False`) |
 | Altes Lovelace-Dashboard wird beim Start automatisch entfernt (keine doppelten Seiten) | `panel.py::_remove_old_lovelace_dashboard` |

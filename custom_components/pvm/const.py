@@ -6,8 +6,10 @@ Logik-Modulen und Tests.
 """
 
 DOMAIN = "pvm"
+# Name in der HA-Seitenleiste (kompakt) und voller Produktname (Doku/Logs)
 NAME = "PV Manager"
-VERSION = "1.8.0"
+SIDEBAR_NAME = "PVM"
+VERSION = "1.9.0"
 
 # Von der Integration bereitgestellte Plattformen.
 PLATFORMS = ["sensor", "number", "switch", "button", "select", "time"]
@@ -135,9 +137,15 @@ PHASE_VOLTAGE_V = 230.0
 
 
 
-# Wärmepumpe
+# Wärmepumpe (Speichertemperatur in °C)
+# Sicherheit & Hygiene: Der Speicher sollte nie dauerhaft unter 60 °C liegen
+# (Legionellen-Risiko) – deshalb beginnt der Notfall-Minimum-Regler bei 60 °C.
+WP_TEMP_MIN_C = 40.0       # untere Skalengrenze aller WP-Temperatur-Regler
+WP_TEMP_MAX_C = 80.0       # obere Skalengrenze (unnötig heiß für die Heizung)
+WP_COMFORT_ZONE_LO_C = 55.0  # unterhalb: Bakterien-/Legionellen-Gefahr
+WP_COMFORT_ZONE_HI_C = 70.0  # oberhalb: unnötig heiß / schlecht für die Heizung
 DEFAULT_WP_TARGET_C = 60.0
-DEFAULT_WP_SAFETY_MIN_C = 40.0
+DEFAULT_WP_SAFETY_MIN_C = 60.0   # Notfall-Minimum: mindestens 60 °C (Legionellen)
 DEFAULT_WP_EST_POWER_W = 2000.0
 DEFAULT_WP_HYSTERESIS_C = 2.0
 # Ziel-Temperatur, auf die PVM die WP bei Überschuss anhebt („Boosten“)
@@ -146,11 +154,15 @@ DEFAULT_WP_BOOST_C = 65.0
 # Verbraucher
 DEFAULT_CONSUMER_NOMINAL_W = 2000.0
 
-# WP-Kalibrierung (Testlauf)
-WP_TEST_TARGET_C = 70.0
-WP_TEST_MAX_DURATION_MIN = 120
-WP_TEST_SAMPLE_INTERVAL_S = 10
-WP_TEST_DISTURBANCE_W = 500.0
+# PV-Prognose (vorausschauende Regelung, ohne eigenen API-Schlüssel)
+FORECAST_ENABLED_DEFAULT = True       # Open-Meteo + lokales Modell
+FORECAST_REFRESH_S = 900               # alle 15 min aktualisieren
+FORECAST_SERIES_MIN = 15               # 15-Minuten-Auflösung der Kurve
+FORECAST_HORIZON_S = 3 * 3600          # Kurve: nächste 3 Stunden
+FORECAST_HOUSE_AVG_S = 24 * 3600       # Hausverbrauchs-Mittel über 24 h
+# Ab dieser erwarteten PV-Lücke (kWh, Rest des Tages) wird „vorausschauendes
+# Laden“ aktiv – das Auto lädt dann schon am Tag, statt spät abends.
+PRE_CHARGE_DEFICIT_KWH = 2.0
 
 # Zeitgrenzen
 MAX_DEADLINE_DAYS_AHEAD = 7
@@ -177,7 +189,7 @@ REASON_ON_SURPLUS = "on_surplus"
 REASON_ON_DEADLINE = "on_deadline"
 REASON_ON_MANUAL = "on_manual"
 REASON_ON_MIN_SOC = "on_min_soc"
-REASON_ON_WP_TEST = "on_wp_test"
+REASON_ON_SCHEDULE = "on_schedule"
 REASON_ON_WP_SAFETY = "on_wp_safety"
 REASON_OFF_TARGET = "off_target"
 REASON_OFF_NO_SURPLUS = "off_no_surplus"
@@ -185,6 +197,7 @@ REASON_OFF_PRIORITY = "off_priority"
 REASON_OFF_MODE = "off_mode"
 REASON_OFF_MANUAL = "off_manual"
 REASON_HOLD = "hold"
+REASON_HOLD_FORECAST = "hold_forecast"
 REASON_NO_DATA = "no_data"
 
 REASON_LABELS = {
@@ -192,7 +205,7 @@ REASON_LABELS = {
     REASON_ON_DEADLINE: "Frist-Ziel aktiv",
     REASON_ON_MANUAL: "Power Charge aktiv",
     REASON_ON_MIN_SOC: "Mindest-SOC wird geladen",
-    REASON_ON_WP_TEST: "WP-Test läuft",
+    REASON_ON_SCHEDULE: "Kalender-Zeitfenster aktiv",
     REASON_ON_WP_SAFETY: "Sicherheits-Minimum unterschritten",
     REASON_OFF_TARGET: "Ziel erreicht",
     REASON_OFF_NO_SURPLUS: "Kein Überschuss mehr",
@@ -200,6 +213,7 @@ REASON_LABELS = {
     REASON_OFF_MODE: "Modus geändert",
     REASON_OFF_MANUAL: "Manuell gestoppt",
     REASON_HOLD: "Zustand gehalten (Messung ungültig)",
+    REASON_HOLD_FORECAST: "Kurze Wolkenphase – läuft weiter (Prognose)",
     REASON_NO_DATA: "Keine Messwerte",
 }
 
@@ -224,9 +238,6 @@ DEFAULT_CONFIG = {
         "cycle_s": DEFAULT_CYCLE_S,
         "min_on_s": DEFAULT_MIN_ON_S,
         "min_off_s": DEFAULT_MIN_OFF_S,
-        "wp_test_target_c": WP_TEST_TARGET_C,
-        "wp_test_max_duration_min": WP_TEST_MAX_DURATION_MIN,
-        "wp_test_disturbance_w": WP_TEST_DISTURBANCE_W,
         "ui_theme": DEFAULT_UI_THEME,
         # Deine Farbe (ersetzt das HA-Blau): "auto" = Theme-Standard,
         # "custom" = freie Farbe aus accent_custom (Hex, z. B. "#ff9f1c")
@@ -239,10 +250,11 @@ DEFAULT_CONFIG = {
         "auto_pairing": False,
         # Manueller Modus: PVM steuert nichts, misst aber weiter (Monitor).
         "manual_mode": False,
+        # PV-Prognose & vorausschauende Regelung (Standard: an, offline-sicher)
+        "forecast_enabled": FORECAST_ENABLED_DEFAULT,
+        "pre_charge": True,
     },
     "devices": [],
-    # WP-Test-Ergebnisse (dauerhaft, damit nach Neustart noch abrufbar)
-    "wp_test_results": {},
 }
 
 # Beschriftungen für die Geräte-Entitäten (deutsch) – Schlüssel = Entitäten-Typ
@@ -261,9 +273,6 @@ ENTITY_LABELS = {
     "status": "Status",
     "up": "Priorität erhöhen",
     "down": "Priorität senken",
-    "test_start": "WP-Test starten",
-    "test_abort": "WP-Test abbrechen",
-    "wp_test_result": "Letzter WP-Test",
     # Nummern-Zusätze (Feintuning im Dashboard)
     "power_limit": "Max. Ladeleistung",
     "min_on_power": "Mindest-Überschuss zum Laden",

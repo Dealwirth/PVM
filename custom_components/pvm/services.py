@@ -8,7 +8,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN, ROLE_FAHRZEUG, ROLE_WAERMEPUMPE
+from .const import DOMAIN, ROLE_FAHRZEUG
 from .manager import PvmManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -136,21 +136,6 @@ async def _async_handle_deadline(hass: HomeAssistant, call: ServiceCall, clear: 
     manager.request_cycle()
 
 
-async def _async_handle_wp_test(hass: HomeAssistant, call: ServiceCall, start: bool) -> None:
-    """Startet/bricht den WP-Kalibrierungstest ab."""
-    manager = _get_manager(hass)
-    if manager is None:
-        return
-    target = _require_target(call)
-    device = _resolve_device(hass, target["entity_id"])
-    if device is None or device.get("role") != ROLE_WAERMEPUMPE:
-        raise ValueError("Keine Wärmepumpe an dieser Entität gefunden")
-    if start:
-        await manager.wp_test_start(device["id"])
-    else:
-        await manager.wp_test_abort(device["id"])
-
-
 async def _async_handle_scan(hass: HomeAssistant, call: ServiceCall) -> None:
     """Startet die automatische Geräteerkennung."""
     manager = _get_manager(hass)
@@ -234,8 +219,6 @@ async def async_register_services(hass: HomeAssistant) -> None:
         "set_priority": lambda call: _async_handle_set_priority(hass, call),
         "set_deadline": lambda call: _async_handle_deadline(hass, call, clear=False),
         "clear_deadline": lambda call: _async_handle_deadline(hass, call, clear=True),
-        "wp_test_start": lambda call: _async_handle_wp_test(hass, call, start=True),
-        "wp_test_abort": lambda call: _async_handle_wp_test(hass, call, start=False),
         "scan_devices": lambda call: _async_handle_scan(hass, call),
         "rebuild_dashboard": lambda call: _async_handle_rebuild_dashboard(hass, call),
         "run_self_test": lambda call: _async_handle_self_test(hass, call),

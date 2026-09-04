@@ -19,7 +19,6 @@ from .const import (
     ENTITY_LABELS,
     MODE_LABELS,
     ROLE_FAHRZEUG,
-    ROLE_WAERMEPUMPE,
     ROLE_WALLBOX,
     STALE_SOC_AFTER_S,
 )
@@ -46,8 +45,6 @@ async def async_setup_entry(
             continue
         entities.append(PvmRankSensor(manager, device))
         entities.append(PvmDeviceStatusSensor(manager, device))
-        if device.get("role") == ROLE_WAERMEPUMPE:
-            entities.append(PvmWpTestResultSensor(manager, device))
     async_add_entities(entities)
 
 
@@ -310,31 +307,3 @@ class PvmCarStatusSensor(_PvmDeviceSensor):
             )
         return attrs
 
-
-class PvmWpTestResultSensor(_PvmDeviceSensor):
-    """Ergebnis des letzten WP-Kalibrierungstests."""
-
-    _attr_icon = "mdi:thermometer-lines"
-
-    def __init__(self, manager: PvmManager, device: dict) -> None:
-        super().__init__(manager, device)
-        self._attr_unique_id = f"{DOMAIN}_wp_test_result_{self.device_id}"
-        self._attr_name = f"{self.device_name} – {ENTITY_LABELS['wp_test_result']}"
-
-    @property
-    def native_value(self) -> str:
-        result = self.manager.wp_test_result(self.device_id)
-        if result is None:
-            return "Kein Test"
-        running = bool(self.device.get("wp", {}).get("test_active"))
-        if running:
-            return "Test läuft"
-        return str(result.get("status_label", result.get("status", "")))
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        result = self.manager.wp_test_result(self.device_id)
-        if not result:
-            return {}
-        running = bool(self.device.get("wp", {}).get("test_active"))
-        return {**result, "running": running}

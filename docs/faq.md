@@ -93,13 +93,15 @@ PVM **nie** Netzstrom für den Überschuss-Betrieb.
 - Der SoC-Sensor muss regelmäßig aktualisieren; ist er älter als ~30 Minuten,
   geht PVM auf Nummer sicher und wartet.
 
-## „WP-Test“ startet nicht oder endet sofort
+## Die Wärmepumpe bleibt zu kalt (Legionellen-Schutz)
 
-- Der **Temperatur-Sensor** muss konfiguriert sein (Pflicht für den Test).
-- Ist die Temperatur bereits über der Zieltemperatur (Standard 70 °C), endet der
-  Test sofort mit „Ziel erreicht“ – korrekt so.
-- Keine Leistung gemessen? Dann fehlt der Leistungssensor; Dauer und Temperatur
-  werden trotzdem protokolliert.
+- Prüfe das **Notfall-Minimum** der Wärmepumpe: Standard **60 °C**. Darunter
+  darf das Wasser nicht fallen – PVM heizt zur Not auch mit Netzstrom, damit
+  keine Bakterien entstehen.
+- Der **Temperatur-Sensor** muss korrekt verbunden sein und regelmäßig
+  aktualisieren – nur dann kann PVM das Minimum überwachen.
+- Beim Einstellen zeigt dir der **Zonen-Regler** farbig, ab wann es zu kalt
+  (unter 55 °C) bzw. unnötig heiß (über 70 °C) wird.
 
 ## Nach einem Neustart sind Einstellungen weg
 

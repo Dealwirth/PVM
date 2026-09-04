@@ -6,14 +6,15 @@ from custom_components.pvm.const import (
     MODE_DEADLINE,
     MODE_OFF,
     MODE_SURPLUS,
+    REASON_HOLD_FORECAST,
     REASON_OFF_NO_SURPLUS,
     REASON_OFF_TARGET,
     REASON_ON_DEADLINE,
     REASON_ON_MANUAL,
     REASON_ON_MIN_SOC,
+    REASON_ON_SCHEDULE,
     REASON_ON_SURPLUS,
     REASON_ON_WP_SAFETY,
-    REASON_ON_WP_TEST,
     ROLE_VERBRAUCHER,
     ROLE_WAERMEPUMPE,
     ROLE_WALLBOX,
@@ -108,10 +109,9 @@ def wp(
     temp: float = 55.0,
     temp_valid: bool = True,
     comfort: float = 60.0,
-    safety: float = 40.0,
+    safety: float = 60.0,
     est: float = 2000.0,
     state_on: bool = False,
-    test_active: bool = False,
     grid_fallback: bool = True,
     enabled: bool = True,
     measured: float | None = None,
@@ -138,7 +138,6 @@ def wp(
             safety_min_c=safety,
             est_power_w=est,
             grid_fallback_allowed=grid_fallback,
-            test_active=test_active,
         ),
     )
 
@@ -399,7 +398,9 @@ def test_deadline_mode_still_runs_deadline():
 # ---------------------------------------------------------------------------
 
 def test_wp_runs_from_surplus_below_comfort():
-    wp_dev = wp("wp1", 1, temp=55.0, comfort=60.0)
+    # Notfall-Minimum (60 °C) bereits erreicht, aber unter der Soll-Temperatur
+    # (65 °C) → normales Überschuss-Heizen bis zur Soll-Temperatur.
+    wp_dev = wp("wp1", 1, temp=62.0, comfort=65.0)
     plan = run([wp_dev], surplus=2000.0)
     action = action_for(plan, "wp1")
     assert action is not None and action.set_on is True
@@ -407,7 +408,7 @@ def test_wp_runs_from_surplus_below_comfort():
 
 
 def test_wp_off_when_comfort_reached():
-    wp_dev = wp("wp1", 1, temp=60.5, comfort=60.0, state_on=True, )
+    wp_dev = wp("wp1", 1, temp=65.5, comfort=65.0, state_on=True)
     wp_dev.last_on_ts = NOW - 600
     plan = run([wp_dev], surplus=5000.0)
     action = action_for(plan, "wp1")
@@ -427,14 +428,6 @@ def test_wp_safety_requires_fallback_flag():
     wp_dev = wp("wp1", 1, temp=35.0, safety=40.0, grid_fallback=False)
     plan = run([wp_dev], surplus=0.0)
     assert action_for(plan, "wp1") is None
-
-
-def test_wp_test_forces_on():
-    wp_dev = wp("wp1", 1, temp=50.0, test_active=True)
-    plan = run([wp_dev], surplus=0.0)
-    action = action_for(plan, "wp1")
-    assert action is not None and action.set_on is True
-    assert action.reason == REASON_ON_WP_TEST
 
 
 def test_wp_stale_temp_keeps_running():
@@ -474,3 +467,68 @@ def test_invalid_surplus_holds_state():
     plan = run([dev], surplus=0.0, valid=False)
     # Kein Ausschalten, wenn die Messung gerade unbrauchbar ist
     assert action_for(plan, "washer") is None or action_for(plan, "washer").set_on is None
+
+
+def test_consumer_schedule_window_runs_on_surplus():
+    dev = consumer("c1", 1, nominal=2000.0)
+    dev.scheduled_window = True
+    dev.schedule_on = True
+    plan = run([dev], surplus=5000.0)
+    action = action_for(plan, "c1")
+    assert action is not None and action.set_on is True
+    assert action.reason == REASON_ON_SURPLUS
+
+
+def test_consumer_schedule_window_off_after_end():
+    dev = consumer("c1", 1, nominal=2000.0, state_on=True)
+    dev.scheduled_window = True
+    dev.schedule_on = False
+    dev.last_on_ts = NOW - 600
+    plan = run([dev], surplus=5000.0)
+    action = action_for(plan, "c1")
+    assert action is not None and action.set_on is False
+    assert action.reason == REASON_OFF_TARGET
+
+
+def test_schedule_window_with_grid_forces_on():
+    dev = consumer("c1", 1, nominal=2000.0)
+    dev.scheduled_window = True
+    dev.schedule_on = True
+    dev.schedule_grid = True
+    dev.schedule_power_w = 2000.0
+    plan = run([dev], surplus=0.0)
+    action = action_for(plan, "c1")
+    assert action is not None and action.set_on is True
+    assert action.reason == REASON_ON_SCHEDULE
+
+
+def test_forecast_dip_holds_wp_switched_on():
+    # Kurze Wolkenphase laut Prognose: laufende Wärmepumpe bleibt an,
+    # statt sofort abgeschaltet zu werden (kein Flackern).
+    wp_dev = wp("wp1", 1, temp=62.0, comfort=65.0, state_on=True, measured=2000.0)
+    wp_dev.last_on_ts = NOW - 600
+    plan = eng.compute_plan(
+        eng.CycleInput(
+            now=NOW, mode=MODE_AUTO, surplus_w=0.0, surplus_valid=True,
+            devices=[wp_dev], forecast_recovery_min=10,
+        )
+    )
+    action = action_for(plan, "wp1")
+    assert action is not None and action.set_on is None
+    assert action.reason == REASON_HOLD_FORECAST
+
+
+def test_forecast_dip_does_not_hold_wallbox():
+    # Nur die Wallbox regelt bei einer Wolke live herunter (kein Halten),
+    # damit das Auto nicht unnötig Netz zieht.
+    wb = car("wb1", 1, soc=60.0, state_on=True, measured=6000.0, has_setpoint=False)
+    wb.last_on_ts = NOW - 600
+    plan = eng.compute_plan(
+        eng.CycleInput(
+            now=NOW, mode=MODE_AUTO, surplus_w=0.0, surplus_valid=True,
+            devices=[wb], forecast_recovery_min=10,
+        )
+    )
+    action = action_for(plan, "wb1")
+    assert action is not None and action.set_on is False
+    assert action.reason == REASON_OFF_NO_SURPLUS

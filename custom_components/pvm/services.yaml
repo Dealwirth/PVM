@@ -86,32 +86,6 @@ clear_deadline:
           integration: pvm
           multiple: false
 
-wp_test_start:
-  name: WP-Test starten
-  description: Startet den Kalibrierungstest einer Wärmepumpe (Aufheizen bis 70 °C mit Messung).
-  fields:
-    entity_id:
-      name: Wärmepumpe
-      description: Eine Entität der Wärmepumpe.
-      required: true
-      selector:
-        entity:
-          integration: pvm
-          multiple: false
-
-wp_test_abort:
-  name: WP-Test abbrechen
-  description: Bricht einen laufenden WP-Kalibrierungstest ab.
-  fields:
-    entity_id:
-      name: Wärmepumpe
-      description: Eine Entität der Wärmepumpe.
-      required: true
-      selector:
-        entity:
-          integration: pvm
-          multiple: false
-
 scan_devices:
   name: Geräte suchen
   description: Startet die automatische Geräteerkennung und zeigt Vorschläge an.

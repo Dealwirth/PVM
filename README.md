@@ -1,13 +1,15 @@
 # ☀️ PVM – PV Manager
 
+<p align="center"><img src="icon.png" alt="PVM" width="84" height="84"></p>
+
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.2.0+-blue.svg)](https://www.home-assistant.io)
-[![GitHub Release](https://img.shields.io/badge/version-1.8.0-blue.svg)](https://github.com/Dealwirth/PVM/releases)
+[![GitHub Release](https://img.shields.io/badge/version-1.9.0-blue.svg)](https://github.com/Dealwirth/PVM/releases)
 [![License](https://img.shields.io/github/license/Dealwirth/PVM)](LICENSE)
 
 **PVM** ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deinen
 PV-Überschuss automatisch an Wallboxen, Wärmepumpe, Waschmaschine & Co. – über eine
-eigene, klar gestaltete **PV-Manager-Seite** in der Seitenleiste. Kein YAML, kein
+eigene, klar gestaltete **PVM-Seite** in der Seitenleiste (mit eigenem Logo). Kein YAML, kein
 Setup-Wizard: Installieren, öffnen, Geräte per Klick übernehmen – fertig.
 
 <p align="center" style="margin:26px 0">
@@ -45,7 +47,7 @@ Setup-Wizard: Installieren, öffnen, Geräte per Klick übernehmen – fertig.
 
 1. **Installieren** – klick oben auf den blauen Button (oder: *HACS → Custom repositories → `https://github.com/Dealwirth/PVM` → Typ „Integration“*) und starte Home Assistant neu.
 2. **Aktivieren** – *Einstellungen → Geräte & Dienste → Integration hinzufügen → „PV Manager“*. Keine Fragen, ein Klick genügt.
-3. **Loslegen** – öffne die neue **PV-Manager-Seite** in der Seitenleiste. Das Start-Tutorial führt dich Schritt für Schritt durch die Einrichtung.
+3. **Loslegen** – öffne die neue **PVM-Seite** in der Seitenleiste. Das Start-Tutorial führt dich Schritt für Schritt durch die Einrichtung.
 
 > 🎯 Ziel erreicht, sobald zwei Dinge stehen: **Energie-Sensoren** (PV + Netz) und **mindestens ein Gerät** (Wallbox, Wärmepumpe, Verbraucher oder Auto). Alles Weitere kannst du jederzeit nachträglich ändern – nichts ist beim Anlegen festgeschrieben.
 
@@ -55,8 +57,8 @@ Setup-Wizard: Installieren, öffnen, Geräte per Klick übernehmen – fertig.
 
 | | | |
 |---|---|---|
-| ⚡ **Überschuss verteilen**<br><small>Solarstrom zuerst an deine wichtigsten Geräte – du legst die Reihenfolge fest.</small> | 🚗 **E-Autos & Wallboxen**<br><small>Mindest-SOC, Max-SOC, Zeit-Ziele und Power Charge. Die Auto-Erkennung ist zuschaltbar – sonst nutzt PVM die Heimat-Wallbox.</small> | 🌡️ **Wärmepumpe**<br><small>Bei Überschuss bis zur Komfort-Temperatur heizen – mit Notfall-Schutz, Testlauf und „Nur Ziel-Temperatur“ für Wärmepumpen ohne Ein/Aus.</small> |
-| 🧺 **Verbraucher**<br><small>Waschmaschine, Poolpumpe, Lüftung … alles Schaltbare bekommt Überschuss.</small> | 🔍 **Geräte-Erkennung**<br><small>PVM durchsucht deine Integrationen und schlägt passende Sensoren und Geräte vor – du bestätigst per Klick.</small> | 📊 **Eigene Seite**<br><small>Live-Energiefluss, Karten und Einstellungen auf einer eigenen Seite – ganz im Design deines Home Assistant.</small> |
+| ⚡ **Überschuss verteilen**<br><small>Solarstrom zuerst an deine wichtigsten Geräte – du legst die Reihenfolge fest.</small> | 🚗 **E-Autos & Wallboxen**<br><small>Mindest-SOC, Max-SOC, Zeit-Ziele und Power Charge. Die Auto-Erkennung ist zuschaltbar – sonst nutzt PVM die Heimat-Wallbox.</small> | 🌡️ **Wärmepumpe**<br><small>Bei Überschuss bis zur Komfort-Temperatur heizen – mit Notfall-Schutz (Minimum 60 °C gegen Legionellen) und „Nur Ziel-Temperatur“ ohne Ein/Aus.</small> |
+| 🧺 **Verbraucher**<br><small>Waschmaschine, Poolpumpe, Lüftung … alles Schaltbare bekommt Überschuss.</small> | 🔍 **Geräte-Erkennung**<br><small>PVM durchsucht deine Integrationen und schlägt passende Sensoren und Geräte vor – du bestätigst per Klick.</small> | 📊 **Statistik & Prognose**<br><small>Leistungs-Charts mit Modi und Einzel-Auswahl plus PV-Prognose (15 Min / 3 h / Tag) – anonym, ohne API-Zugang.</small> |
 | 🧲 **Netzbezug & Einspeisung**<br><small>Ein kombinierter Sensor **oder** zwei getrennte Zähler – du entscheidest, PVM rechnet beides korrekt.</small> | 🛡️ **Ausfallsicher**<br><small>Sensorausfälle blockieren nichts; die Engine pausiert kurz und startet von selbst neu.</small> | 🔌 **Herstellerunabhängig**<br><small>Alles, was in HA als Entität existiert, kann PVM steuern – auch evcc, openWB, go-e & Co.</small> |
 
 PVM ist **modular**: Du brauchst nicht alle Funktionen – es läuft auch mit nur einer Wallbox oder nur einer Wärmepumpe.
@@ -72,7 +74,8 @@ Die **PV-Manager-Seite** ist deine Zentrale. Ihre Reiter:
 - **🔌 Geräte** – Geräte hinzufügen, **bearbeiten** (✏️) oder entfernen (🗑️) – jederzeit, auch nachträglich.
 - **⬆️ Reihenfolge** – wer zuerst Überschuss bekommt (oben = zuerst).
 - **🔍 Gefunden** – Vorschläge der Auto-Erkennung mit Begründung und Live-Messwert.
-- **🎨 Einstellungen** – Energie-Sensoren, Modus, Reserve, Zeiten und Design – alles aufklappbar.
+- **📊 Statistik** – Leistungs-Charts (Fläche/Linie), Modi (Alles, PV, Verbraucher, Wallboxen, Netz) und die PV-Prognose.
+- **🎨 Einstellungen** – Energie-Sensoren (mit ✓-Haken und Detail-Klick), Modus, Reserve, Zeiten und Design – alles aufklappbar.
 
 Die wichtigsten Knöpfe im Überblick:
 

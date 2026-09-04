@@ -88,10 +88,16 @@
     entities: {},   // entity_id -> {state, attributes}
     scan: { sets: [] },
     setup: "start",
-    version: "1.8.0-sandbox",
+    version: "1.9.0-sandbox",
     carMode: "charging", // "charging" | "away"
     listeners: [],
   };
+
+  // Kleine PV-Tageskurve für die Verlaufs- und Prognose-Darstellung (kW)
+  function pvCurveAt(hourFloat) {
+    const day = Math.sin(((hourFloat - 6.5) / 11.5) * Math.PI); // Sonnenaufgang ~6:30
+    return Math.max(0, day) * 6.1;
+  }
 
   function freshEnergy(separate) {
     return separate
@@ -131,7 +137,7 @@
       car: null,
       wp: null,
     };
-    if (role === "waermepumpe") base.wp = { comfort_c: 60, safety_min_c: 40, est_power_w: 2000, grid_fallback_allowed: true, test_active: false, boost_c: 65 };
+    if (role === "waermepumpe") base.wp = { comfort_c: 60, safety_min_c: 60, est_power_w: 2000, grid_fallback_allowed: true, boost_c: 65 };
     return base;
   }
 
@@ -139,9 +145,8 @@
     const energy = freshEnergy(separate);
     const wallbox = defaultDevice("wallbox", "Wallbox Garage");
     wallbox.id = "wb1";
-    wallbox.sensors = { power: "sensor.wallbox_garage_leistung", soc: "sensor.auto_soc", temp: null };
+    wallbox.sensors = { power: "sensor.wallbox_garage_leistung", soc: null, temp: null };
     wallbox.control = { type: "switch", switch_entity: "switch.wallbox_garage_freigabe", number_entity: "number.wallbox_garage_max", on_entity: null, off_entity: null, temp_entity: null, has_limiter: true, number_unit: "A", phases: 3 };
-    wallbox.car = { capacity_kwh: 60, min_soc: 30, max_soc: 80, min_charge_power_w: 4000, grid_min_allowed: true, grid_deadline_allowed: true, manual_force: false, deadline_time: null, deadline_soc: 0 };
     const auto = defaultDevice("fahrzeug", "Enyaq");
     auto.id = "car1";
     auto.sensors = { power: "sensor.auto_leistung", soc: "sensor.auto_soc", temp: null };
@@ -154,12 +159,10 @@
       energy,
       settings: {
         mode: "auto", reserve_w: 100, cycle_s: 30, min_on_s: 120, min_off_s: 60,
-        wp_test_target_c: 70, wp_test_max_duration_min: 120, ui_theme: "ha",
-        accent: "auto", accent_custom: "", intro_done: false,
-        auto_pairing: false, manual_mode: false,
+        ui_theme: "ha", accent: "auto", accent_custom: "", intro_done: false,
+        auto_pairing: false, manual_mode: false, forecast_enabled: true,
       },
       devices: separate ? [wallbox, auto, wp] : [wallbox, auto, wp],
-      wp_test_results: {},
     };
   }
 
@@ -235,6 +238,8 @@
     ensureEntity("switch.poolpumpe", "Poolpumpe", "off");
     ensureEntity("sensor.wp_vorlauf", "Wärmepumpe Vorlauf", "52.0", { unit_of_measurement: "°C", device_class: "temperature" });
     ensureEntity("number.wp_soll", "Wärmepumpe Soll-Temperatur", "60.0", { unit_of_measurement: "°C" });
+    ensureEntity("sensor.haus_leistung", "Haus Leistung", "1.8", { unit_of_measurement: "kW", device_class: "power" });
+    ensureEntity("sensor.pv_zaehlerstand", "PV Zählerstand (falsche Einheit)", "12.4", { unit_of_measurement: "kWh", device_class: "energy" });
   }
 
   function entityMapFor(config) {
@@ -266,6 +271,8 @@
     const sep = config.energy.grid_mode === "separate";
     const sets = [];
     sets.push({ role: "pv", title: "SolarNet PV-Leistung", fields: { entity: "sensor.solarnet_pv_leistung" } });
+    sets.push({ role: "house", title: "Haus Leistung", fields: { entity: "sensor.haus_leistung" } });
+    sets.push({ role: "house", title: "Haus Zählerstand (kWh – Testschutz)", fields: { entity: "sensor.pv_zaehlerstand" } });
     if (sep) {
       sets.push({ role: "grid_import", title: "SolarNet Netzbezug", fields: { entity: "sensor.solarnet_leistung_verbrauch" } });
       sets.push({ role: "grid_export", title: "SolarNet Netzeinspeisung", fields: { entity: "sensor.solarnet_leistung_netzeinspeisung" } });
@@ -363,7 +370,9 @@
     }
     if (t === "pvm/save_config") {
       world.config = msg.config || world.config;
-      world.scan = { sets: scanSetsFor(world.config) };
+      // Scan NICHT neu erzeugen – wie im echten HA bleibt die „Gefunden“-
+      // Liste bis zum nächsten „Jetzt suchen“ unverändert (sonst kämen
+      // übernommene Einträge nach dem Speichern sofort wieder).
       log("💾 Konfiguration gespeichert (Geräte: " + (world.config.devices || []).length + ")");
       return { result: { ok: true, instance: world.instance } };
     }
@@ -377,8 +386,87 @@
       world.scan = { sets: scanSetsFor(world.config) };
       return { result: world.scan };
     }
+    if (t === "pvm/forecast") {
+      return { result: mockForecast() };
+    }
+    if (t === "recorder/history_during_period") {
+      return { result: mockHistory(msg) };
+    }
     if (t === "auth") return { result: true };
     return { result: { ok: true } };
+  }
+
+  // ------------------------------------------------------------------
+  // Statistik & Prognose – Sandbox-Daten
+  // ------------------------------------------------------------------
+  function historyAmplitude(entityId) {
+    const id = String(entityId || "");
+    if (id.indexOf("pv") >= 0) return 5200;
+    if (id.indexOf("netzeinspeisung") >= 0) return 2400;
+    if (id.indexOf("verbrauch") >= 0) return 1900;
+    if (id.indexOf("netz") >= 0) return 1400;
+    if (id.indexOf("wallbox") >= 0) return 4600;
+    if (id.indexOf("wp") >= 0) return 1900;
+    if (id.indexOf("auto_leistung") >= 0) return 4600;
+    return 1200;
+  }
+  function mockHistory(msg) {
+    const ids = msg.entity_ids || [];
+    const start = Date.parse(msg.start_time);
+    const end = Date.parse(msg.end_time);
+    const n = 70;
+    const out = {};
+    ids.forEach((eid, ei) => {
+      const amp = historyAmplitude(eid);
+      const points = [];
+      for (let i = 0; i < n; i++) {
+        const t = start + ((end - start) * i) / (n - 1);
+        const ph = 2.1 + ei * 1.7;
+        const wob = Math.sin(i / 6 + ph) * 0.22 + Math.sin(i / 2.2 + ph) * 0.1;
+        const solar = pvCurveAt(new Date(t).getHours() + new Date(t).getMinutes() / 60) * 1000;
+        let v;
+        if (eid.indexOf("pv") >= 0) v = solar * (0.8 + 0.2 * Math.sin(i / 5));
+        else if (eid.indexOf("wallbox") >= 0 || eid.indexOf("auto_leistung") >= 0)
+          v = world.carMode === "charging" ? amp * (1 + wob) : Math.max(0, amp * (0.06 + 0.05 * wob));
+        else v = amp * (0.5 + 0.5 * Math.sin(i / 7 + ph)) + Math.max(0, solar * 0.25);
+        const e = world.entities[eid];
+        const unit = e && e.attributes ? e.attributes.unit_of_measurement : "W";
+        const factor = unit === "kW" ? 1000 : unit === "mW" ? 0.001 : 1;
+        points.push({ l: new Date(t).toISOString(), s: String(Math.max(0, v / factor).toFixed(factor === 1000 ? 3 : 1)) });
+      }
+      out[eid] = points;
+    });
+    return out;
+  }
+
+  function mockForecast() {
+    const now = new Date();
+    const hNow = now.getHours() + now.getMinutes() / 60;
+    const series = [];
+    for (let i = 0; i <= 12; i++) {
+      let kw = pvCurveAt(hNow + i * 0.25);
+      if (i === 1) kw *= 0.35; // kurze Wolke in 15 Minuten
+      if (i === 2) kw *= 0.85;
+      series.push({ t: i * 15, pv_w: Math.round(kw * 1000) });
+    }
+    const dayCurve = [];
+    for (let m = 0; m < 48; m++) {
+      const h = hNow + (m / 48) * 12;
+      dayCurve.push({ t: Math.round(m * 15), pv_w: Math.round(pvCurveAt(h) * 1000) });
+    }
+    let dayKwh = 0;
+    for (let m = 0; m < 96; m++) {
+      const h = hNow + (m / 96) * 12;
+      dayKwh += pvCurveAt(h) * (12 / 96);
+    }
+    return {
+      source: "openmeteo",
+      series: series,
+      day_curve: dayCurve,
+      day_kwh: Math.round(dayKwh * 10) / 10,
+      recovery_min: 9,
+      note: "Kurze Wolkenphase in ~15 Minuten – danach wieder volle Sonne. (Sandbox-Daten)",
+    };
   }
 
   function payload() {

@@ -47,9 +47,10 @@ def test_min_soc_clamped_below_max():
 
 
 def test_wp_defaults():
+    # Notfall-Minimum beginnt bei 60 °C (Legionellen-Schutz) – nie tiefer.
     device = cm.normalize_device(cm.default_device(ROLE_WAERMEPUMPE, "WP"))
     assert device["wp"]["comfort_c"] == 60.0
-    assert device["wp"]["safety_min_c"] == 40.0
+    assert device["wp"]["safety_min_c"] == 60.0
 
 
 def test_consumer_defaults():
@@ -301,7 +302,7 @@ def test_wp_boost_c_default_and_clamp():
     wp = normalized["wp"]
     assert wp["boost_c"] is not None
     assert wp["boost_c"] > wp["comfort_c"]
-    assert 40.0 <= wp["boost_c"] <= 70.0
+    assert 40.0 <= wp["boost_c"] <= 80.0
 
 
 def test_settings_auto_pairing_and_manual_defaults():

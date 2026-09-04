@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import copy
 import uuid
+from typing import Any
 
 from .const import (
     CONTROL_BUTTONS,
@@ -42,6 +43,8 @@ from .const import (
     SETUP_MESSUNGEN,
     SETUP_START,
     UI_THEMES,
+    WP_TEMP_MAX_C,
+    WP_TEMP_MIN_C,
 )
 
 # Erlaubte Rollen/Modi (Vermeidet kaputte Daten durch Tippfehler)
@@ -55,8 +58,6 @@ LIMITS = {
     "min_soc": (0.0, 100.0),
     "max_soc": (10.0, 100.0),
     "deadline_soc": (0.0, 100.0),
-    "comfort_c": (40.0, 70.0),
-    "safety_min_c": (20.0, 50.0),
     "capacity_kwh": (1.0, 300.0),
     "power_limit_w": (100.0, 22000.0),
     "min_on_power_w": (100.0, 11000.0),
@@ -123,6 +124,7 @@ def default_device(role: str, name: str = "Gerät") -> dict:
         },
         "car": None,
         "wp": None,
+        "schedule": [],
     }
     if role == ROLE_WALLBOX:
         device["car"] = {
@@ -159,7 +161,6 @@ def default_device(role: str, name: str = "Gerät") -> dict:
             "safety_min_c": DEFAULT_WP_SAFETY_MIN_C,
             "est_power_w": DEFAULT_WP_EST_POWER_W,
             "grid_fallback_allowed": True,
-            "test_active": False,
             # Ziel-Temperatur bei Überschuss („Boosten“) – wird bei genügend
             # Überschuss gesetzt, bei zu wenig wieder auf die Soll-Temperatur
             # zurückgestellt.
@@ -271,21 +272,27 @@ def normalize_device(device: dict) -> dict:
     else:
         merged["car"] = None
 
-    # Wärmepumpe
+    # Wärmepumpe (Speichertemperatur, hygienisch ≥ 60 °C für das Notfall-Minimum)
     wp = merged.get("wp")
     if wp is not None and isinstance(wp, dict):
-        wp["comfort_c"] = _clamp(_clean(wp.get("comfort_c")), (40.0, 70.0))
-        wp["safety_min_c"] = _clamp(_clean(wp.get("safety_min_c")), (20.0, 50.0))
+        wp["comfort_c"] = _clamp(_clean(wp.get("comfort_c")), (WP_TEMP_MIN_C, WP_TEMP_MAX_C))
+        # Notfall-Minimum: beginnt bei 60 °C (Legionellen-Schutz) – nie tiefer.
+        wp["safety_min_c"] = _clamp(
+            _clean(wp.get("safety_min_c")), (DEFAULT_WP_SAFETY_MIN_C, WP_TEMP_MAX_C)
+        )
         wp["est_power_w"] = _clamp(_clean(wp.get("est_power_w")), (50.0, 22000.0))
         wp["grid_fallback_allowed"] = bool(wp.get("grid_fallback_allowed", True))
-        wp["test_active"] = bool(wp.get("test_active", False))
         # Ziel-Temperatur bei Überschuss („Boosten“) – immer über der normalen
         # Soll-Temperatur, sonst wäre das Anheben sinnlos.
-        boost = _clamp(_clean(wp.get("boost_c")), (40.0, 70.0))
+        boost = _clamp(_clean(wp.get("boost_c")), (WP_TEMP_MIN_C, WP_TEMP_MAX_C))
         comfort = wp["comfort_c"]
-        wp["boost_c"] = max(boost, min(comfort + 1.0, 70.0)) if boost is not None else min(comfort + 5.0, 70.0)
+        wp["boost_c"] = (
+            max(boost, min(comfort + 1.0, WP_TEMP_MAX_C))
+            if boost is not None
+            else min(comfort + 5.0, WP_TEMP_MAX_C)
+        )
         if wp["boost_c"] is None:
-            wp["boost_c"] = min(DEFAULT_WP_BOOST_C, 70.0)
+            wp["boost_c"] = min(DEFAULT_WP_BOOST_C, WP_TEMP_MAX_C)
     else:
         merged["wp"] = None
 
@@ -295,6 +302,32 @@ def normalize_device(device: dict) -> dict:
         limits["nominal_power_w"] = _clamp(
             _clean(limits.get("nominal_power_w")), (50.0, 22000.0)
         )
+
+    # Kalender-Termine (einmalige Zeitfenster/Ziele) – bereinigt übernehmen
+    schedule: list[dict] = []
+    for entry in merged.get("schedule") or []:
+        if not isinstance(entry, dict):
+            continue
+        item: dict[str, Any] = {
+            "id": str(entry.get("id") or uuid.uuid4().hex[:8]),
+            "grid": bool(entry.get("grid", role != ROLE_VERBRAUCHER)),
+        }
+        target = entry.get("target")
+        if target not in (None, ""):
+            cleaned = _clamp(_clean(target), (0.0, 100.0))
+            if cleaned is not None:
+                item["target"] = cleaned
+        for key in ("start", "end"):
+            raw = entry.get(key)
+            if raw:
+                item[key] = str(raw)[:16]
+        # Verbraucher-Fenster brauchen mindestens einen Zeitpunkt
+        if role == ROLE_VERBRAUCHER and not (item.get("start") or item.get("end")):
+            continue
+        if role in (ROLE_FAHRZEUG, ROLE_WAERMEPUMPE) and not item.get("end"):
+            continue
+        schedule.append(item)
+    merged["schedule"] = schedule
 
     return merged
 
@@ -340,6 +373,13 @@ def normalize_config(data: dict | None) -> dict:
     # Neue Schalter-Einstellungen (Auto-Erkennung, manueller Modus)
     settings["auto_pairing"] = bool(settings.get("auto_pairing", False))
     settings["manual_mode"] = bool(settings.get("manual_mode", False))
+    # PV-Prognose & vorausschauende Regelung (Standard: an, offline-sicher)
+    settings["forecast_enabled"] = bool(settings.get("forecast_enabled", True))
+    settings["pre_charge"] = bool(settings.get("pre_charge", True))
+    # Alte WP-Kalibrierungs-Einstellungen entfernen (Leistungsmessung gelöscht)
+    settings.pop("wp_test_target_c", None)
+    settings.pop("wp_test_max_duration_min", None)
+    settings.pop("wp_test_disturbance_w", None)
     defaults = DEFAULT_CONFIG["settings"]
     for key, value in settings.items():
         if value is None and key in defaults:
@@ -390,8 +430,8 @@ def normalize_config(data: dict | None) -> dict:
         if settings.get("accent") == "custom":
             settings["accent"] = "auto"
 
-    results = merged.get("wp_test_results") or {}
-    merged["wp_test_results"] = {str(k): v for k, v in results.items()}
+    # Alte WP-Test-Daten (Kalibrierung) werden nicht mehr benötigt.
+    merged.pop("wp_test_results", None)
     return merged
 
 

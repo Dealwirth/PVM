@@ -24,15 +24,17 @@ from .const import (
     MODE_OFF,
     MODE_SURPLUS,
     REASON_HOLD,
+    REASON_HOLD_FORECAST,
     REASON_OFF_MANUAL,
     REASON_OFF_NO_SURPLUS,
     REASON_OFF_TARGET,
     REASON_ON_DEADLINE,
     REASON_ON_MANUAL,
     REASON_ON_MIN_SOC,
+    REASON_ON_SCHEDULE,
     REASON_ON_SURPLUS,
     REASON_ON_WP_SAFETY,
-    REASON_ON_WP_TEST,
+    ROLE_VERBRAUCHER,
 )
 
 # Toleranz in Watt: Läuft ein schaltbares Gerät bereits mit Überschuss und der
@@ -45,6 +47,12 @@ DEADLINE_TIME_BUFFER = 1.05
 
 # SoC-Schwelle, ab der ein Auto als "Ziel erreicht" gilt (verhindert Trickle-Loops)
 SOC_DONE_EPSILON_PCT = 0.5
+
+# Solange eine PV-Prognose eine Wiedergenesung innerhalb dieser Minuten
+# erwartet, wird ein laufendes Gerät NICHT abgeschaltet (kein Flackern bei
+# vorüberziehenden Wolken). Wallboxen mit Leistungs-Begrenzung fahren in der
+# Zeit einfach auf die kleinere Rest-Leistung herunter.
+FORECAST_HOLD_MIN = 20
 
 
 @dataclass
@@ -74,8 +82,6 @@ class WpInfo:
     safety_min_c: float
     est_power_w: float
     grid_fallback_allowed: bool = True
-    test_active: bool = False
-    test_max_power_w: float | None = None
 
 
 @dataclass
@@ -98,13 +104,16 @@ class Device:
     enabled: bool = True
     car: CarInfo | None = None
     wp: WpInfo | None = None
+    # Kalender-Zeitfenster (z. B. Verbraucher „Pool läuft 10–16 Uhr“)
+    scheduled_window: bool = False   # hat ein Zeitfenster konfiguriert
+    schedule_on: bool = False        # Fenster gerade aktiv
+    schedule_grid: bool = False      # Netz im Fenster erlaubt
+    schedule_power_w: float = 0.0
 
     def draw_power_w(self) -> float:
         """Geschätzte aktuelle Leistungsaufnahme bei laufendem Gerät."""
         if self.measured_power_w is not None and self.measured_power_w > 0:
             return self.measured_power_w
-        if self.wp is not None and self.wp.test_active:
-            return self.wp.test_max_power_w or self.wp.est_power_w
         return self.nominal_power_w or self.power_limit_w
 
 
@@ -128,6 +137,10 @@ class CycleInput:
     surplus_w: float  # bereits um die Reserve reduzierter Überschuss (>= 0)
     surplus_valid: bool
     devices: list[Device] = field(default_factory=list)
+    # Minuten, bis die PV-Leistung laut Prognose wieder steigt (None = keine
+    # Prognose bzw. keine kurze Wolkenphase). Währenddessen hält die Engine
+    # laufende Geräte, statt hektisch abzuschalten.
+    forecast_recovery_min: int | None = None
 
 
 @dataclass
@@ -158,8 +171,6 @@ def _need_forced_on(
         return _car_forced(device, car, mode, now)
     wp = device.wp
     if wp is not None:
-        if wp.test_active:
-            return True, wp.test_max_power_w or wp.est_power_w, REASON_ON_WP_TEST
         if (
             wp.temp_valid
             and wp.temp_c is not None
@@ -230,8 +241,6 @@ def _surplus_want(device: Device) -> float:
     """Wie viel Leistung möchte das Gerät aus dem Überschuss ziehen?"""
     if device.wp is not None:
         wp = device.wp
-        if wp.test_active:
-            return 0.0  # Test läuft als Garantielauf
         if not wp.temp_valid or wp.temp_c is None:
             # Temperatur kurzzeitig ungültig (z. B. Sensor meldet nur alle
             # 15 min): einen bereits laufenden Heizvorgang mit Messwert
@@ -329,6 +338,14 @@ def compute_plan(inp: CycleInput) -> CyclePlan:
         if not dev.enabled:
             continue
         on, power, reason = _need_forced_on(dev, mode, now)
+        if not on and dev.schedule_on:
+            # Kalender-Zeitfenster mit Netz-Freigabe: garantiert laufen lassen
+            if dev.schedule_grid and _grid_allowed(mode):
+                on, power, reason = (
+                    True,
+                    dev.schedule_power_w or dev.nominal_power_w or dev.power_limit_w,
+                    REASON_ON_SCHEDULE,
+                )
         if not on:
             continue
 
@@ -373,6 +390,26 @@ def compute_plan(inp: CycleInput) -> CyclePlan:
         else:
             put(DeviceAction(id=dev.id, set_on=True, set_power_w=None, reason=reason))
 
+    # Zeitfenster-Kalender: Verbraucher außerhalb ihres Zeitfensters beenden
+    # (auch wenn gerade Überschuss da wäre – das Fenster ist der Wunsch).
+    for dev in devices:
+        if (
+            dev.role == ROLE_VERBRAUCHER
+            and dev.scheduled_window
+            and not dev.schedule_on
+            and dev.state_on
+            and dev.id not in final
+        ):
+            if _can_turn_off(dev, now):
+                put(
+                    DeviceAction(
+                        id=dev.id,
+                        set_on=False,
+                        set_power_w=None,
+                        reason=REASON_OFF_TARGET,
+                    )
+                )
+
     # ------------------------------------------------------------------
     # 2) Überschuss-Verteilung nach Priorität
     # ------------------------------------------------------------------
@@ -392,6 +429,12 @@ def compute_plan(inp: CycleInput) -> CyclePlan:
                 continue
             if dev.id in final and final[dev.id].set_on is True:
                 continue  # läuft bereits als Garantielauf
+            if (
+                dev.role == ROLE_VERBRAUCHER
+                and dev.scheduled_window
+                and not dev.schedule_on
+            ):
+                continue  # Verbraucher mit Kalender-Fenster: außerhalb nicht starten
 
             want = _surplus_want(dev)
             if want <= 0:
@@ -452,7 +495,22 @@ def compute_plan(inp: CycleInput) -> CyclePlan:
                 # Nur Ein/Aus
                 if dev.state_on:
                     if not enough and surplus_remaining < want - SWITCH_KEEP_TOLERANCE_W:
-                        if _can_turn_off(dev, now):
+                        # Kurze Wolkenphase laut Prognose? Dann halten statt
+                        # abschalten – sonst flackert z. B. die Wärmepumpe bei
+                        # vorüberziehenden Wolken ständig an/aus. Nur die
+                        # Wallbox (dev.car) fährt live herunter.
+                        recovery = (
+                            inp.forecast_recovery_min is not None
+                            and inp.forecast_recovery_min <= FORECAST_HOLD_MIN
+                        )
+                        if recovery and dev.car is None:
+                            put(
+                                DeviceAction(
+                                    id=dev.id, set_on=None, set_power_w=None,
+                                    reason=REASON_HOLD_FORECAST,
+                                )
+                            )
+                        elif _can_turn_off(dev, now):
                             put(
                                 DeviceAction(
                                     id=dev.id,
