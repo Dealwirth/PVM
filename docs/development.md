@@ -1,4 +1,6 @@
-# Entwicklung
+# Entwicklung (für Entwickler)
+
+> 📖 **PV Manager – Dokumentation** · [⬅️ Zurück zum README](../README.md) · [Architektur](architecture.md)
 
 ## Überblick
 

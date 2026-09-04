@@ -1,5 +1,7 @@
 # Konfiguration
 
+> 📖 **PV Manager – Dokumentation** · [⬅️ Zurück zum README](../README.md) · [Häufige Fragen](faq.md)
+
 Alles wird **ohne YAML** auf der eigenen **PV-Manager-Seite** konfiguriert
 (Seitenleiste). Die Installation selbst ist ein Klick ohne Fragen; Messungen,
 Geräte, Reihenfolge und Einstellungen verwaltest du ausschließlich dort –
@@ -22,28 +24,36 @@ wirkt ab dem nächsten Steuerzyklus (30 s).
 
 ## Energie-Messung
 
-PVM braucht mindestens **einen** der beiden Wege, um den Überschuss zu kennen.
-Unter **Erste Schritte → Sensoren ablesen** wählst du pro Sensor einfach aus,
-ob du ihn hast und welche Entität es ist („habe ich nicht“ ist immer eine
-Option – PVM fährt dann mit dem anderen Weg fort):
+PVM braucht mindestens **einen** Weg, um den Überschuss zu kennen. Alles wird
+unter **🎨 Einstellungen → Energie-Sensoren** verbunden – jede Zeile hat einen
+„Wählen“-Button mit Suchfeld, und du kannst Sensoren **jederzeit ändern oder
+entfernen**:
 
 | Sensor | Wofür? | Empfohlen |
 | --- | --- | --- |
-| **Netz-Sensor** | Import positiv, Export negativ (z. B. Shelly EM, viele Zähler). PVM nutzt den gemessenen Export als echten Überschuss. | ⭐ Am genauesten |
-| **Netz-Sensor (nur Einspeisung)** | Sensor, der nur den Export kennt (positiv = Einspeisung). | ⭐ |
-| **PV-Leistung** | Erzeugung des Wechselrichters. | Für PV-ohne-Netz-Setups |
-| **Hausverbrauch** (optional) | Nur nötig, wenn kein Netz-Sensor vorhanden ist (Überschuss = PV − Haus). | – |
+| **PV-Leistung** | Erzeugung des Wechselrichters. | Immer sinnvoll |
+| **Netz (kombiniert)** | Ein Zähler liefert beides: Bezug positiv, Einspeisung negativ (z. B. Shelly EM, viele Zähler). | ⭐ Am genauesten |
+| **Netzbezug + Einspeisung (getrennt)** | Zwei eigene Zähler – z. B. SolarNet mit getrennten Sensoren für Bezug und Einspeisung. Wählbar über „Dein Netzanschluss → Zwei getrennte Sensoren“. | ⭐ SolarNet & Co. |
+| **Hausverbrauch** (optional) | Nur nötig, wenn weder Netz-Sensor noch getrennte Zähler vorhanden sind (Überschuss = PV − Haus). | – |
+| **Speicher-Leistung / -SoC** (optional) | Anzeige im Energiefluss und für Diagnosen. | – |
+
+**Dein Netzanschluss:** Oben in der Energie-Gruppe entscheidest du zwischen
+„Ein Sensor (Bezug + / Einspeisung −)“ und „Zwei getrennte Sensoren“ – PVM
+zeigt nur die passenden Felder und wertet beide Varianten korrekt aus
+(bei getrennten Zählern werden Bezug und Einspeisung unabhängig angezeigt).
+Für den kombinierten Sensor gibt es zusätzlich die Richtungs-Auswahl
+(„Kombiniert“ oder „Nur Einspeisung, positiv = Einspeisung“).
 
 Die Auswahlfelder akzeptieren **alle passenden Entitätenarten** (Sensor-,
-Zähler- und Zahlen-Entitäten) und zeigen verständliche Namen mit Beispielen –
-der alte kryptische Fehler „expected (sensor)“ ist damit behoben. Findet PVM
-deine Sensoren selbst, erscheinen sie unter **🔍 Gefunden** und du übernimmst
-sie mit einem Klick.
+Zähler- und Zahlen-Entitäten) und zeigen verständliche Namen – der alte
+kryptische Fehler „expected (sensor)“ ist damit behoben. Findet PVM deine
+Sensoren selbst, erscheinen sie unter **🔍 Gefunden** und du übernimmst sie
+mit einem Klick.
 
 **Einspeise-Reserve:** Leistung in Watt, die PVM als Puffer zurückhält
 (Standard 100 W). So werden kurzzeitige Wolken oder Messschwankungen nicht
-sofort an die Verbraucher weitergereicht. Einstellbar unter **Einstellungen →
-Globale Regeln**.
+sofort an die Verbraucher weitergereicht – einstellbar unter
+**🎨 Einstellungen → Steuerung** (Schieberegler).
 
 > **Hinweis:** Ohne Haus-Sensor und ohne Netz-Sensor wird die komplette
 > PV-Leistung als Überschuss behandelt – dann sollte der Hausverbrauch klein
@@ -138,9 +148,11 @@ Nichts wird ohne deine Bestätigung konfiguriert.
 
 ## Design & Darstellung
 
-- Unter **🎨 Einstellungen → Design** wechselst du zwischen drei Designs:
-  ☀️ **Sonnenaufgang** (Standard, warme Gelb-/Orange-Töne), 🌿 **Natur-frisch**
-  (Grün) und 🌊 **Kühl & klar** (Blau). Der Wechsel gilt sofort.
+- Unter **🎨 Einstellungen → Design** wechselst du zwischen vier Looks:
+  🏠 **Home Assistant** (Standard – übernimmt automatisch die Farben und das
+  helle/dunkle Erscheinungsbild deines HA-Themes), ☀️ **Sonnenaufgang**
+  (warme Gelb-/Orange-Töne), 🌿 **Natur-frisch** (Grün) und 🌊 **Kühl & klar**
+  (Blau). Der Wechsel gilt sofort.
 - Auch als Entität vorhanden: `select.pvm_theme` – nützlich für Automatisierungen
   (z. B. abends automatisch das Abend-Design).
 - Die Übersichts-Seite zeigt einen **animierten Energiefluss** (PV → Haus →

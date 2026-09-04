@@ -139,10 +139,13 @@ header { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding: 6p
 .titles { flex:1 1 auto; min-width:170px; }
 .titles h1 { margin:0; font-size:20px; }
 .titles p { margin:2px 0 0; color:var(--mut); font-size:12.5px; }
-.chips { display:flex; gap:8px; flex-wrap:wrap; }
+.chips { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
 .chip { background:var(--card2); border:1px solid var(--line); padding:7px 12px; border-radius:999px;
   font-size:13px; display:flex; gap:7px; align-items:center; white-space:nowrap; }
 .chip b { font-weight:700 }
+/* Live-Werte reservieren eine feste Breite – kein Springen der Beschriftungen */
+.chips .chip b[data-live] { display:inline-block; min-width:4.6em; text-align:right; font-variant-numeric:tabular-nums; }
+.chips .chip [data-el=statuschip] { display:inline-block; min-width:6em; }
 .dot { width:8px;height:8px;border-radius:50%; background:var(--mut); display:inline-block; flex:0 0 auto; }
 .dot.ok { background:var(--ok); box-shadow:0 0 8px var(--ok); animation:pulse 1.6s infinite; }
 .dot.bad { background:var(--bad); box-shadow:0 0 8px var(--bad); }
@@ -152,7 +155,8 @@ header { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding: 6p
 nav { display:flex; gap:6px; flex-wrap:wrap; background:var(--card); border:1px solid var(--line);
   border-radius:14px; padding:6px; position:sticky; top:10px; z-index:30; backdrop-filter:blur(8px); }
 nav button { border:0; background:transparent; color:var(--mut); font:inherit; font-size:13.5px;
-  padding:9px 13px; border-radius:10px; cursor:pointer; transition:.18s; display:flex; gap:7px; align-items:center; }
+  padding:9px 13px; border-radius:10px; cursor:pointer; transition:.18s; display:flex; gap:7px; align-items:center;
+  white-space:nowrap; }
 nav button svg{width:16px;height:16px}
 nav button:hover { color:var(--txt); background:var(--card2); }
 nav button.on { background:linear-gradient(135deg,var(--acc),var(--acc2)); color:#fff; font-weight:600; }
@@ -197,11 +201,12 @@ button.ico { background:var(--card2); border:1px solid var(--line); border-radiu
 button.ico:hover { color:var(--txt); border-color:var(--acc); }
 button.ico svg{width:15px;height:15px}
 
-.cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-top:10px; }
+.cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-top:10px; }
 .stat { background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:14px 15px; box-shadow:var(--sh); }
 .stat .k { color:var(--mut); font-size:11px; text-transform:uppercase; letter-spacing:.8px; display:flex; align-items:center; gap:6px; }
 .stat .k svg{width:14px;height:14px}
-.stat .v { font-size:25px; font-weight:800; margin-top:8px; font-variant-numeric: tabular-nums; }
+.stat .v { font-size:25px; font-weight:800; margin-top:8px; font-variant-numeric: tabular-nums; white-space:nowrap; }
+.stat .v span { display:inline-block; min-width:4em; text-align:right; }
 .stat .v small { font-size:14px; font-weight:600; color:var(--mut); }
 .stat .d { font-size:11.5px; color:var(--mut); margin-top:5px; min-height:13px; }
 .stat .bar { height:5px;border-radius:3px;background:var(--card2); margin-top:10px;overflow:hidden; }
@@ -221,7 +226,7 @@ svg.flow { width:100%; height:auto; display:block; }
 .path.reverse { animation-direction: reverse; }
 @keyframes dash { to { stroke-dashoffset:-16; } }
 
-.devices { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:12px; margin-top:12px; }
+.devices { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; margin-top:12px; }
 .dev { background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:13px 14px;
   transition:.2s; position:relative; box-shadow:var(--sh); }
 .dev:hover { border-color: rgba(255,159,28,.5); transform:translateY(-2px); }
@@ -229,13 +234,13 @@ svg.flow { width:100%; height:auto; display:block; }
 .dev .ic { width:38px;height:38px;border-radius:11px; display:grid;place-items:center; flex:0 0 auto;
   background:linear-gradient(140deg, rgba(255,159,28,.22), transparent); border:1px solid rgba(255,159,28,.35); }
 .dev .ic svg { width:21px; height:21px; color: var(--acc); }
-.dev h3 { margin:0; font-size:14.5px; flex:1; }
+.dev h3 { margin:0; font-size:14.5px; flex:1; overflow-wrap:anywhere; line-height:1.3; }
 .dev .pill { font-size:10px; padding:3px 9px; border-radius:999px; border:1px solid var(--line);
   color:var(--mut); text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; }
 .dev .pill.on { color:#04231a; background:var(--ok); border-color:var(--ok); font-weight:800; }
 .dev .pill.warn { color:#3d2400; background:var(--warn); border-color:var(--warn); font-weight:800; }
-.dev .mid { display:flex; gap:12px; align-items:center; margin-top:12px; flex-wrap:wrap; }
-.dev .bigw { font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; min-width:70px; }
+.dev .mid { display:flex; gap:12px; align-items:baseline; margin-top:12px; flex-wrap:wrap; }
+.dev .bigw { font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; min-width:70px; white-space:nowrap; }
 .dev .bigw small { font-size:11px; color:var(--mut); font-weight:600; }
 .dev .soc { flex:1; min-width:120px; margin-top:10px; }
 .dev .soc .row { display:flex; justify-content:space-between; font-size:11px; color:var(--mut); margin-bottom:4px; }
@@ -245,7 +250,7 @@ svg.flow { width:100%; height:auto; display:block; }
 .dev .tags { margin-top:10px; display:flex; flex-wrap:wrap; gap:6px; }
 .tag { font-size:11px; background:var(--card2); border:1px solid var(--line); border-radius:999px; padding:3px 9px; color:var(--mut); }
 .tag.role { text-transform:uppercase; letter-spacing:.5px; font-size:9.5px; }
-.dev .ops { display:flex; gap:8px; justify-content:flex-end; margin-top:11px; border-top:1px solid var(--line); padding-top:10px; align-items:center; }
+.dev .ops { display:flex; gap:8px; justify-content:flex-end; margin-top:11px; border-top:1px solid var(--line); padding-top:10px; align-items:center; min-height:34px; }
 .dev .statusline { color:var(--mut); font-size:12px; margin-top:6px; display:flex; gap:6px; align-items:center; min-height:15px; }
 .empty { color:var(--mut); text-align:center; padding:26px 10px; font-size:13.5px; }
 
@@ -315,8 +320,9 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
 .searchrow input { flex:1; }
 
 .founditem { border:1px solid var(--line); border-radius:var(--r); padding:13px 15px; margin-top:10px;
-  background:var(--card); display:flex; gap:12px; align-items:center; flex-wrap:wrap; box-shadow:var(--sh); }
+  background:var(--card); display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap; box-shadow:var(--sh); }
 .founditem .grow { flex:1; min-width:200px; }
+.founditem > .btn { margin-top:2px; flex:0 0 auto; }
 .founditem h4 { margin:0 0 3px; font-size:14.5px; }
 .founditem p { margin:0; color:var(--mut); font-size:12px; line-height:1.45; word-break:break-word; }
 
@@ -457,6 +463,18 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       return Promise.reject(new Error("Keine Verbindung zu Home Assistant."));
     return state.hass.connection.sendMessagePromise(Object.assign({ type: type }, extra || {}));
   }
+  /** WebSocket-Aufruf mit hartem Zeitlimit – nie endlos hängen lassen. */
+  function wsTimeout(type, extra, ms) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error("Zeitüberschreitung – bitte erneut versuchen."));
+      }, ms || 20000);
+      ws(type, extra).then(
+        (res) => { clearTimeout(timer); resolve(res); },
+        (err) => { clearTimeout(timer); reject(err); }
+      );
+    });
+  }
   function callSvc(domain, service, data) {
     if (!state.hass || !state.hass.connection)
       return Promise.reject(new Error("Keine Verbindung zu Home Assistant."));
@@ -507,7 +525,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     return data;
   }
   async function saveConfig() {
-    const res = await ws("pvm/save_config", { config: state.config });
+    const res = await wsTimeout("pvm/save_config", { config: state.config }, 25000);
     return !!(res && res.ok);
   }
 
@@ -554,28 +572,90 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     return devs.join(",") + "|" + JSON.stringify(c.energy || {});
   }
 
-  function reloadAfterChange() {
-    const expected = configSignature(state.config);
-    const keepView = state.view;
-    let attempts = 0;
-    const tryFetch = () => {
-      fetchConfig()
+  /** Speichert und aktualisiert die Seite sofort – ohne Wartezeit und ohne
+   *  stilles Aufgeben. Die Antwort des Servers kommt immer (Konfiguration
+   *  wird serverseitig sofort übernommen); neue Entitäten folgen im
+   *  Hintergrund und werden hier nachgezogen. */
+  async function saveAndRefresh(msg) {
+    try {
+      await saveConfig();
+      toast(msg || "Gespeichert.", "ok");
+    } catch (err) {
+      toast("Speichern fehlgeschlagen: " + errText(err), "bad");
+      return;
+    }
+    await refreshFromServer();
+    // Neue Geräte-Entitäten erzeugt der Server zeitversetzt (Reload) –
+    // der zweite Abgleich holt deren Zuordnung nach.
+    settleAfterReload();
+  }
+
+  function entityMapComplete() {
+    const devs = devicesOf();
+    if (!devs.length) return true;
+    const entDevs = (state.entities && state.entities.devices) || {};
+    // Mindestens eine wirklich registrierte Entität pro Gerät (Werte != null)
+    return devs.every((d) => {
+      const m = entDevs[d.id];
+      return !!m && Object.keys(m).some((k) => m[k]);
+    });
+  }
+
+  function settleAfterReload() {
+    let tries = 0;
+    const step = () => {
+      wsTimeout("pvm/get_config", {}, 8000)
         .then((data) => {
-          if (configSignature(data.config) === expected || attempts >= 15) {
+          if (!data || !data.config) return;
+          state.entities = data.entities || {};
+          tries += 1;
+          if (entityMapComplete() || tries >= 6) {
+            const keepView = state.view;
             state.panel._renderApp();
-            if (keepView) state.panel._nav(keepView);
+            state.panel._nav(keepView);
+            liveNow();
           } else {
-            attempts += 1;
-            setTimeout(tryFetch, 800);
+            setTimeout(step, 900);
           }
         })
         .catch(() => {
-          attempts += 1;
-          if (attempts >= 15) return;
-          setTimeout(tryFetch, 1000);
+          tries += 1;
+          if (tries < 6) setTimeout(step, 1200);
         });
     };
-    setTimeout(tryFetch, 1400);
+    setTimeout(step, 1200);
+  }
+
+  function errText(err) {
+    const e = (err && err.message) || err;
+    return String(e).replace(/^Error: /, "");
+  }
+
+  async function refreshFromServer() {
+    const keepView = state.view;
+    // Kurz warten, dann frische Konfiguration holen und rendern.
+    // Falls PVM gerade entlädt/neu lädt, mehrmals versuchen – aber
+    // nach dem letzten Versuch wird auf jeden Fall gerendert.
+    for (let i = 0; i < 12; i++) {
+      try {
+        await fetchConfig();
+        state.panel._renderApp();
+        if (keepView) state.panel._nav(keepView);
+        liveNow();
+        return;
+      } catch (err) {
+        if (i === 11) {
+          // Server nicht erreichbar: Seite trotzdem aktualisieren.
+          if (state.config) {
+            state.panel._renderApp();
+            if (keepView) state.panel._nav(keepView);
+          }
+          toast("Aktualisierung dauerte ungewöhnlich lange – bitte Seite neu laden.", "bad");
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 800));
+      }
+    }
   }
 
   /* ------------------------------------------------------------------ *
@@ -603,11 +683,20 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
 
     async _init() {
       if (!state.hass || state.config) return;
-      try {
-        await fetchConfig();
-        this._renderApp();
-      } catch (err) {
-        renderError(String((err && err.message) || err));
+      // Beim Öffnen kann PVM gerade neu laden – automatisch erneut versuchen,
+      // statt sofort eine Fehlerseite zu zeigen.
+      for (let i = 0; i < 6; i++) {
+        try {
+          await fetchConfig();
+          this._renderApp();
+          return;
+        } catch (err) {
+          if (i === 5) {
+            renderError(String((err && err.message) || err));
+            return;
+          }
+          await new Promise((r) => setTimeout(r, 900));
+        }
       }
     }
 
@@ -724,11 +813,12 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       design: "Design anpassen – dein Dashboard, deine Farben.",
     };
     const firstOpen = allSteps.find((s) => !stepState[s]) || allSteps[allSteps.length - 1];
+    const sepGrid = e.grid_import_sensor || e.grid_export_sensor;
     const quick = `
       <div class="cards">
         ${statCard("pv", "PV-Erzeugung", liveSurplusText("pv"))}
         ${statCard("surplus", "Überschuss", liveSurplusText("surplus"))}
-        ${statCard("grid", "Netz", liveSurplusText("grid"))}
+        ${sepGrid ? statCard("grid_import", "Netzbezug", "–") + statCard("grid_export", "Einspeisung", "–") : statCard("grid", "Netz", "–")}
       </div>`;
     return `
       <div class="hero">
@@ -804,8 +894,14 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     if (key === "pv") return { text: energyText("pv_sensor"), raw: 0 };
     if (key === "house") return { text: energyText("house_sensor"), raw: 0 };
     if (key === "grid") return { text: energyText("grid_sensor"), raw: 0 };
-    if (key === "grid_import") return { text: energyText("grid_import_sensor"), raw: 0 };
-    if (key === "grid_export") return { text: energyText("grid_export_sensor"), raw: 0 };
+    if (key === "grid_import") {
+      const v = numW(e.grid_import_sensor);
+      return { text: v == null ? "–" : fmtW(v), raw: v == null ? 0 : v };
+    }
+    if (key === "grid_export") {
+      const v = numW(e.grid_export_sensor);
+      return { text: v == null ? "–" : fmtW(v), raw: v == null ? 0 : v };
+    }
     if (key === "batt") return { text: energyText("battery_power_sensor"), raw: 0 };
     if (key.indexOf("devpwr:") === 0) {
       const d = deviceById(key.slice(7));
@@ -825,13 +921,13 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     if (!id) return "–";
     const v = num(id);
     if (v == null) return "–";
-    if (key === "grid_sensor" && (e.grid_kind || "net") === "net" && !unitOf(id)) {
-      return v < 0 ? "↦ " + fmtW(-v) : "↤ " + fmtW(v);
+    if (key === "grid_sensor") {
+      // Richtung des kombinierten Sensors verständlich anzeigen
+      if ((e.grid_kind || "net") === "net") {
+        return v < 0 ? "↦ " + fmtW(-v) : "↤ " + fmtW(v);
+      }
+      return v > 0 ? "↦ " + fmtW(v) : "–";
     }
-    if (key === "grid_import_sensor")
-      return "↓ " + fmtNum(v, unitOf(id) || "W");
-    if (key === "grid_export_sensor")
-      return "↑ " + fmtNum(v, unitOf(id) || "W");
     return fmtNum(v, unitOf(id));
   }
   let _liveT = 0;
@@ -928,7 +1024,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       <div class="cards">
         ${statCard("pv", "PV-Erzeugung", "–")}
         ${statCard("house", "Hausverbrauch", "–")}
-        ${statCard("grid", "Netz", "–")}
+        ${e.grid_import_sensor || e.grid_export_sensor ? statCard("grid_import", "Netzbezug", "–") + statCard("grid_export", "Einspeisung", "–") : statCard("grid", "Netz", "–")}
         ${e.battery_power_sensor ? statCard("batt", "Speicher", "–") : ""}
         ${statCard("surplus", "Überschuss für PVM", "–")}
       </div>
@@ -1165,17 +1261,20 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   }
 
   function statusPillFor(device) {
+    // Wichtig: data-el="pill" immer mit ausgeben, damit der Live-Update
+    // den Status weiterhin findet (sonst friert der Status ein).
+    const el = ' data-el="pill"';
     const txt = deviceStateText(device);
     if (device.role === "fahrzeug") {
-      if (/^lädt\b/.test(txt)) return `<span class="pill on">LÄDT</span>`;
-      return `<span class="pill">unterwegs</span>`;
+      if (/^lädt\b/.test(txt)) return `<span class="pill on"${el}>LÄDT</span>`;
+      return `<span class="pill"${el}>unterwegs</span>`;
     }
     const autoOn = isOn(entOf(device.id).auto);
-    if (!autoOn) return `<span class="pill">Automatik aus</span>`;
-    if (/^an\b|^läuft/i.test(txt)) return `<span class="pill on">AN</span>`;
-    if (/fehler/i.test(txt)) return `<span class="pill warn">Fehler</span>`;
-    if (/^aus\b/i.test(txt)) return `<span class="pill">aus</span>`;
-    return `<span class="pill">bereit</span>`;
+    if (!autoOn) return `<span class="pill"${el}>Automatik aus</span>`;
+    if (/^an\b|^läuft/i.test(txt)) return `<span class="pill on"${el}>AN</span>`;
+    if (/fehler/i.test(txt)) return `<span class="pill warn"${el}>Fehler</span>`;
+    if (/^aus\b/i.test(txt)) return `<span class="pill"${el}>aus</span>`;
+    return `<span class="pill"${el}>bereit</span>`;
   }
 
   function updateDeviceLives() {
@@ -1185,7 +1284,10 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       const card = $(root, '[data-device="' + CSS.escape(d.id) + '"]');
       if (!card) return;
       const pill = $(card, '[data-el="pill"]');
-      if (pill) pill.outerHTML = statusPillFor(d);
+      if (pill) {
+        const want = statusPillFor(d);
+        if (pill.outerHTML !== want) pill.outerHTML = want;
+      }
       const line = $(card, '[data-el="statusline"]');
       if (line) line.textContent = deviceStateText(d);
       const sid = d.sensors && d.sensors.soc;
@@ -1283,28 +1385,49 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   /* ------------------------------------------------------------------ *
    * Einstellungen
    * ------------------------------------------------------------------ */
+  function gridModeOf(e) {
+    return e.grid_import_sensor || e.grid_export_sensor ? "separate" : "combined";
+  }
   function htmlSettings() {
     const s = configSettings();
     const e = configEnergy();
     const theme = s.ui_theme || "sonnenaufgang";
-    return `
-      <h2 class="sec">Einstellungen</h2>
-      <p class="sub">Jede Gruppe klappt sich auf – Änderungen speichert PVM direkt.</p>
-      ${accordion("energy", I.grid, "Energie-Sensoren", `
-        ${energyRow("pv", "PV-Leistung", "Dein Wechselrichter (W oder kW)", e.pv_sensor)}
-        ${energyRow("grid", "Netz (kombiniert)", "Ein Sensor mit Bezug + und Einspeisung −", e.grid_sensor)}
-        ${energyRow("grid_import", "Netzbezug (separat)", "Getrennter Zähler für Strom aus dem Netz", e.grid_import_sensor)}
-        ${energyRow("grid_export", "Einspeisung (separat)", "Getrennter Zähler für deine Netzeinspeisung", e.grid_export_sensor)}
-        ${energyRow("house", "Hausverbrauch (optional)", "Gesamtverbrauch des Hauses", e.house_sensor)}
-        ${energyRow("battery_power", "Speicher-Leistung (optional)", "Lade-/Entladeleistung deines Batteriespeichers", e.battery_power_sensor)}
-        ${energyRow("battery_soc", "Speicher-SoC (optional)", "Ladezustand des Speichers in %", e.battery_soc_sensor)}
+    const gridMode = gridModeOf(e);
+    const gridChoice = `
+      <div class="f"><label>Dein Netzanschluss</label><small>Wie misst dein Zähler? PVM zeigt nur die passenden Felder – du kannst jederzeit wechseln.</small></div>
+      <div class="pick">
+        <label class="${gridMode === "combined" ? "sel" : ""}" data-grid-mode="combined">
+          <span class="rb"></span>
+          <span class="tt"><b>Ein Sensor (Bezug + / Einspeisung −)</b><span>Ein Zähler liefert beides – z. B. SolarNet „Leistung Netz“ oder ein kombinierter Zähler.</span></span>
+        </label>
+        <label class="${gridMode === "separate" ? "sel" : ""}" data-grid-mode="separate">
+          <span class="rb"></span>
+          <span class="tt"><b>Zwei getrennte Sensoren</b><span>Eigene Zähler für Netzbezug und Netzeinspeisung – PVM wertet beide getrennt aus.</span></span>
+        </label>
+      </div>`;
+    const combinedRows = gridMode === "combined" ? `
+        ${energyRow("grid", "Netz (kombiniert)", "Ein Sensor: Bezug positiv, Einspeisung negativ (oder umgekehrt – siehe Richtung)", e.grid_sensor)}
         <div class="row">
-          <span class="lbl grow">Art des kombinierten Netz-Sensors<small>Wie dein Zähler misst – wichtig für die Richtung.</small></span>
+          <span class="lbl grow">Richtung des kombinierten Sensors<small>Wie dein Zähler die Werte liefert – wichtig für die Berechnung.</small></span>
           <select data-setting="grid_kind" style="max-width:300px">
             ${Object.keys(L.gridKinds).map((k) => `<option value="${k}" ${(e.grid_kind || "net") === k ? "selected" : ""}>${esc(L.gridKinds[k])}</option>`).join("")}
           </select>
-        </div>
-        <div><button class="btn primary" data-action="save-energy">${I.check} Speichern</button></div>
+        </div>` : "";
+    const separateRows = gridMode === "separate" ? `
+        ${energyRow("grid_import", "Netzbezug (separat)", "Strom aus dem Netz – positiv = Bezug (z. B. SolarNet „Leistung Netzbezug“)", e.grid_import_sensor)}
+        ${energyRow("grid_export", "Einspeisung (separat)", "Strom ins Netz – positiv = Einspeisung (z. B. SolarNet „Leistung Netzeinspeisung“)", e.grid_export_sensor)}` : "";
+    return `
+      <h2 class="sec">Einstellungen</h2>
+      <p class="sub">Jede Gruppe klappt sich auf – Änderungen speicherst du unten mit einem Klick.</p>
+      ${accordion("energy", I.grid, "Energie-Sensoren", `
+        ${gridChoice}
+        ${energyRow("pv", "PV-Leistung", "Dein Wechselrichter (W oder kW)", e.pv_sensor)}
+        ${combinedRows}
+        ${separateRows}
+        ${energyRow("house", "Hausverbrauch (optional)", "Gesamtverbrauch des Hauses", e.house_sensor)}
+        ${energyRow("battery_power", "Speicher-Leistung (optional)", "Lade-/Entladeleistung deines Batteriespeichers", e.battery_power_sensor)}
+        ${energyRow("battery_soc", "Speicher-SoC (optional)", "Ladezustand des Speichers in %", e.battery_soc_sensor)}
+        <div class="row" style="justify-content:flex-end"><button class="btn primary" data-action="save-energy">${I.check} Speichern</button></div>
       `, true)}
       ${accordion("steuerung", I.gear, "Steuerung", `
         <span class="lbl">Betriebsmodus<small>Wie PVM deine Geräte steuert.</small></span>
@@ -1368,11 +1491,11 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const has = !!entityId;
     return `
       <div class="row" data-energy-row="${key}">
-        <span class="sw ${has ? "on" : ""}" data-action="toggle-energy" data-energy="${key}" title="Sensor aktiv?"><i></i></span>
         <span class="lbl grow">${esc(label)}<small>${esc(hint)}</small>
           ${has ? `<span class="entv" data-el="ent-${key}">${esc(friendlyOf(entityId))} (${esc(entityId)})</span>` : ""}
         </span>
-        <button class="btn ghost" data-action="pick-energy" data-energy="${key}" ${has ? "" : "disabled"} style="padding:7px 12px">${I.search} Wählen</button>
+        <button class="btn ghost" data-action="pick-energy" data-energy="${key}" style="padding:7px 12px">${I.search} Wählen</button>
+        <button class="btn ghost" data-action="clear-energy" data-energy="${key}" ${has ? "" : "disabled"} title="Sensor entfernen" style="padding:7px 10px">${I.del}</button>
       </div>`;
   }
   function slider(key, label, value, min, max, step, unit, hint) {
@@ -1656,6 +1779,17 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       out.push(numberField("capacity", "Batteriekapazität", car.capacity_kwh, 1, 300, 1, "kWh"));
       out.push(numberField("min_soc", "Mindest-SOC (Sicherheit)", car.min_soc, 0, 100, 1, "%"));
       out.push(numberField("max_soc", "Max-SOC (Ladestopp)", car.max_soc, 10, 100, 1, "%"));
+      out.push(`<div class="f">
+        <label>Zeit-Ziel (bis wann laden?)</label><small>Optional: SOC-Ziel und Uhrzeit – PVM lädt bis dahin (nötigenfalls mit Netz). 0 % = deaktiviert.</small>
+        <div class="ent" style="margin-top:4px">
+          <input type="range" data-num="deadline_soc" min="0" max="100" step="1" value="${Number(car.deadline_soc || 0)}" style="flex:1">
+          <span style="color:var(--mut);width:60px;font-size:13px">%</span>
+        </div>
+        <div class="ent" style="margin-top:6px">
+          <input type="time" data-field="deadline_time" value="${esc(car.deadline_time || "")}" style="flex:1">
+        </div>
+      </div>`);
+      out.push(toggleRow("manual_force", "Power Charge (jetzt voll laden)", !!car.manual_force, "Lädt sofort mit voller Leistung bis zum Max-SOC – unabhängig vom Überschuss."));
       out.push(numberField("power_limit", "Max. Ladeleistung", d.limits.power_limit_w, 500, 22000, 100, "W"));
       out.push(numberField("min_on_power", "Mindest-Überschuss zum Laden", d.limits.min_on_power_w, 100, 11000, 100, "W"));
       out.push(toggleRow("grid_min", "Netz für Mindest-SOC", car.grid_min_allowed, "Erlaubt PVM, bei fast leerem Akku kurz Netzstrom zu nutzen."));
@@ -1685,6 +1819,15 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         <span class="lbl grow">${esc(label)}<small>${esc(hint)}</small></span>
         <span class="sw ${value ? "on" : ""}" data-field-toggle="${key}"><i></i></span>
       </div>`;
+  }
+  /* Abbildung der Schalter-Schlüssel im Dialog auf die echten
+   * Konfigurations-Schlüssel (sonst gehen Änderungen verloren). */
+  const CAR_TOGGLE = { grid_min: "grid_min_allowed", grid_deadline: "grid_deadline_allowed", manual_force: "manual_force" };
+  const WP_TOGGLE = { grid_fallback: "grid_fallback_allowed" };
+  function applyDeviceToggle(d, key, on) {
+    if (key === "enabled") d.enabled = on;
+    else if (d.car && CAR_TOGGLE[key]) d.car[CAR_TOGGLE[key]] = on;
+    else if (d.wp && WP_TOGGLE[key]) d.wp[WP_TOGGLE[key]] = on;
   }
 
   function onDeviceDialogClick(overlay, ev) {
@@ -1738,9 +1881,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     if (fieldToggle) {
       const key = fieldToggle.getAttribute("data-field-toggle");
       const on = fieldToggle.classList.toggle("on");
-      if (key === "enabled") d.enabled = on;
-      else if (d.car) d.car[key] = on;
-      else if (d.wp) d.wp[key] = on;
+      applyDeviceToggle(d, key, on);
       return;
     }
     if (ev.target.closest("[data-close]")) { closeModal(); return; }
@@ -1763,13 +1904,8 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         devs.push(d);
       }
       toast("Speichere …");
-      saveConfig()
-        .then(() => {
-          closeModal();
-          toast("Gerät gespeichert – wird übernommen …", "ok");
-          reloadAfterChange();
-        })
-        .catch((err) => toast("Speichern fehlgeschlagen: " + err, "bad"));
+      closeModal();
+      saveAndRefresh("Gerät gespeichert.");
     }
   }
 
@@ -1781,15 +1917,12 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       const v = el.value;
       if (key in d.control) d.control[key] = v || null;
       else if (key in d.sensors) d.sensors[key] = v || null;
-      else if (d.car && key === "grid_min") d.car.grid_min_allowed = v === "on";
-      else if (d.wp && key === "grid_fallback") d.wp.grid_fallback_allowed = v === "on";
+      else if (key === "deadline_time" && d.car) d.car.deadline_time = v || null;
     });
     $$(overlay, "[data-field-toggle]").forEach((el) => {
       const key = el.getAttribute("data-field-toggle");
       const on = el.classList.contains("on");
-      if (key === "enabled") d.enabled = on;
-      else if (d.car && key in d.car) d.car[key] = on;
-      else if (d.wp && key in d.wp) d.wp[key] = on;
+      applyDeviceToggle(d, key, on);
     });
     $$(overlay, "[data-num]").forEach((r) => {
       const key = r.getAttribute("data-num");
@@ -1797,6 +1930,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       if (isNaN(v)) return;
       const map = {
         capacity: ["car", "capacity_kwh"], min_soc: ["car", "min_soc"], max_soc: ["car", "max_soc"],
+        deadline_soc: ["car", "deadline_soc"],
         est_power: ["wp", "est_power_w"], comfort: ["wp", "comfort_c"], safety: ["wp", "safety_min_c"],
       };
       const where = map[key];
@@ -1876,6 +2010,21 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       setTheme(themeEl.getAttribute("data-theme-pick"));
       return;
     }
+    const gridModeEl = ev.target.closest("[data-grid-mode]");
+    if (gridModeEl) {
+      const mode = gridModeEl.getAttribute("data-grid-mode");
+      const e = configEnergy();
+      $$(root, "[data-grid-mode]").forEach((x) => x.classList.toggle("sel", x === gridModeEl));
+      if (mode === "combined") {
+        e.grid_import_sensor = null;
+        e.grid_export_sensor = null;
+        saveAndRefresh("Netz-Modus: ein kombinierter Sensor.");
+      } else {
+        e.grid_sensor = null;
+        saveAndRefresh("Netz-Modus: getrennte Sensoren – jetzt unten wählen.");
+      }
+      return;
+    }
     const actionEl = ev.target.closest("[data-action]");
     if (actionEl) {
       handleAction(root, actionEl);
@@ -1921,9 +2070,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         if (!d) return;
         confirmModal("Gerät entfernen", "„" + (d.name || "") + "“ wird aus PVM entfernt. Das Gerät selbst bleibt in Home Assistant unverändert erhalten.", "Entfernen", () => {
           state.config.devices = devicesOf().filter((x) => x.id !== devId);
-          saveConfig()
-            .then(() => { toast("Gerät entfernt.", "ok"); reloadAfterChange(); })
-            .catch((err) => toast("Fehler: " + err, "bad"));
+          saveAndRefresh("Gerät entfernt.");
         });
         break;
       }
@@ -1944,23 +2091,23 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         const j = i + dir;
         if (i < 0 || j < 0 || j >= devs.length) return;
         [devs[i], devs[j]] = [devs[j], devs[i]];
-        saveConfig()
-          .then(() => reloadAfterChange())
-          .catch(() => toast("Speichern fehlgeschlagen", "bad"));
+        saveAndRefresh("Reihenfolge gespeichert.");
         break;
       }
       case "run-scan": {
-        toast("Suche läuft …");
-        const original = el.innerHTML;
+        if (el.dataset.scanning === "1") return; // kein Doppel-Start
+        el.dataset.scanning = "1";
         el.disabled = true;
-        ws("pvm/scan")
+        toast("Suche läuft – bei vielen Geräten kann das etwas dauern …");
+        wsTimeout("pvm/scan", {}, 60000)
           .then((res) => {
             state.scan = res || {};
-            toast("Suche abgeschlossen.", "ok");
+            const n = ((state.scan.sets) || []).length;
+            toast("Suche abgeschlossen" + (n ? " – " + n + " Vorschläge gefunden." : " – nichts Neues gefunden."), "ok");
             if (state.view === "found") state.panel._nav("found");
           })
-          .catch(() => toast("Suche fehlgeschlagen", "bad"))
-          .finally(() => { el.disabled = false; el.innerHTML = original; });
+          .catch((err) => toast("Suche fehlgeschlagen: " + errText(err), "bad"))
+          .finally(() => { delete el.dataset.scanning; el.disabled = false; });
         break;
       }
       case "adopt": {
@@ -1973,9 +2120,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           const eid = fields.entity;
           if (!eid) { toast("Keine passende Entität im Vorschlag.", "bad"); return; }
           state.config.energy[found.role + "_sensor"] = eid;
-          saveConfig()
-            .then(() => { toast("Sensor übernommen.", "ok"); reloadAfterChange(); })
-            .catch((err) => toast("Fehler: " + err, "bad"));
+          saveAndRefresh("Sensor übernommen.");
         } else if (found.role === "fahrzeug") {
           const d = defaultDevice("fahrzeug");
           d.name = found.title || "Auto";
@@ -2004,13 +2149,10 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         }
         break;
       }
-      case "toggle-energy": {
+      case "clear-energy": {
         const key = el.getAttribute("data-energy");
-        const row = $(root, '[data-energy-row="' + key + '"]');
-        const on = el.classList.toggle("on");
-        if (!on) state.config.energy[key + "_sensor"] = null;
-        const pick = row && $(row, '[data-action="pick-energy"]');
-        if (pick) pick.disabled = !on;
+        state.config.energy[key + "_sensor"] = null;
+        saveAndRefresh("Sensor entfernt.");
         break;
       }
       case "pick-energy": {
@@ -2020,17 +2162,12 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           domains: ["sensor", "number", "input_number"],
         }, (entityId) => {
           state.config.energy[key + "_sensor"] = entityId;
-          const lbl = $(root, '[data-el="ent-' + key + '"]');
-          if (lbl) lbl.textContent = friendlyOf(entityId) + " (" + entityId + ")";
-          toast("Sensor gewählt – jetzt unten speichern.", "ok");
+          saveAndRefresh("Sensor gespeichert.");
         });
         break;
       }
       case "save-energy": {
-        toast("Speichere …");
-        saveConfig()
-          .then(() => { toast("Energie-Sensoren gespeichert.", "ok"); reloadAfterChange(); })
-          .catch((err) => toast("Fehler: " + err, "bad"));
+        saveAndRefresh("Energie-Sensoren gespeichert.");
         break;
       }
       case "self-test":

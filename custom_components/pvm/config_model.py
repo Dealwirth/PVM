@@ -354,3 +354,52 @@ def deadline_next_ts(now_local, deadline_time: str | None) -> float | None:
     if candidate <= now_local:
         candidate = candidate + timedelta(days=1)
     return candidate.timestamp()
+
+
+def compute_energy_flow(
+    *,
+    pv: float | None = None,
+    pv_valid: bool = False,
+    grid: float | None = None,
+    grid_valid: bool = False,
+    grid_import: float | None = None,
+    import_valid: bool = False,
+    grid_export: float | None = None,
+    export_valid: bool = False,
+    house: float | None = None,
+    house_valid: bool = False,
+    grid_kind: str = GRID_KIND_NET,
+) -> tuple[float, bool, float]:
+    """Berechnet (export_w, gültig, netz_w) aus allen Sensor-Kombinationen.
+
+    Reihenfolge (reines Python, gut testbar):
+    1. Getrennte Netzbezug-/Einspeisung-Sensoren (bevorzugt).
+    2. Kombinierter Netz-Sensor (Richtung über ``grid_kind``).
+    3. PV minus Hausverbrauch (ohne Haus-Sensor: PV-Leistung als Überschuss).
+
+    Liegt nur der Bezug vor (Einspeisung unbekannt), ist der Überschuss
+    **unbekannt** (gültig=False) – die Engine hält dann den Zustand, statt
+    fälschlich „kein Überschuss“ zu melden.
+    """
+    # 1) Getrennte Sensoren (Netzbezug + Einspeisung)
+    if grid_import is not None or grid_export is not None:
+        if export_valid and grid_export is not None:
+            export = max(0.0, grid_export)
+            net = (grid_import or 0.0) - export if import_valid else -export
+            return export, True, net
+        if import_valid and grid_import is not None:
+            return 0.0, False, max(0.0, grid_import)
+        return 0.0, False, grid_import or 0.0
+    # 2) Kombinierter Netz-Sensor
+    if grid_valid and grid is not None:
+        if grid_kind == GRID_KIND_NET:
+            # positiv = Bezug, negativ = Einspeisung
+            return max(0.0, -grid), True, grid
+        # Nur Einspeisung: positiv = Einspeisung
+        return max(0.0, grid), True, -grid
+    # 3) PV minus Hausverbrauch
+    if pv_valid and pv is not None:
+        if house_valid and house is not None:
+            return max(0.0, pv - house), True, max(0.0, house - pv)
+        return max(0.0, pv), True, 0.0
+    return 0.0, False, 0.0

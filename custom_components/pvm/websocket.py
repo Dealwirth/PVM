@@ -63,9 +63,13 @@ async def ws_save_config(
     if manager is None:
         connection.send_error(msg["id"], "not_loaded")
         return
-    normalized = normalize_config(msg["config"])
-    await manager.async_replace_config(normalized)
-    connection.send_result(msg["id"], {"ok": True})
+    try:
+        normalized = normalize_config(msg["config"])
+        await manager.async_replace_config(normalized)
+        connection.send_result(msg["id"], {"ok": True})
+    except Exception as err:  # noqa: BLE001 - immer antworten, nie hängen
+        _LOGGER.exception("PVM: Konfiguration konnte nicht gespeichert werden")
+        connection.send_error(msg["id"], "save_failed", str(err))
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/scan"})
@@ -80,8 +84,12 @@ async def ws_scan(
     if manager is None:
         connection.send_error(msg["id"], "not_loaded")
         return
-    result = await manager.scan_devices()
-    connection.send_result(msg["id"], result)
+    try:
+        result = await manager.scan_devices()
+        connection.send_result(msg["id"], result)
+    except Exception as err:  # noqa: BLE001 - immer antworten, nie hängen
+        _LOGGER.exception("PVM: Scan fehlgeschlagen")
+        connection.send_error(msg["id"], "scan_failed", str(err))
 
 
 @websocket_api.websocket_command(

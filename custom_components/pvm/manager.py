@@ -27,6 +27,7 @@ from homeassistant.util import dt as dt_util
 
 from . import engine as eng
 from .config_model import (
+    compute_energy_flow,
     deadline_next_ts,
     energy_configured,
     find_device,
@@ -85,6 +86,9 @@ class PvmManager:
         self._save_task: asyncio.Task | None = None
         self._extra_cycle: asyncio.Task | None = None
         self._wp_task: asyncio.Task | None = None
+        self._reload_task: asyncio.Task | None = None
+        self._reload_pending = False
+        self._scan_lock = False
         self._closing = False
         self._last_extra_cycle = 0.0
 
@@ -155,17 +159,23 @@ class PvmManager:
             self._listen_once_started()
 
     def _schedule_initial_scan(self) -> None:
-        """Scannt beim Start einmal automatisch (nach dem ersten Zyklus)."""
+        """Scannt beim Start einmal automatisch (nur bei frischer Installation).
+
+        Sobald Geräte konfiguriert sind, gibt es keine automatischen Scans
+        mehr (keine störenden Benachrichtigungen nach Reloads/Neustarts).
+        """
         if self._auto_scan_done:
             return
         self._auto_scan_done = True
+        if self.config.get("devices"):
+            return
 
         async def _scan_later() -> None:
             await asyncio.sleep(5.0)
             if self._closing:
                 return
             try:
-                await self.scan_devices()
+                await self.scan_devices(notify=False)
             except Exception:  # noqa: BLE001
                 _LOGGER.debug("PVM: automatischer Scan fehlgeschlagen", exc_info=True)
 
@@ -321,62 +331,37 @@ class PvmManager:
     def _read_energy(self) -> tuple[float, bool, float, float | None, float | None]:
         """Liest die Energie-Sensoren und berechnet den Export.
 
-        Unterstützt: kombinierten Netz-Sensor, getrennte Bezug-/Einspeisung-
-        Sensoren, PV minus Hausverbrauch sowie optionale Speicher-Werte.
-        Liefert (export_w, gültig, netz_w, pv_w, haus_w).
+        Unterstützt: getrennte Bezug-/Einspeisung-Sensoren, kombinierten
+        Netz-Sensor sowie PV minus Hausverbrauch; dazu optionale
+        Speicher-Werte. Liefert (export_w, gültig, netz_w, pv_w, haus_w).
         """
         energy = self.config.get("energy", {})
-        pv_id = energy.get("pv_sensor")
-        grid_id = energy.get("grid_sensor")
-        import_id = energy.get("grid_import_sensor")
-        export_id = energy.get("grid_export_sensor")
-        house_id = energy.get("house_sensor")
-        battery_id = energy.get("battery_power_sensor")
-        battery_soc_id = energy.get("battery_soc_sensor")
-        kind = energy.get("grid_kind", GRID_KIND_NET)
-
-        pv, pv_valid = self.read_power(pv_id)
-        house, house_valid = self.read_power(house_id)
-        grid, grid_valid = self.read_power(grid_id)
-        grid_import, import_valid = self.read_power(import_id)
-        grid_export, export_valid = self.read_power(export_id)
+        pv, pv_valid = self.read_power(energy.get("pv_sensor"))
+        house, house_valid = self.read_power(energy.get("house_sensor"))
+        grid, grid_valid = self.read_power(energy.get("grid_sensor"))
+        grid_import, import_valid = self.read_power(energy.get("grid_import_sensor"))
+        grid_export, export_valid = self.read_power(energy.get("grid_export_sensor"))
 
         # Speicher (optional) – nur für Anzeige/Diagnose
-        self.battery_w, _bvalid = self.read_power(battery_id)
+        self.battery_w, _bvalid = self.read_power(energy.get("battery_power_sensor"))
         self.battery_soc, _bsvalid = self.read_number(
-            battery_soc_id, stale_s=STALE_SOC_AFTER_S
+            energy.get("battery_soc_sensor"), stale_s=STALE_SOC_AFTER_S
         )
 
-        # 1) Getrennte Bezug-/Einspeisung-Sensoren (Netz-Einspeisung = Export)
-        if import_id or export_id:
-            if export_valid and grid_export is not None:
-                export = max(0.0, grid_export)
-                net = (grid_import or 0.0) - export if import_valid else -export
-                return export, True, net, pv, house
-            if import_valid and grid_import is not None:
-                # Nur Bezug-Sensor: Überschuss unbekannt
-                return 0.0, True, max(0.0, grid_import), pv, house
-
-        # 2) Kombinierter Netz-Sensor
-        if grid_id and grid_valid and grid is not None:
-            if kind == GRID_KIND_NET:
-                # positiv = Bezug, negativ = Einspeisung
-                export = max(0.0, -grid)
-                net = grid
-            else:
-                export = max(0.0, grid)
-                net = -export
-            return export, True, net, pv, house
-
-        # 3) PV minus Hausverbrauch
-        if pv_id and pv_valid and pv is not None:
-            if house_id and house_valid and house is not None:
-                return max(0.0, pv - house), True, max(0.0, house - pv), pv, house
-            # Ohne Haus-Sensor: PV-Leistung als Überschussannahme nutzen
-            _LOGGER.debug("PVM: Kein Haus-Sensor – PV-Leistung als Überschuss genutzt")
-            return max(0.0, pv), True, 0.0, pv, None
-
-        return 0.0, False, grid or 0.0, pv, house
+        export, valid, net = compute_energy_flow(
+            pv=pv,
+            pv_valid=pv_valid,
+            grid=grid,
+            grid_valid=grid_valid,
+            grid_import=grid_import,
+            import_valid=import_valid,
+            grid_export=grid_export,
+            export_valid=export_valid,
+            house=house,
+            house_valid=house_valid,
+            grid_kind=energy.get("grid_kind", GRID_KIND_NET),
+        )
+        return export, valid, net, pv, house
 
     async def _build_engine_devices(self) -> list[eng.Device]:
         devices = []
@@ -794,12 +779,71 @@ class PvmManager:
         self.schedule_save()
         self.request_cycle()
 
+    def _devices_changed(self, new_config: dict) -> bool:
+        """Hat sich die Geräteliste (IDs/Rollen) gegenüber dem Stand geändert?
+
+        Nur dann müssen Entitäten neu erzeugt/entfernt werden. Reine
+        Einstellungs-/Sensor-Änderungen brauchen keinen Reload.
+        """
+        old = [
+            (str(d.get("id", "")), str(d.get("role", "")))
+            for d in self.config.get("devices", [])
+        ]
+        new = [
+            (str(d.get("id", "")), str(d.get("role", "")))
+            for d in new_config.get("devices", [])
+        ]
+        return old != new
+
     async def async_replace_config(self, config: dict) -> None:
-        """Ersetzt die komplette Konfiguration (aus dem Panel) und lädt neu."""
+        """Übernimmt die komplette Konfiguration aus dem Panel.
+
+        Speichert sofort und aktualisiert die Live-Konfiguration – die
+        Antwort an die Seite kommt also **ohne Wartezeit** (kein Hängen).
+        Neue/entfernte Geräte werden anschließend entprellt und geschützt
+        im Hintergrund per Entitäten-Reload nachgezogen.
+        """
         normalized = normalize_config(config)
+        devices_changed = self._devices_changed(normalized)
         await self._store.async_save(normalized)
         self.config = normalized
-        self.hass.config_entries.async_schedule_reload(self.entry.entry_id)
+        self.request_cycle()
+        self._broadcast()
+        if devices_changed:
+            self._schedule_entity_reload()
+
+    def _schedule_entity_reload(self) -> None:
+        """Lädt die Entitäten neu – entprellt und ohne Überschneidungen.
+
+        Läuft als eigener Hintergrund-Task; mehrere schnelle Speicherungen
+        werden zu einem einzigen Reload zusammengefasst. Wird PVM gerade
+        heruntergefahren, passiert nichts mehr.
+        """
+        if self._closing:
+            return
+        if self._reload_task and not self._reload_task.done():
+            self._reload_pending = True
+            return
+
+        async def _do_reload() -> None:
+            try:
+                await asyncio.sleep(0.6)
+                if self._closing:
+                    return
+                await self.hass.config_entries.async_reload(self.entry.entry_id)
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("PVM: Entitäten-Reload fehlgeschlagen")
+            finally:
+                self._reload_task = None
+                if self._reload_pending:
+                    self._reload_pending = False
+                    self._schedule_entity_reload()
+
+        self._reload_task = self.hass.async_create_task(
+            _do_reload(), name=f"{DOMAIN}_entity_reload"
+        )
 
     # ------------------------------------------------------------------
     # Sensoren lesen
@@ -908,8 +952,24 @@ class PvmManager:
             )
         return entities
 
-    async def scan_devices(self) -> dict[str, Any]:
-        """Scannt alle Entitäten/Geräte und schlägt Kandidaten vor."""
+    async def scan_devices(self, notify: bool = True) -> dict[str, Any]:
+        """Scannt alle Entitäten/Geräte und schlägt Kandidaten vor.
+
+        Ein laufender Scan wird nicht doppelt gestartet (Sperre) – ein
+        zweiter Aufruf liefert sofort das letzte Ergebnis. Mit
+        ``notify=False`` (automatischer Start-Scan) wird keine
+        Benachrichtigung erzeugt.
+        """
+        if self._scan_lock:
+            return self.last_scan
+        self._scan_lock = True
+        try:
+            return await self._scan_devices_inner(notify)
+        finally:
+            self._scan_lock = False
+
+    async def _scan_devices_inner(self, notify: bool) -> dict[str, Any]:
+        """Eigentliche Scan-Logik (unter der Sperre)."""
         entities = self.collect_entities()
         sets = suggest_sets(entities)
         configured_entities = {
@@ -949,23 +1009,24 @@ class PvmManager:
         }
         self.last_scan = result
         # Nur informieren, wenn es wirklich neue Vorschläge gibt
-        if fresh:
-            text = self._scan_text(fresh)
-            await self.hass.services.async_call(
-                "persistent_notification",
-                "create",
-                {
-                    "title": "PVM – Geräte & Sensoren gefunden",
-                    "message": text,
-                    "notification_id": f"{DOMAIN}_scan",
-                },
-            )
-        else:
-            await self.hass.services.async_call(
-                "persistent_notification",
-                "dismiss",
-                {"notification_id": f"{DOMAIN}_scan"},
-            )
+        if notify:
+            if fresh:
+                text = self._scan_text(fresh)
+                await self.hass.services.async_call(
+                    "persistent_notification",
+                    "create",
+                    {
+                        "title": "PVM – Geräte & Sensoren gefunden",
+                        "message": text,
+                        "notification_id": f"{DOMAIN}_scan",
+                    },
+                )
+            else:
+                await self.hass.services.async_call(
+                    "persistent_notification",
+                    "dismiss",
+                    {"notification_id": f"{DOMAIN}_scan"},
+                )
         self._broadcast()
         return result
 

@@ -2,6 +2,57 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.4.0] – 2026-09-04
+
+### Behoben – „Geräte hinzufügen hängt / Seite lädt nicht weiter“ (komplett überarbeitet)
+- **Speichern blockiert nie mehr:** Die Konfiguration wird sofort übernommen und
+  die Antwort kommt ohne Wartezeit. Neue/entfernte Geräte werden **entprellt im
+  Hintergrund** nachgeladen (ein Reload statt vieler, geschützt gegen
+  Überschneidungen) – die Seite rendert danach zuverlässig neu und holt die
+  neuen Entitäten automatisch nach.
+- **Kein stilles Aufgeben mehr:** Früher gab die Seite nach ~15 Sekunden auf,
+  ohne etwas anzuzeigen („es lädt nicht weiter“). Jetzt wird nach jedem
+  Speichern garantiert neu gerendert – notfalls mit deutlicher Meldung.
+- **Scan mit Sperre + Zeitlimit:** Doppelte Scans laufen nicht mehr parallel;
+  die Suche antwortet immer (max. 60 s) und der Button wird zuverlässig wieder
+  aktiv. WebSocket-Kommandos antworten bei Fehlern mit klarer Meldung statt zu
+  hängen.
+- **Bearbeiten nachträglich funktioniert wirklich:** Schalter wie „Netz für
+  Mindest-SOC“, „Netz für Frist-Ziel“, „Netz im Notfall“ und „Power Charge“
+  schrieben bisher auf einen falschen Konfigurations-Schlüssel und gingen
+  verloren – jetzt korrekt gespeichert. Die Wallbox-Bearbeitung bietet
+  zusätzlich **Zeit-Ziel (SOC + Uhrzeit)** und **Power Charge** an.
+
+### Hinzugefügt – Netzbezug & Einspeisung getrennt (dein Wunsch)
+- **„Dein Netzanschluss“-Auswahl** in den Energie-Einstellungen: „Ein Sensor
+  (Bezug + / Einspeisung −)“ **oder** „Zwei getrennte Sensoren“ – passend zu
+  SolarNet & Co. mit separaten Zählern. PVM zeigt nur die passenden Felder,
+  der Wechsel ist jederzeit möglich.
+- **Eigene Kacheln „Netzbezug“ und „Einspeisung“** in Übersicht und Start-Seite
+  sowie saubere getrennte Anzeige im Energiefluss (↓ Bezug / ↑ Einspeisung).
+- Ist nur der Bezug bekannt (Einspeisung fehlt/ungültig), gilt der Überschuss
+  als **unbekannt** statt fälschlich „0“ – die Engine hält den Zustand sicher.
+- Neue, getestete, reine Berechnungsfunktion `compute_energy_flow` für alle
+  Sensor-Kombinationen (10 neue Tests).
+
+### Verbessert (Dashboard & Stabilität)
+- **Beschriftungen „springen“ nicht mehr:** Live-Werte reservieren feste
+  Breiten (Kopf-Chips, Kacheln), Karten nutzen `auto-fit`, lange Namen
+  brechen sauber um – auch auf großen Monitoren ruhig und aufgeräumt.
+- Beim Öffnen der Seite wird während eines Reloads automatisch erneut
+  verbunden (keine sofortige Fehlerseite).
+- Automatischer Scan beim Start nur noch bei frischer Installation (ohne
+  Benachrichtigung) – kein lästiges Wiederholen nach Neustarts.
+
+### Dokumentation
+- **README komplett neu** als kompaktes Anwender-Handbuch: Inhaltsverzeichnis
+  als nebeneinanderliegende, mitwachsende Kacheln, Entwickler-Abschnitt
+  entfernt (Verweis auf `docs/`), FAQ-Details und KI-Support nach
+  `docs/faq.md` verschoben.
+- Alle `docs/*.md` haben oben einen **„Zurück zum README“**-Link; die
+  Konfiguration beschreibt die neue Netzanschluss-Auswahl und das
+  HA-Design als Standard.
+
 ## [1.3.1] – 2026-09-04
 
 ### Behoben / Verbessert

@@ -129,7 +129,10 @@ class PvmSetupSensor(_PvmSensor):
             "device_count": len(config.get("devices", [])),
             "energy": {
                 key: bool(energy.get(f"{key}_sensor"))
-                for key in ("pv", "grid", "house")
+                for key in (
+                    "pv", "grid", "grid_import", "grid_export", "house",
+                    "battery_power", "battery_soc",
+                )
             },
         }
 

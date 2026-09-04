@@ -1,5 +1,7 @@
 # Installation
 
+> 📖 **PV Manager – Dokumentation** · [⬅️ Zurück zum README](../README.md) · [Häufige Fragen](faq.md)
+
 > **Voraussetzungen:** Home Assistant ≥ 2025.2, [HACS](https://hacs.xyz) (empfohlen), Internetzugang auf GitHub.
 
 ## Variante 1: Per HACS-Button (empfohlen)

@@ -1,5 +1,7 @@
 # 🏗️ Architektur & Struktur
 
+> 📖 **PV Manager – Dokumentation** · [⬅️ Zurück zum README](../README.md) · [Entwicklung](development.md)
+
 Dieses Dokument beschreibt den vollständigen Aufbau des PVM-Projekts – vom Repository-Wurzelverzeichnis bis zur letzten Datei. Es richtet sich an Entwickler und alle, die verstehen möchten, wie PVM intern funktioniert.
 
 ---

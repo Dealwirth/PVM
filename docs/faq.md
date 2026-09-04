@@ -1,5 +1,7 @@
 # FAQ & Fehlerbehebung
 
+> 📖 **PV Manager – Dokumentation** · [⬅️ Zurück zum README](../README.md) · [Konfiguration](configuration.md)
+
 ## Meine Wallbox hat zwei getrennte Taster (Start/Stopp)
 
 Wähle beim Gerät die Steuerungsart **„Zwei Taster (Start/Stopp)“** und ordne die
@@ -123,3 +125,44 @@ auch dann, wenn die eigentliche Steuerung über eine andere Integration
 (z. B. evcc, openWB, Shelly) läuft. Die Geräte-Erkennung sucht nach typischen
 Namen/device_class-Werten und schlägt passende Sensoren vor; die Zuordnung
 bestätigst du selbst.
+
+## Geräte lassen sich nicht hinzufügen oder die Seite „hängt“
+
+PVM speichert Änderungen jetzt **ohne Wartezeit** und lädt neue Geräte im
+Hintergrund nach – ein Hängen gehört damit der Vergangenheit an. Falls die
+Seite trotzdem einmal nicht weiterlädt:
+
+1. Seite im Browser neu laden (**Strg+F5**).
+2. Warten, bis die Integration neu geladen ist (oben rechts im Browser kurz
+   „Verbindung getrennt“ ist normal) – die Seite versucht es automatisch erneut.
+3. Selbsttest ausführen und das Log prüfen (`Filter: pvm`).
+4. Integration einmal **entfernen und neu hinzufügen** – die gespeicherte
+   Konfiguration bleibt beim normalen Neustart erhalten.
+
+## Netzbezug und Einspeisung sind getrennte Zähler (SolarNet & Co.)
+
+Perfekt – das ist der Normalfall für SolarNet & ähnliche Systeme. Wähle auf der
+PV-Manager-Seite unter **Einstellungen → Energie-Sensoren → „Dein Netzanschluss“**
+**„Zwei getrennte Sensoren“** und ordne den **Netzbezug**- und den
+**Einspeisung**-Sensor zu. PVM wertet beide getrennt aus: In der Übersicht
+erscheinen dann eigene Kacheln und der Energiefluss zeigt Bezug und Einspeisung
+unabhängig voneinander. Du kannst jederzeit zurück zu „Ein Sensor
+(kombiniert)“ wechseln.
+
+## 🤖 KI-Support
+
+Du brauchst Hilfe? Kopiere den Prompt unten in deine KI – sie liest zuerst das
+Projekt und stellt sich dann als PVM Assistant vor.
+
+```text
+Ich brauche Hilfe bei der Home Assistant-Integration „PVM – PV Manager“
+(https://github.com/Dealwirth/PVM).
+
+1. Lies zuerst das README und das gesamte Projekt, um es vollständig zu verstehen.
+2. PVM ist ein modularer Energiemanager für PV-Überschuss: Er steuert Wallboxen,
+   Wärmepumpen und andere Verbraucher.
+3. Stell dich als „PVM Assistant“ vor und frage: „Ich bin dein PVM Assistant.
+   Wie kann ich dir helfen?“
+4. Antworte kurz, klar und verständlich – keine langen Erklärungen.
+   Wenn du etwas nicht weißt, frage kurz nach.
+```
