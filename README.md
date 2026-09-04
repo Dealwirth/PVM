@@ -1,7 +1,7 @@
 # ☀️ PVM – PV Manager
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.2.0+-blue.svg)](https://www.home-assistant.io)
-[![GitHub Release](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/Dealwirth/PVM/releases)
+[![GitHub Release](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/Dealwirth/PVM/releases)
 [![License](https://img.shields.io/github/license/Dealwirth/PVM)](LICENSE)
 **PVM** ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deinen PV-Überschuss automatisch an Wallboxen, Wärmepumpe, Waschmaschine und Co. – basierend auf einer **Prioritätenliste**, die du in der eigenen **PV-Manager-Seite** per Klick (▲/▼) festlegst.
 <p align="center">
@@ -121,7 +121,7 @@
 <td style="padding:10px;border:none;width:50%;background:#16213e;vertical-align:top;">
 <div style="background:#1a1a3e;border-radius:10px;padding:12px;">
 <div style="color:#41BDF5;font-size:13px;font-weight:600;">🚗 E-Auto laden</div>
-<div style="color:#aaaaaa;font-size:12px;margin-top:4px;">Mindest-SOC, Max-SOC und Zeit-Ziele.</div>
+<div style="color:#aaaaaa;font-size:12px;margin-top:4px;">Mindest-SOC, Max-SOC, Zeit-Ziele – und automatische Erkennung, welches Auto an welcher Wallbox lädt.</div>
 </div>
 </td>
 </tr>
@@ -211,8 +211,12 @@ Klick auf den großen Button oben – HACS öffnet sich und installiert PVM dire
 - **Power Charge** – Schalter antippen, Auto lädt mit voller Leistung, Stopp automatisch.
 - **Ziele setzen** – Mindest-/Max-SOC und Frist-Ziel (Uhrzeit + Ziel) direkt auf der Seite.
 - **WP-Test** – „WP-Test starten“: heizt bis 70 °C, misst und speichert den Verbrauch.
-- **Design wechseln** – in 🎨 **Einstellungen** zwischen ☀️ Sonnenaufgang,
-  🌿 Natur-frisch und 🌊 Kühl & klar umschalten; jede Gruppe lässt sich separat aufklappen.
+- **Autos überwachen** – E-Autos als Gerät hinzufügen: PVM zeigt Akkustand und
+  Ladeleistung live und erkennt **vollautomatisch, an welcher Wallbox** das Auto
+  gerade lädt (Leistungsvergleich). Nicht ladende Autos gelten als **unterwegs**.
+- **Design wechseln** – in 🎨 **Einstellungen** zwischen 🏠 **Home Assistant**
+  (folgt deinem HA-Theme, Standard), ☀️ Sonnenaufgang, 🌿 Natur-frisch und
+  🌊 Kühl & klar umschalten; jede Gruppe lässt sich separat aufklappen.
 
 > **Kein YAML nötig – alles geht per Klick.**
 

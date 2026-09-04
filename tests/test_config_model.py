@@ -112,6 +112,34 @@ def test_energy_configured():
     assert cm.energy_configured({"energy": {"house_sensor": "sensor.haus"}})
 
 
+def test_new_energy_keys_normalized():
+    config = cm.normalize_config(
+        {
+            "energy": {
+                "grid_import_sensor": "sensor.netzbezug",
+                "grid_export_sensor": "sensor.einspeisung",
+                "battery_power_sensor": "sensor.speicher_leistung",
+                "battery_soc_sensor": "sensor.speicher_soc",
+            }
+        }
+    )
+    energy = config["energy"]
+    assert energy["grid_import_sensor"] == "sensor.netzbezug"
+    assert energy["grid_export_sensor"] == "sensor.einspeisung"
+    assert energy["battery_power_sensor"] == "sensor.speicher_leistung"
+    assert energy["battery_soc_sensor"] == "sensor.speicher_soc"
+    assert energy["pv_sensor"] is None
+
+
+def test_fahrzeug_defaults():
+    device = cm.normalize_device(cm.default_device("fahrzeug", "Enyaq"))
+    assert device["role"] == "fahrzeug"
+    assert device["car"]["capacity_kwh"] == 60.0
+    assert device["car"]["max_soc"] == 80.0
+    assert device["wp"] is None
+    assert device["control"]["type"] == CONTROL_SWITCH
+
+
 def test_deadline_next_ts_today_and_tomorrow():
     tz = UTC
     now = datetime(2026, 3, 1, 12, 0, tzinfo=tz)

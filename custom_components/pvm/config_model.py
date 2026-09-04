@@ -29,6 +29,7 @@ from .const import (
     DEFAULT_WP_TARGET_C,
     GRID_KIND_NET,
     MODE_AUTO,
+    ROLE_FAHRZEUG,
     ROLE_VERBRAUCHER,
     ROLE_WAERMEPUMPE,
     ROLE_WALLBOX,
@@ -39,7 +40,7 @@ from .const import (
 )
 
 # Erlaubte Rollen/Modi (Vermeidet kaputte Daten durch Tippfehler)
-VALID_ROLES = (ROLE_WALLBOX, ROLE_WAERMEPUMPE, ROLE_VERBRAUCHER)
+VALID_ROLES = (ROLE_WALLBOX, ROLE_WAERMEPUMPE, ROLE_VERBRAUCHER, ROLE_FAHRZEUG)
 VALID_MODES = ("auto", "surplus", "deadline", "off")
 VALID_GRID_KINDS = ("net", "export_only")
 
@@ -126,6 +127,20 @@ def default_device(role: str, name: str = "Gerät") -> dict:
             "manual_force": False,
             "deadline_time": None,  # "HH:MM" oder None
             "deadline_soc": 0.0,    # 0 = deaktiviert
+        }
+    elif role == ROLE_FAHRZEUG:
+        # Auto: nur Überwachung – SoC, Ladeleistung und Ziele werden
+        # automatisch der passenden Wallbox zugeordnet (siehe detector).
+        device["car"] = {
+            "capacity_kwh": DEFAULT_CAPACITY_KWH,
+            "min_soc": DEFAULT_MIN_SOC,
+            "max_soc": DEFAULT_MAX_SOC,
+            "min_charge_power_w": DEFAULT_MIN_CHARGE_POWER_W,
+            "grid_min_allowed": True,
+            "grid_deadline_allowed": True,
+            "manual_force": False,
+            "deadline_time": None,
+            "deadline_soc": 0.0,
         }
     elif role == ROLE_WAERMEPUMPE:
         device["wp"] = {
@@ -245,7 +260,15 @@ def normalize_config(data: dict | None) -> dict:
     merged = _merge(DEFAULT_CONFIG, data)
 
     energy = merged.setdefault("energy", {})
-    for key in ("pv_sensor", "grid_sensor", "house_sensor"):
+    for key in (
+        "pv_sensor",
+        "grid_sensor",
+        "grid_import_sensor",
+        "grid_export_sensor",
+        "house_sensor",
+        "battery_power_sensor",
+        "battery_soc_sensor",
+    ):
         energy[key] = energy.get(key) or None
     if energy.get("grid_kind") not in VALID_GRID_KINDS:
         energy["grid_kind"] = GRID_KIND_NET
@@ -291,7 +314,11 @@ def energy_configured(config: dict | None) -> bool:
         return False
     energy = config.get("energy") or {}
     return bool(
-        energy.get("pv_sensor") or energy.get("grid_sensor") or energy.get("house_sensor")
+        energy.get("pv_sensor")
+        or energy.get("grid_sensor")
+        or energy.get("grid_import_sensor")
+        or energy.get("grid_export_sensor")
+        or energy.get("house_sensor")
     )
 
 

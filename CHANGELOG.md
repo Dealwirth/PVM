@@ -2,6 +2,42 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.3.0] – 2026-09-04
+
+### Behoben
+- **„Geräte können nicht hinzugefügt werden / es lädt nicht weiter“:** Die
+  Benachrichtigungen nutzten das in HA 2024.9 entfernte `hass.components`
+  (`persistent_notification`). Dadurch schlug die automatische Gerätesuche
+  und das Neuladen nach dem Speichern fehl. Jetzt über den offiziellen
+  `persistent_notification`-Service – Scan, Übernehmen und Speichern laufen
+  wieder zuverlässig durch.
+- **Einheiten-Fehler:** Leistungssensoren in `kW`/`mW` (z. B. SolarNet, viele
+  Wallboxen) wurden als Watt interpretiert – Überschuss und Zuordnungen waren
+  um den Faktor 1000 falsch. Alle Leistungswerte werden jetzt einheiten-korrekt
+  in Watt umgerechnet (Backend und Seite).
+- Speichern löst keinen „hängenden“ Zustand mehr aus: Die Seite wartet nach
+  dem Speichern aktiv, bis die neue Konfiguration geladen ist.
+
+### Hinzugefügt
+- **🚗 Autos (E-Autos) als eigene Geräte:** Akkustand (SoC) und aktuelle
+  Ladeleistung werden überwacht. PVM ordnet jedes Auto **vollautomatisch**
+  der passenden Wallbox zu – Vergleich der Ladeleistungen (eine Wallbox, ein
+  Auto → trivial; mehrere → ähnlichste Leistung). Autos, die nicht laden,
+  gelten als **unterwegs**; der Status „lädt an Wallbox … / unterwegs“
+  erscheint live auf der Seite und als Sensor (`pvm_car_status_*`).
+- **Mehr Energiesensoren:** getrennter Netzbezug- und Einspeisung-Sensor,
+  Speicher-Leistung und Speicher-SoC – jeweils optional und einzeln
+  abwählbar; neue Rollen in der automatischen Erkennung, Speicher-Knoten im
+  Energiefluss-Diagramm.
+- **Live-Aktualisierung für alle Daten:** Die Seite abonniert
+  `state_changed`-Events über WebSocket und aktualisiert zusätzlich jede
+  Sekunde – Energiefluss-Diagramm, Gerätekarten, Auto-Zuordnung und Status.
+- **„← Home Assistant“-Button** im Kopf: öffnet die Seitenleiste wieder und
+  führt zurück zur HA-Startseite (nicht irgendwohin).
+- **Design „🏠 Home Assistant“** (neuer Standard): übernimmt automatisch
+  Farben, Karten-Ecken und Schatten deines HA-Themes (hell/dunkel); die
+  drei festen Stimmungen bleiben als Alternative erhalten.
+
 ## [1.2.0] – 2026-09-03
 
 ### Hinzugefügt – eigene PV-Manager-Seite (kein Lovelace mehr)

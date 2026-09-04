@@ -7,7 +7,7 @@ Logik-Modulen und Tests.
 
 DOMAIN = "pvm"
 NAME = "PV Manager"
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 
 # Von der Integration bereitgestellte Plattformen.
 PLATFORMS = ["sensor", "number", "switch", "button", "select", "time"]
@@ -17,16 +17,18 @@ STORAGE_KEY = DOMAIN
 STORAGE_VERSION = 1
 
 # UI-Designs des Dashboards (umschaltbar im Dashboard)
+UI_THEME_HA = "ha"               # folgt dem Home-Assistant-Design/-Theme
 UI_THEME_SUNRISE = "sonnenaufgang"
 UI_THEME_NATURE = "natur"
 UI_THEME_COOL = "klar"
-UI_THEMES = (UI_THEME_SUNRISE, UI_THEME_NATURE, UI_THEME_COOL)
+UI_THEMES = (UI_THEME_HA, UI_THEME_SUNRISE, UI_THEME_NATURE, UI_THEME_COOL)
 UI_THEME_LABELS = {
+    UI_THEME_HA: "🏠 Home Assistant",
     UI_THEME_SUNRISE: "☀️ Sonnenaufgang",
     UI_THEME_NATURE: "🌿 Natur-frisch",
     UI_THEME_COOL: "🌊 Kühl & klar",
 }
-DEFAULT_UI_THEME = UI_THEME_SUNRISE
+DEFAULT_UI_THEME = UI_THEME_HA
 
 # Einrichtungs-Stufen (Setup-Status-Sensor)
 SETUP_START = "start"       # noch keine Messungen/Geräte
@@ -44,19 +46,22 @@ SETUP_LABELS = {
 ROLE_WALLBOX = "wallbox"          # Wallbox mit optionalem Auto-Profil
 ROLE_WAERMEPUMPE = "waermepumpe"  # Wärmepumpe
 ROLE_VERBRAUCHER = "verbraucher"  # Sonstige schaltbare Verbraucher
+ROLE_FAHRZEUG = "fahrzeug"        # E-Auto (nur Überwachung: SoC, Ladeleistung)
 
-ROLES = (ROLE_WALLBOX, ROLE_WAERMEPUMPE, ROLE_VERBRAUCHER)
+ROLES = (ROLE_WALLBOX, ROLE_WAERMEPUMPE, ROLE_VERBRAUCHER, ROLE_FAHRZEUG)
 
 ROLE_LABELS = {
     ROLE_WALLBOX: "Wallbox (E-Auto)",
     ROLE_WAERMEPUMPE: "Wärmepumpe",
     ROLE_VERBRAUCHER: "Verbraucher",
+    ROLE_FAHRZEUG: "Auto (E-Auto)",
 }
 
 ROLE_ICONS = {
     ROLE_WALLBOX: "mdi:ev-station",
     ROLE_WAERMEPUMPE: "mdi:heat-pump",
     ROLE_VERBRAUCHER: "mdi:power-plug",
+    ROLE_FAHRZEUG: "mdi:car",
 }
 
 # Steuerungsarten pro Gerät
@@ -184,9 +189,13 @@ REASON_LABELS = {
 DEFAULT_CONFIG = {
     "energy": {
         "pv_sensor": None,
-        "grid_sensor": None,
-        "grid_kind": GRID_KIND_NET,
+        "grid_sensor": None,             # Kombiniert (Bezug +, Einspeisung −)
+        "grid_import_sensor": None,      # Separater Netzbezug (positiv = Bezug)
+        "grid_export_sensor": None,      # Separate Einspeisung (positiv = Einspeisung)
         "house_sensor": None,
+        "battery_power_sensor": None,    # Speicher-Leistung (optional)
+        "battery_soc_sensor": None,      # Speicher-SoC in % (optional)
+        "grid_kind": GRID_KIND_NET,
     },
     "settings": {
         "mode": DEFAULT_MODE,

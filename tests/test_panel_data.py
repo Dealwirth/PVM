@@ -79,6 +79,24 @@ def test_build_entity_map_wp_roles():
     assert dev.get("power_charge") is None
 
 
+def test_build_entity_map_car_has_only_car_status():
+    device = default_device("fahrzeug", "Enyaq")
+    config = {"devices": [device]}
+    registry = FakeRegistry(
+        {
+            f"pvm_car_status_{device['id']}": f"sensor.auto_status_{device['id']}",
+        }
+    )
+
+    entities = build_entity_map(registry, config)
+    dev = entities["devices"][device["id"]]
+    assert dev["car_status"] == f"sensor.auto_status_{device['id']}"
+    # Keine Steuer-Entitäten für reine Autos
+    assert dev.get("auto") is None
+    assert dev.get("min_soc") is None
+    assert dev.get("power_charge") is None
+
+
 def test_payload_contains_config_scan_and_version():
     device = default_device("wallbox", "Wallbox")
     config = {

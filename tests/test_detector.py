@@ -136,3 +136,70 @@ def test_match_power_soc_correlation_negative():
     power = [(0.0, 3000.0), (60.0, 3200.0), (120.0, 3100.0)]
     soc = [(0.0, 50.0), (60.0, 50.2), (120.0, 50.1)]
     assert detector.match_power_soc(power, soc) is False
+
+
+# ---------------------------------------------------------------------------
+# Auto → Wallbox-Zuordnung (über die Ladeleistungen)
+# ---------------------------------------------------------------------------
+
+def test_assign_single_car_single_wallbox():
+    cars = [{"id": "car1", "power_w": 3200.0}]
+    wallboxes = [{"id": "wb1", "power_w": 3200.0}]
+    assert detector.assign_cars_to_wallboxes(cars, wallboxes) == {"car1": "wb1"}
+
+
+def test_assign_matches_closest_power():
+    cars = [
+        {"id": "car1", "power_w": 7000.0},
+        {"id": "car2", "power_w": 3000.0},
+    ]
+    wallboxes = [
+        {"id": "wb1", "power_w": 6900.0},
+        {"id": "wb2", "power_w": 3100.0},
+    ]
+    result = detector.assign_cars_to_wallboxes(cars, wallboxes)
+    assert result == {"car1": "wb1", "car2": "wb2"}
+
+
+def test_assign_only_charging_devices_count():
+    cars = [
+        {"id": "car1", "power_w": 5000.0},
+        {"id": "car2", "power_w": 0.0},   # unterwegs
+    ]
+    wallboxes = [
+        {"id": "wb1", "power_w": 5000.0},
+        {"id": "wb2", "power_w": 20.0},   # nicht am Laden
+    ]
+    result = detector.assign_cars_to_wallboxes(cars, wallboxes)
+    assert result == {"car1": "wb1"}
+    assert "car2" not in result
+
+
+def test_assign_unknown_power_is_ignored():
+    cars = [{"id": "car1", "power_w": None}]
+    wallboxes = [{"id": "wb1", "power_w": 4000.0}]
+    assert detector.assign_cars_to_wallboxes(cars, wallboxes) == {}
+
+
+def test_assign_too_far_apart_stays_unassigned():
+    cars = [{"id": "car1", "power_w": 11000.0}]
+    wallboxes = [{"id": "wb1", "power_w": 1000.0}]
+    assert detector.assign_cars_to_wallboxes(cars, wallboxes) == {}
+
+
+def test_suggest_sets_detects_car():
+    entities = [
+        ent("sensor.enyaq_battery", "Batterie", "battery", "%"),
+        ent("sensor.enyaq_charging_power", "Ladeleistung", "power", "W"),
+    ]
+    with_device = [
+        {**e, "device_id": "dev_car", "device_name": "Enyaq",
+         "manufacturer": "Skoda", "model": "Enyaq 85"}
+        for e in entities
+    ]
+    sets = detector.suggest_sets(with_device)
+    car_sets = [s for s in sets if s["role"] == "fahrzeug"]
+    assert car_sets
+    found = car_sets[0]
+    assert found["fields"]["soc_sensor"] == "sensor.enyaq_battery"
+    assert found["fields"]["power_sensor"] == "sensor.enyaq_charging_power"

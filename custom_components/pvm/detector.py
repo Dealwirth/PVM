@@ -23,10 +23,13 @@ EXCLUDE_KEYWORDS = {
         "batterie haus", "hausbatterie", "akkuspeicher", "heimbatterie",
         "battery system", "ess", "standalone battery", "akkuladezustand haus",
     ],
-    "pv": ["netz", "grid", "bezug", "verbrauch", "consumption", "import"],
+    "pv": ["netz", "grid", "bezug", "verbrauch", "consumption", "import", "einspeis"],
     "grid": ["pv", "solar", "wechselrichter", "inverter", "produktion"],
+    "grid_import": ["pv", "solar", "einspeis", "export"],
+    "grid_export": ["pv", "solar", "bezug", "import"],
     "house": ["netz", "grid"],
     "wp": ["puffer", "speicher"],
+    "battery": ["auto", "fahrzeug", "vehicle", "car", "soc", "ladezustand", "wallbox"],
 }
 
 # Schlüsselwort-Mengen (case-insensitive, Kurzwörter werden mit Wortgrenzen
@@ -44,6 +47,20 @@ KEYWORDS = {
     "house": [
         "haus", "house", "home", "household", "gesamt", "verbrauch",
         "consumption", "last", "haushalt",
+    ],
+    "grid_import": [
+        "netzbezug", "netz bezug", "bezug", "strombezug", "grid import",
+        "import", "bezug leistung", "bezugsleistung", "netzimport",
+    ],
+    "grid_export": [
+        "netzeinspeisung", "netz einspeisung", "einspeisung", "einspeis",
+        "grid export", "export", "netzexport", "einspeiseleistung",
+    ],
+    "battery": [
+        "speicher", "batteriespeicher", "hausbatterie", "heimbatterie",
+        "akkuspeicher", "powerwall", "home battery", "battery system",
+        "batterie leistung", "speicherleistung", "battery power",
+        "storage", "standalone battery", "usv", "ess",
     ],
     "wallbox": [
         "wallbox", "ladestation", "ladepunkt", "charger", "charge point",
@@ -115,18 +132,21 @@ EV_MODELS = [
 DEVICE_CLASS_HINTS = {
     "pv": {"power"},
     "grid": {"power"},
+    "grid_import": {"power"},
+    "grid_export": {"power"},
     "house": {"power"},
     "wallbox": {"battery_charging"},
     "wp": {"temperature"},
     "auto_soc": {"battery", "battery_level"},
+    "battery": {"battery", "battery_level", "power"},
     "verbraucher": set(),
 }
 
 # Diese Rollen brauchen grundsätzlich einen Leistungswert
-POWER_ROLES = {"pv", "grid", "house", "wallbox"}
+POWER_ROLES = {"pv", "grid", "grid_import", "grid_export", "house", "wallbox", "battery"}
 
 # Rollen, die (fast) nur als "sensor" vorkommen dürfen
-SENSOR_ONLY_ROLES = {"pv", "grid", "house", "wp", "auto_soc"}
+SENSOR_ONLY_ROLES = {"pv", "grid", "grid_import", "grid_export", "house", "wp", "auto_soc", "battery"}
 
 # ---------------------------------------------------------------------------
 # Helfer
@@ -343,10 +363,13 @@ def best_for_role(entities: list[dict], role: str, min_score: int = 45) -> list[
 
 
 def suggest_energy(entities: list[dict]) -> dict[str, str | None]:
-    """Schlägt je einen Sensor für PV, Netz und Hausverbrauch vor."""
+    """Schlägt je einen Sensor für PV, Netz (kombiniert), getrennten
+    Netzbezug/Einspeisung und Hausverbrauch vor."""
     suggestions = {
         "pv": best_for_role(entities, "pv"),
         "grid": best_for_role(entities, "grid"),
+        "grid_import": best_for_role(entities, "grid_import"),
+        "grid_export": best_for_role(entities, "grid_export"),
         "house": best_for_role(entities, "house"),
     }
     return {key: (ids[0] if ids else None) for key, ids in suggestions.items()}
@@ -400,7 +423,7 @@ def suggest_sets(entities: list[dict]) -> list[dict]:
     sets: list[dict] = []
 
     # 1) Energie-Messungen (Top-1 je Rolle mit Begründung)
-    for role in ("pv", "grid", "house"):
+    for role in ("pv", "grid", "grid_import", "grid_export", "house"):
         candidate = _best_of(entities, role)
         if candidate is None:
             continue
@@ -424,12 +447,41 @@ def suggest_sets(entities: list[dict]) -> list[dict]:
 
     clusters: list[list[dict]] = list(by_device.values())
     for single in singles:
-        # Nur Einzel-Sensoren ohne Gerätezuordnung, die klar Wallbox/WP sind
+        # Nur Einzel-Sensoren ohne Gerätezuordnung, die klar Wallbox/WP/Auto sind
         analysis = analyse_entity(single)
-        if "wallbox" in analysis or "wp" in analysis:
+        if "wallbox" in analysis or "wp" in analysis or "auto_soc" in analysis:
             clusters.append([single])
 
     seen: set[str] = set()
+
+    def add_car_set(cluster: list[dict]) -> None:
+        """Vorschlag für ein reines E-Auto (Überwachung, keine Wallbox)."""
+        soc = _best_of(cluster, "auto_soc")
+        if soc is None:
+            return
+        power = _best_of(cluster, "wallbox") or _best_of(cluster, "battery")
+        title = _cluster_title(cluster, fallback="Auto")
+        key = f"fahrzeug:{title}"
+        if key in seen:
+            return
+        seen.add(key)
+        sets.append(
+            {
+                "role": "fahrzeug",
+                "title": title,
+                "score": soc["score"],
+                "reasons": soc["reasons"] + ["E-Auto erkannt (SoC)"],
+                "fields": {
+                    "soc_sensor": soc["entity_id"],
+                    "power_sensor": power["entity_id"] if power else None,
+                },
+                "control": None,
+                "source": {
+                    "soc": soc["entity_id"],
+                    "power": power["entity_id"] if power else None,
+                },
+            }
+        )
 
     def add_device_set(cluster: list[dict], role: str) -> None:
         nonlocal seen
@@ -537,10 +589,22 @@ def suggest_sets(entities: list[dict]) -> list[dict]:
         ) or any(
             m in _manufacturer_signals(e) for e in cluster for m in MANUFACTURERS["wp"]
         )
+        is_car = (
+            not is_wallbox
+            and not is_wp
+            and any(m in text for m in ("auto", "fahrzeug", "vehicle", "car", "ev "))
+            and any(m in text for m in ("soc", "batterie", "battery", "ladezustand"))
+        ) or any(
+            m in _manufacturer_signals(e)
+            for e in cluster
+            for m in MANUFACTURERS["auto_soc"]
+        )
         if is_wallbox:
             add_device_set(cluster, "wallbox")
         elif is_wp:
             add_device_set(cluster, "wp")
+        elif is_car:
+            add_car_set(cluster)
 
     sets.sort(key=lambda item: item["score"], reverse=True)
     return sets
@@ -562,6 +626,63 @@ def _cluster_title(cluster: list[dict], fallback: str) -> str:
 # ---------------------------------------------------------------------------
 # Korrelation Wallbox ↔ Auto (SoC-Anstieg ↔ Ladeleistung)
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Automatische Zuordnung: welches Auto hängt an welcher Wallbox?
+# ---------------------------------------------------------------------------
+def assign_cars_to_wallboxes(
+    cars: list[dict],
+    wallboxes: list[dict],
+    min_charge_w: float = 60.0,
+    tolerance: float = 0.12,
+) -> dict[str, str]:
+    """Ordnet Autos Wallboxen zu (car_id -> wallbox_id), rein über Leistung.
+
+    ``cars`` und ``wallboxes`` sind Listen von Dicts mit ``id`` und
+    ``power_w`` (aktueller Messwert in Watt oder None). Es zählen nur Werte
+    über ``min_charge_w`` (Gerät lädt gerade).
+
+    Strategie (vollautomatisch):
+    - Lädt nur ein Auto, wird es der einzigen aktiven Wallbox zugeordnet
+      (trivial – solange die Leistung plausibel zusammengehört).
+    - Mehrere Autos/Wallboxen: absteigend nach Leistung sortieren und Autos
+      greedy der Wallbox mit dem ähnlichsten Wert zuordnen (Toleranz =
+      max(150 W, 12 % des höheren Werts)). So bleiben verschiedene
+      Ladeleistungen unterscheidbar.
+    """
+    charging_wb = [
+        w
+        for w in wallboxes
+        if w.get("power_w") is not None and w["power_w"] >= min_charge_w
+    ]
+    charging_cars = [
+        c
+        for c in cars
+        if c.get("power_w") is not None and c["power_w"] >= min_charge_w
+    ]
+    assignments: dict[str, str] = {}
+    if not charging_cars or not charging_wb:
+        return assignments
+
+    wb_sorted = sorted(charging_wb, key=lambda w: w["power_w"], reverse=True)
+    car_sorted = sorted(charging_cars, key=lambda c: c["power_w"], reverse=True)
+    used_wb: set[str] = set()
+    for car in car_sorted:
+        best: dict | None = None
+        best_diff: float | None = None
+        for wb in wb_sorted:
+            if wb["id"] in used_wb:
+                continue
+            diff = abs(wb["power_w"] - car["power_w"])
+            tol = max(150.0, tolerance * max(wb["power_w"], car["power_w"]))
+            if diff <= tol and (best_diff is None or diff < best_diff):
+                best = wb
+                best_diff = diff
+        if best is not None:
+            assignments[car["id"]] = best["id"]
+            used_wb.add(best["id"])
+    return assignments
+
+
 def match_power_soc(
     power_series: list[tuple[float, float]],
     soc_series: list[tuple[float, float]],

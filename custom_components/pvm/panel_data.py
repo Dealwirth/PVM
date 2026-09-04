@@ -50,6 +50,7 @@ DEVICE_PREFIXES = {
     "test_start": "pvm_wp_test_start",
     "test_abort": "pvm_wp_test_abort",
     "wp_test_result": "pvm_wp_test_result",
+    "car_status": "pvm_car_status",
 }
 
 
@@ -88,11 +89,15 @@ def _platform_of(kind: str) -> str:
         "test_start": "button",
         "test_abort": "button",
         "wp_test_result": "sensor",
+        "car_status": "sensor",
     }.get(kind, "sensor")
 
 
 def _kinds_for_role(role: str) -> set[str]:
     """Welche Entitäten-Kinds eine Rolle besitzt (Spiegel der Plattformen)."""
+    if role == "fahrzeug":
+        # Autos sind reine Überwachung: nur der Auto-Status (plus eigene Sensoren).
+        return {"car_status"}
     base = {"rank", "status", "up", "down", "auto"}
     if role == "wallbox":
         base |= {

@@ -46,9 +46,15 @@ async def async_get_config_entry_diagnostics(
         "engine": {
             "surplus_w": manager.surplus_w,
             "surplus_valid": manager.surplus_valid,
+            "battery_w": manager.battery_w,
+            "battery_soc": manager.battery_soc,
             "last_cycle_ts": manager.last_cycle_ts,
             "last_error": manager.last_error,
             "consecutive_errors": manager.consecutive_errors,
+        },
+        "cars": {
+            "assignments": manager.car_assignments,
+            "status": manager.car_status,
         },
         "wp_test_results": manager.config.get("wp_test_results", {}),
         "last_scan": {

@@ -18,8 +18,10 @@ from .const import (
     DOMAIN,
     ENTITY_LABELS,
     MODE_LABELS,
+    ROLE_FAHRZEUG,
     ROLE_WAERMEPUMPE,
     ROLE_WALLBOX,
+    STALE_SOC_AFTER_S,
 )
 from .manager import PvmManager
 
@@ -39,6 +41,9 @@ async def async_setup_entry(
         PvmSetupSensor(manager),
     ]
     for device in manager.config.get("devices", []):
+        if device.get("role") == ROLE_FAHRZEUG:
+            entities.append(PvmCarStatusSensor(manager, device))
+            continue
         entities.append(PvmRankSensor(manager, device))
         entities.append(PvmDeviceStatusSensor(manager, device))
         if device.get("role") == ROLE_WAERMEPUMPE:
@@ -95,6 +100,8 @@ class PvmSurplusSensor(_PvmSensor):
             "grid_w": self.manager.grid_w,
             "pv_w": self.manager.pv_w,
             "house_w": self.manager.house_w,
+            "battery_w": self.manager.battery_w,
+            "battery_soc": self.manager.battery_soc,
             "reserve_w": self.manager.config.get("settings", {}).get("reserve_w", 0),
         }
 
@@ -249,6 +256,47 @@ class PvmDeviceStatusSensor(_PvmDeviceSensor):
             correlation = self.manager.correlation_ok(self.device_id)
             if correlation is not None:
                 attrs["correlation_ok"] = correlation
+        return attrs
+
+
+class PvmCarStatusSensor(_PvmDeviceSensor):
+    """Status eines E-Autos: lädt an welcher Wallbox – oder unterwegs.
+
+    Die Zuordnung erfolgt vollautomatisch über die Ladeleistungen
+    (verschiedene Wallboxen haben verschiedene Leistungen → Vergleich).
+    """
+
+    _attr_icon = "mdi:car"
+    _attr_entity_registry_enabled_default = True
+
+    def __init__(self, manager: PvmManager, device: dict) -> None:
+        super().__init__(manager, device)
+        self._attr_unique_id = f"{DOMAIN}_car_status_{self.device_id}"
+        self._attr_name = f"{self.device_name} – Status"
+
+    @property
+    def native_value(self) -> str:
+        return self.manager.car_status.get(self.device_id, "unbekannt")
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        sensors = self.device.get("sensors", {}) or {}
+        power, _valid = self.manager.read_power(sensors.get("power"))
+        soc, _svalid = self.manager.read_number(
+            sensors.get("soc"), stale_s=STALE_SOC_AFTER_S
+        )
+        wallbox_id = self.manager.car_assignments.get(self.device_id)
+        attrs: dict[str, Any] = {
+            "power_w": power,
+            "soc": soc,
+            "charging": bool(
+                power is not None and power >= 60.0
+            ),
+            "wallbox_id": wallbox_id,
+        }
+        if wallbox_id:
+            wallbox = self.manager.get_device(wallbox_id)
+            attrs["wallbox_name"] = wallbox.get("name") if wallbox else None
         return attrs
 
 

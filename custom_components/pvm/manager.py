@@ -41,6 +41,7 @@ from .const import (
     MODE_OFF,
     PHASE_VOLTAGE_V,
     REASON_LABELS,
+    ROLE_FAHRZEUG,
     ROLE_VERBRAUCHER,
     ROLE_WAERMEPUMPE,
     ROLE_WALLBOX,
@@ -49,7 +50,7 @@ from .const import (
     STALE_SOC_AFTER_S,
     STALE_TEMP_AFTER_S,
 )
-from .detector import match_power_soc, suggest_sets
+from .detector import assign_cars_to_wallboxes, match_power_soc, suggest_sets
 from .store import PvmStore
 from .wp_test import (
     STATUS_DONE,
@@ -97,12 +98,18 @@ class PvmManager:
         self.grid_w = 0.0
         self.pv_w: float | None = None
         self.house_w: float | None = None
+        self.battery_w: float | None = None
+        self.battery_soc: float | None = None
         self.last_cycle_ts: float | None = None
         self.last_error: str | None = None
         self.consecutive_errors = 0
         self.engine_notes: list[str] = []
         self.device_state: dict[str, dict[str, Any]] = {}
         self.last_scan: dict[str, Any] = {}
+
+        # Automatische Zuordnung Auto -> Wallbox (jeder Zyklus neu)
+        self.car_assignments: dict[str, str] = {}  # car_id -> wallbox_id
+        self.car_status: dict[str, str] = {}       # car_id -> Status-Text
 
         # Zuletzt angewandte Aktionen (verhindert doppelte Service-Aufrufe)
         self._applied: dict[str, dict[str, Any]] = {}
@@ -270,6 +277,7 @@ class PvmManager:
             _LOGGER.exception("PVM-Zyklusfehler: %s", err)
         finally:
             self.last_cycle_ts = _time.time()
+            self._update_car_state()
             self._broadcast()
 
     async def _run_cycle_inner(self) -> None:
@@ -309,18 +317,43 @@ class PvmManager:
     def _read_energy(self) -> tuple[float, bool, float, float | None, float | None]:
         """Liest die Energie-Sensoren und berechnet den Export.
 
+        Unterstützt: kombinierten Netz-Sensor, getrennte Bezug-/Einspeisung-
+        Sensoren, PV minus Hausverbrauch sowie optionale Speicher-Werte.
         Liefert (export_w, gültig, netz_w, pv_w, haus_w).
         """
         energy = self.config.get("energy", {})
         pv_id = energy.get("pv_sensor")
         grid_id = energy.get("grid_sensor")
+        import_id = energy.get("grid_import_sensor")
+        export_id = energy.get("grid_export_sensor")
         house_id = energy.get("house_sensor")
+        battery_id = energy.get("battery_power_sensor")
+        battery_soc_id = energy.get("battery_soc_sensor")
         kind = energy.get("grid_kind", GRID_KIND_NET)
 
-        pv, pv_valid = self.read_number(pv_id, stale_s=STALE_SENSOR_AFTER_S)
-        house, house_valid = self.read_number(house_id, stale_s=STALE_SENSOR_AFTER_S)
-        grid, grid_valid = self.read_number(grid_id, stale_s=STALE_SENSOR_AFTER_S)
+        pv, pv_valid = self.read_power(pv_id)
+        house, house_valid = self.read_power(house_id)
+        grid, grid_valid = self.read_power(grid_id)
+        grid_import, import_valid = self.read_power(import_id)
+        grid_export, export_valid = self.read_power(export_id)
 
+        # Speicher (optional) – nur für Anzeige/Diagnose
+        self.battery_w, _bvalid = self.read_power(battery_id)
+        self.battery_soc, _bsvalid = self.read_number(
+            battery_soc_id, stale_s=STALE_SOC_AFTER_S
+        )
+
+        # 1) Getrennte Bezug-/Einspeisung-Sensoren (Netz-Einspeisung = Export)
+        if import_id or export_id:
+            if export_valid and grid_export is not None:
+                export = max(0.0, grid_export)
+                net = (grid_import or 0.0) - export if import_valid else -export
+                return export, True, net, pv, house
+            if import_valid and grid_import is not None:
+                # Nur Bezug-Sensor: Überschuss unbekannt
+                return 0.0, True, max(0.0, grid_import), pv, house
+
+        # 2) Kombinierter Netz-Sensor
         if grid_id and grid_valid and grid is not None:
             if kind == GRID_KIND_NET:
                 # positiv = Bezug, negativ = Einspeisung
@@ -331,6 +364,7 @@ class PvmManager:
                 net = -export
             return export, True, net, pv, house
 
+        # 3) PV minus Hausverbrauch
         if pv_id and pv_valid and pv is not None:
             if house_id and house_valid and house is not None:
                 return max(0.0, pv - house), True, max(0.0, house - pv), pv, house
@@ -345,6 +379,9 @@ class PvmManager:
         mode = self.config["settings"].get("mode", MODE_AUTO)
         now_local = dt_util.as_local(dt_util.utcnow())
         for index, device in enumerate(self.config.get("devices", [])):
+            if device.get("role") == ROLE_FAHRZEUG:
+                # Autos sind reine Überwachung – keine Steuerung durch die Engine.
+                continue
             try:
                 devices.append(
                     self._device_to_engine(device, index + 1, mode, now_local)
@@ -364,7 +401,7 @@ class PvmManager:
         limits = device.get("limits", {})
 
         settings = self.config.get("settings", {})
-        measured, _valid = self.read_number(sensors.get("power"))
+        measured, _valid = self.read_power(sensors.get("power"))
         on = self._control_is_on(device_id, device.get("control", {}), measured)
         has_setpoint = control.get("type") == "switch_number"
 
@@ -553,7 +590,7 @@ class PvmManager:
         control = device.get("control", {})
         device_id = device["id"]
         sensors = device.get("sensors", {})
-        measured, _valid = self.read_number(sensors.get("power"))
+        measured, _valid = self.read_power(sensors.get("power"))
         is_on = self._control_is_on(device_id, control, measured)
         changed = False
 
@@ -783,6 +820,29 @@ class PvmManager:
                 return value, False
         return value, True
 
+    def unit_of(self, entity_id: str | None) -> str:
+        """Einheit (unit_of_measurement) einer Entität ("" bei unbekannt)."""
+        if not entity_id:
+            return ""
+        state = self.hass.states.get(entity_id)
+        if state is not None and state.attributes:
+            return str(state.attributes.get("unit_of_measurement", ""))
+        return ""
+
+    def read_power(
+        self, entity_id: str | None, stale_s: float = STALE_SENSOR_AFTER_S
+    ) -> tuple[float | None, bool]:
+        """Liest einen Leistungswert in Watt (kW/mW werden umgerechnet)."""
+        value, valid = self.read_number(entity_id, stale_s=stale_s)
+        if value is None:
+            return None, False
+        unit = self.unit_of(entity_id)
+        if unit in ("kW", "kw"):
+            return value * 1000.0, valid
+        if unit in ("mW",):
+            return value / 1000.0, valid
+        return value, valid
+
     def read_control_state(self, entity_id: str | None) -> bool | None:
         """Liefert den Bool-Zustand einer Schalter-Entität (None = unbekannt)."""
         if not entity_id:
@@ -855,7 +915,13 @@ class PvmManager:
             if sensor
         }
         fresh = [
-            found for found in sets if found.get("fields", {}).get("entity") not in configured_entities
+            found
+            for found in sets
+            if not any(
+                found.get("fields", {}).get(field) in configured_entities
+                for field in ("entity", "power_sensor", "soc_sensor", "temp_sensor")
+                if found.get("fields", {}).get(field)
+            )
         ]
         result = {
             "sets": fresh,
@@ -869,7 +935,10 @@ class PvmManager:
             "devices": suggest_sets(entities),
             "new_candidates": {
                 role: [f["fields"].get("entity") for f in fresh if f["role"] == role]
-                for role in ("pv", "grid", "house", "wallbox", "wp", "verbraucher")
+                for role in (
+                    "pv", "grid", "grid_import", "grid_export", "house",
+                    "wallbox", "wp", "verbraucher", "fahrzeug",
+                )
             },
             "count": len(entities),
             "ts": _time.time(),
@@ -878,14 +947,20 @@ class PvmManager:
         # Nur informieren, wenn es wirklich neue Vorschläge gibt
         if fresh:
             text = self._scan_text(fresh)
-            self.hass.components.persistent_notification.async_create(
-                title="PVM – Geräte & Sensoren gefunden",
-                message=text,
-                notification_id=f"{DOMAIN}_scan",
+            await self.hass.services.async_call(
+                "persistent_notification",
+                "create",
+                {
+                    "title": "PVM – Geräte & Sensoren gefunden",
+                    "message": text,
+                    "notification_id": f"{DOMAIN}_scan",
+                },
             )
         else:
-            self.hass.components.persistent_notification.async_dismiss(
-                f"{DOMAIN}_scan"
+            await self.hass.services.async_call(
+                "persistent_notification",
+                "dismiss",
+                {"notification_id": f"{DOMAIN}_scan"},
             )
         self._broadcast()
         return result
@@ -901,10 +976,13 @@ class PvmManager:
             label = {
                 "pv": "PV-Leistung",
                 "grid": "Netzbezug/Einspeisung",
+                "grid_import": "Netzbezug (separat)",
+                "grid_export": "Einspeisung (separat)",
                 "house": "Hausverbrauch",
                 "wallbox": "Wallbox",
                 "wp": "Wärmepumpe",
                 "verbraucher": "Verbraucher",
+                "fahrzeug": "E-Auto",
             }.get(role, role)
             lines.append(f"**{label}:** {title}")
         lines.append(
@@ -931,7 +1009,9 @@ class PvmManager:
             return ["PV-Leistung", "Netzbezug / Einspeisung"]
         for key, label in (
             ("pv_sensor", "PV-Leistung"),
-            ("grid_sensor", "Netzbezug / Einspeisung"),
+            ("grid_sensor", "Netz (kombiniert)"),
+            ("grid_import_sensor", "Netzbezug (separat)"),
+            ("grid_export_sensor", "Einspeisung (separat)"),
             ("house_sensor", "Hausverbrauch"),
         ):
             if not energy.get(key):
@@ -992,7 +1072,7 @@ class PvmManager:
         try:
             while self.wp_runner and self.wp_runner.running and not self._closing:
                 temp, _tv = self.read_number(temp_id, stale_s=STALE_TEMP_AFTER_S)
-                power, _pv = self.read_number(power_id, stale_s=STALE_SENSOR_AFTER_S)
+                power, _pv = self.read_power(power_id)
                 status = self.wp_runner.sample(_time.time(), power, temp)
                 if status in (STATUS_DONE, STATUS_TIMEOUT, STATUS_NO_DATA):
                     break
@@ -1033,7 +1113,7 @@ class PvmManager:
                 continue
             now = _time.time()
             if power_id:
-                power, _v = self.read_number(power_id)
+                power, _v = self.read_power(power_id)
                 if power is not None:
                     self._power_buf.setdefault(device_id, deque(maxlen=BUFFER_MAX)).append(
                         (now, power)
@@ -1072,7 +1152,12 @@ class PvmManager:
 
     def _energy_configured(self) -> bool:
         energy = self.config.get("energy", {})
-        return bool(energy.get("pv_sensor") or energy.get("grid_sensor"))
+        return bool(
+            energy.get("pv_sensor")
+            or energy.get("grid_sensor")
+            or energy.get("grid_import_sensor")
+            or energy.get("grid_export_sensor")
+        )
 
     def device_status_sensor_value(self, device: dict) -> str:
         """Status-Text eines Geräts (aus letztem Zyklus)."""
@@ -1093,8 +1178,47 @@ class PvmManager:
         device_id = device["id"]
         control = device.get("control", {})
         sensors = device.get("sensors", {})
-        measured, _valid = self.read_number(sensors.get("power"))
+        measured, _valid = self.read_power(sensors.get("power"))
         return self._control_is_on(device_id, control, measured)
+
+    # ------------------------------------------------------------------
+    # Auto-Erkennung: welches Auto hängt an welcher Wallbox?
+    # ------------------------------------------------------------------
+    def _update_car_state(self) -> None:
+        """Ordnet Autos Wallboxen zu und aktualisiert ihre Status-Texte.
+
+        Vergleich über die (unterschiedlichen) Ladeleistungen: Lädt nur ein
+        Auto, ist die Zuordnung trivial; bei mehreren wird nach ähnlichster
+        Leistung gematcht. Nicht ladende Autos gelten als „unterwegs“.
+        """
+        cars: list[dict] = []
+        for device in self.config.get("devices", []):
+            if device.get("role") == ROLE_FAHRZEUG:
+                power, valid = self.read_power(device.get("sensors", {}).get("power"))
+                cars.append({"id": device["id"], "power_w": power if valid else None})
+        wallboxes: list[dict] = []
+        for device in self.config.get("devices", []):
+            if device.get("role") == ROLE_WALLBOX:
+                power, valid = self.read_power(device.get("sensors", {}).get("power"))
+                wallboxes.append({"id": device["id"], "power_w": power if valid else None})
+
+        self.car_assignments = assign_cars_to_wallboxes(cars, wallboxes)
+
+        statuses: dict[str, str] = {}
+        for car in cars:
+            car_id = car["id"]
+            charging = car["power_w"] is not None and car["power_w"] >= CHARGE_ON_W
+            wallbox_id = self.car_assignments.get(car_id)
+            if charging and wallbox_id:
+                wallbox = find_device(self.config, wallbox_id)
+                statuses[car_id] = "lädt an " + (
+                    wallbox.get("name", "Wallbox") if wallbox else "Wallbox"
+                )
+            elif charging:
+                statuses[car_id] = "lädt (nicht zugeordnet)"
+            else:
+                statuses[car_id] = "unterwegs"
+        self.car_status = statuses
 
     def rank_of(self, device_id: str) -> int:
         """Rang (1 = höchste Priorität) eines Geräts."""

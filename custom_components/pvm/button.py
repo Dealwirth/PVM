@@ -12,6 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import (
     DOMAIN,
     ENTITY_LABELS,
+    ROLE_FAHRZEUG,
     ROLE_WAERMEPUMPE,
 )
 from .manager import PvmManager
@@ -31,6 +32,8 @@ async def async_setup_entry(
         PvmRebuildDashboardButton(manager),
     ]
     for device in manager.config.get("devices", []):
+        if device.get("role") == ROLE_FAHRZEUG:
+            continue  # Autos sind reine Überwachung (keine Prioritäts-Buttons)
         entities.append(PvmPriorityButton(manager, device["id"], "up"))
         entities.append(PvmPriorityButton(manager, device["id"], "down"))
         if device.get("role") == ROLE_WAERMEPUMPE:

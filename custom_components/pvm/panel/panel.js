@@ -33,6 +33,7 @@
       wallbox: "Wallbox / E-Auto",
       waermepumpe: "Wärmepumpe",
       verbraucher: "Verbraucher",
+      fahrzeug: "Auto / E-Auto",
     },
     roleHint: {
       wallbox:
@@ -41,6 +42,8 @@
         "Heizt bei Überschuss auf Komfort-Temperatur, mit Notfall-Schutz und Testlauf.",
       verbraucher:
         "Schaltet Geräte wie Pool, Boiler oder Waschmaschine bei Überschuss ein.",
+      fahrzeug:
+        "Überwacht Akkustand und Ladeleistung deines Autos – PVM erkennt automatisch, an welcher Wallbox es lädt (oder ob es unterwegs ist).",
     },
     control: {
       switch: "Ein Schalter (An/Aus)",
@@ -71,6 +74,7 @@
       export_only: "Nur Einspeisung (positiv = Einspeisung)",
     },
     themes: {
+      ha: "Home Assistant",
       sonnenaufgang: "Sonnenaufgang",
       natur: "Natur-frisch",
       klar: "Kühl & klar",
@@ -84,23 +88,31 @@
 :host { all: initial; }
 * { box-sizing: border-box; }
 :host {
-  --acc: #ff9f1c; --acc2: #ff6b35;
+  /* Home-Assistant-Farben zuerst – werden beim Start aus dem HA-Theme
+     gelesen (applyTheme). Fallback: die alten PVM-Paletten. */
+  --acc: var(--primary-color, #ff9f1c); --acc2: var(--accent-color, #ff6b35);
   --ok: #2dd4a7; --warn: #ffb020; --bad: #ff5d6c; --net: #5b9cf0;
-  --bg0: #071426; --bg1: #0b1d33; --bg2: #10243f;
-  --card: rgba(255,255,255,.045); --card2: rgba(255,255,255,.09);
-  --line: rgba(255,255,255,.12); --txt: #eaf2fb; --mut: #9db2c9;
+  --bg0: var(--primary-background-color, #071426);
+  --bg1: var(--app-header-background-color, #0b1d33);
+  --bg2: var(--card-background-color, #10243f);
+  --card: var(--card-background-color, rgba(255,255,255,.045));
+  --card2: var(--card-background-color, rgba(255,255,255,.09));
+  --line: var(--divider-color, rgba(255,255,255,.12));
+  --txt: var(--primary-text-color, #eaf2fb);
+  --mut: var(--secondary-text-color, #9db2c9);
+  --r: var(--ha-card-border-radius, 14px);
+  --sh: var(--ha-card-box-shadow, 0 2px 8px rgba(0,0,0,.12));
   color-scheme: dark;
-  font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: Roboto, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   color: var(--txt);
-  background:
-    radial-gradient(1200px 600px at 85% -10%, rgba(255,159,28,.13), transparent 60%),
-    radial-gradient(900px 500px at -10% 110%, rgba(45,212,167,.10), transparent 55%),
-    linear-gradient(180deg, var(--bg1), var(--bg0));
+  background: var(--primary-background-color, linear-gradient(180deg, var(--bg1), var(--bg0)));
   display: block; width: 100%; min-height: 100vh;
   -webkit-font-smoothing: antialiased;
 }
 :host([theme="natur"]) {
-  --acc:#3ecf8e; --acc2:#1ea97c;
+  --acc:#3ecf8e; --acc2:#1ea97c; --bg0:#040f0c; --bg1:#081d17; --bg2:#0d2b21;
+  --card:rgba(255,255,255,.045); --card2:rgba(255,255,255,.09);
+  --line:rgba(255,255,255,.12); --txt:#eaf6f0; --mut:#93b8a6;
   background:
     radial-gradient(1200px 600px at 85% -10%, rgba(62,207,142,.15), transparent 60%),
     radial-gradient(900px 500px at -10% 110%, rgba(91,156,240,.12), transparent 55%),
@@ -114,6 +126,9 @@
   background:
     radial-gradient(1000px 500px at 90% -5%, rgba(26,127,224,.14), transparent 55%),
     linear-gradient(180deg,var(--bg1),var(--bg0));
+}
+:host([theme="ha"]) {
+  /* alles über die HA-Variablen – wird in applyTheme gesetzt */
 }
 .wrap { max-width: 1060px; margin: 0 auto; padding: 16px 16px 90px; }
 
@@ -148,15 +163,15 @@ section.view { animation:fade .22s ease; }
 h2.sec { font-size:17px; margin:20px 0 4px; }
 p.sub { color:var(--mut); margin:2px 0 14px; font-size:13.5px; line-height:1.5; }
 
-.hero { border-radius:20px; padding:26px 24px; margin-top:16px; position:relative; overflow:hidden;
-  border:1px solid var(--line); background:linear-gradient(140deg, var(--card2), var(--card)); }
+.hero { border-radius:var(--r); padding:26px 24px; margin-top:16px; position:relative; overflow:hidden;
+  border:1px solid var(--line); background:var(--card2); box-shadow:var(--sh); }
 .hero h2 { margin:0 0 8px; font-size:22px; }
 .hero p { margin:0 0 18px; color:var(--mut); max-width:600px; line-height:1.6; }
 .sun { position:absolute; right:-60px; top:-60px; width:260px; height:260px; border-radius:50%; pointer-events:none;
   background:radial-gradient(circle, rgba(255,180,60,.35), rgba(255,120,40,.12) 55%, transparent 70%); }
 .steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; margin-top:4px; }
-.step { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:15px 14px 13px;
-  display:flex; flex-direction:column; gap:8px; cursor:pointer; transition:.2s; }
+.step { background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:15px 14px 13px;
+  display:flex; flex-direction:column; gap:8px; cursor:pointer; transition:.2s; box-shadow:var(--sh); }
 .step:hover { border-color: var(--acc); transform:translateY(-2px); }
 .step .n { width:26px;height:26px;border-radius:50%; display:grid;place-items:center; font-weight:800; font-size:13px;
   background:var(--card2); color:var(--mut); flex:0 0 auto; }
@@ -166,12 +181,12 @@ p.sub { color:var(--mut); margin:2px 0 14px; font-size:13.5px; line-height:1.5; 
 .step span { color:var(--mut); font-size:12.5px; line-height:1.45; flex:1; }
 .btnrow { display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
 
-button.btn { border:0; cursor:pointer; font:inherit; font-size:13.5px; padding:10px 16px; border-radius:11px;
-  transition:.18s; display:inline-flex; align-items:center; gap:8px; }
+button.btn { border:0; cursor:pointer; font:inherit; font-size:13.5px; font-weight:500; padding:10px 16px;
+  border-radius:4px; transition:.18s; display:inline-flex; align-items:center; gap:8px; }
 button.btn svg{width:16px;height:16px}
-.btn.primary { background:linear-gradient(135deg,var(--acc),var(--acc2)); color:#fff; font-weight:600;
-  box-shadow:0 6px 16px rgba(255,150,40,.28); }
-.btn.primary:hover { filter:brightness(1.08); transform:translateY(-1px); }
+.btn.primary { background:var(--acc); color:#fff; font-weight:500;
+  box-shadow:0 2px 6px rgba(0,0,0,.18); }
+.btn.primary:hover { filter:brightness(1.08); }
 .btn.ghost { background:var(--card2); color:var(--txt); border:1px solid var(--line); }
 .btn.ghost:hover { border-color: var(--acc); }
 .btn.danger { background:rgba(255,93,108,.14); color:var(--bad); border:1px solid rgba(255,93,108,.4); }
@@ -183,7 +198,7 @@ button.ico:hover { color:var(--txt); border-color:var(--acc); }
 button.ico svg{width:15px;height:15px}
 
 .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-top:10px; }
-.stat { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px 15px; }
+.stat { background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:14px 15px; box-shadow:var(--sh); }
 .stat .k { color:var(--mut); font-size:11px; text-transform:uppercase; letter-spacing:.8px; display:flex; align-items:center; gap:6px; }
 .stat .k svg{width:14px;height:14px}
 .stat .v { font-size:25px; font-weight:800; margin-top:8px; font-variant-numeric: tabular-nums; }
@@ -192,7 +207,7 @@ button.ico svg{width:15px;height:15px}
 .stat .bar { height:5px;border-radius:3px;background:var(--card2); margin-top:10px;overflow:hidden; }
 .stat .bar i { display:block; height:100%; border-radius:3px; transition:width .6s ease; background:linear-gradient(90deg,var(--acc),var(--acc2)); }
 
-.flowbox { margin-top:14px; border:1px solid var(--line); border-radius:18px; background:var(--card); padding:14px; }
+.flowbox { margin-top:14px; border:1px solid var(--line); border-radius:var(--r); background:var(--card); padding:14px; box-shadow:var(--sh); }
 .flowtitle { font-size:14px; font-weight:700; margin-bottom:2px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
 .flowtitle small { color:var(--mut); font-weight:400; font-size:12px; }
 svg.flow { width:100%; height:auto; display:block; }
@@ -207,8 +222,8 @@ svg.flow { width:100%; height:auto; display:block; }
 @keyframes dash { to { stroke-dashoffset:-16; } }
 
 .devices { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:12px; margin-top:12px; }
-.dev { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:13px 14px;
-  transition:.2s; position:relative; }
+.dev { background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:13px 14px;
+  transition:.2s; position:relative; box-shadow:var(--sh); }
 .dev:hover { border-color: rgba(255,159,28,.5); transform:translateY(-2px); }
 .dev .head { display:flex; align-items:center; gap:10px; }
 .dev .ic { width:38px;height:38px;border-radius:11px; display:grid;place-items:center; flex:0 0 auto;
@@ -234,7 +249,7 @@ svg.flow { width:100%; height:auto; display:block; }
 .dev .statusline { color:var(--mut); font-size:12px; margin-top:6px; display:flex; gap:6px; align-items:center; min-height:15px; }
 .empty { color:var(--mut); text-align:center; padding:26px 10px; font-size:13.5px; }
 
-.acc { border:1px solid var(--line); border-radius:14px; background:var(--card); margin-top:10px; overflow:hidden; }
+.acc { border:1px solid var(--line); border-radius:var(--r); background:var(--card); margin-top:10px; overflow:hidden; box-shadow:var(--sh); }
 .acc > button.h { width:100%; border:0; background:transparent; color:var(--txt); font:inherit; font-size:14.5px;
   font-weight:600; padding:14px 16px; cursor:pointer; display:flex; align-items:center; gap:10px; text-align:left; }
 .acc > button.h .arr { margin-left:auto; transition:transform .25s; color:var(--mut); display:grid; }
@@ -263,11 +278,11 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
 .sw.on i { left:20px; background:#fff; }
 
 .pick { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; }
-.pick label { border:1.5px solid var(--line); border-radius:12px; padding:11px 12px; cursor:pointer; transition:.15s;
+.pick label { border:1.5px solid var(--line); border-radius:10px; padding:11px 12px; cursor:pointer; transition:.15s;
   background:var(--card); display:flex; gap:9px; align-items:flex-start; }
-.pick label:hover { border-color: rgba(255,159,28,.55); }
+.pick label:hover { border-color: var(--acc); }
 .pick input { display:none; }
-.pick label.sel { border-color: var(--acc); background: rgba(255,159,28,.08); box-shadow:0 0 0 1px var(--acc) inset; }
+.pick label.sel { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 10%, transparent); box-shadow:0 0 0 1px var(--acc) inset; }
 .pick .rb { width:16px;height:16px;border-radius:50%;border:2px solid var(--mut); margin-top:2px; flex:0 0 auto; }
 .pick label.sel .rb { border-color: var(--acc); background: radial-gradient(circle, var(--acc) 45%, transparent 50%); }
 .pick .tt { display:flex; flex-direction:column; gap:3px; }
@@ -277,7 +292,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
 .overlay { position:fixed; inset:0; background:rgba(3,10,22,.6); backdrop-filter:blur(3px);
   display:grid; place-items:center; z-index:100; padding:18px; animation:fade .16s ease; }
 .modal { width:min(620px,100%); max-height:92vh; overflow:auto; background:var(--bg1);
-  border:1px solid var(--line); border-radius:20px; padding:20px; box-shadow:0 30px 80px rgba(0,0,0,.5);
+  border:1px solid var(--line); border-radius:var(--r); padding:20px; box-shadow:0 30px 80px rgba(0,0,0,.5);
   animation:pop .2s cubic-bezier(.2,1.2,.4,1); }
 @keyframes pop { from{opacity:0; transform:scale(.94) translateY(10px)} to{opacity:1; transform:none} }
 .modal h3 { margin:0 0 4px; font-size:18px; }
@@ -299,8 +314,8 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
 .searchrow { display:flex; gap:8px; margin-bottom:8px; }
 .searchrow input { flex:1; }
 
-.founditem { border:1px solid var(--line); border-radius:14px; padding:13px 15px; margin-top:10px;
-  background:var(--card); display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.founditem { border:1px solid var(--line); border-radius:var(--r); padding:13px 15px; margin-top:10px;
+  background:var(--card); display:flex; gap:12px; align-items:center; flex-wrap:wrap; box-shadow:var(--sh); }
 .founditem .grow { flex:1; min-width:200px; }
 .founditem h4 { margin:0 0 3px; font-size:14.5px; }
 .founditem p { margin:0; color:var(--mut); font-size:12px; line-height:1.45; word-break:break-word; }
@@ -341,8 +356,10 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M4 12l5 5L20 6"/></svg>',
     search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>',
     wifi: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 20h.01"/></svg>',
+    car: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 16H4a2 2 0 0 1-2-2v-3l2.5-5A2 2 0 0 1 6.3 5h11.4a2 2 0 0 1 1.8 1.1L22 11v3a2 2 0 0 1-2 2h-1"/><path d="M2 13h20"/><circle cx="7" cy="16" r="1.6"/><circle cx="17" cy="16" r="1.6"/></svg>',
+    back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>',
   };
-  const ROLE_ICON = { wallbox: I.bolt, waermepumpe: I.pump, verbraucher: I.plug };
+  const ROLE_ICON = { wallbox: I.bolt, waermepumpe: I.pump, verbraucher: I.plug, fahrzeug: I.car };
 
   /* ------------------------------------------------------------------ *
    * Panel-Zustand
@@ -362,6 +379,10 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     modal: null,
     deviceDialog: null,
     lastLive: 0,
+    liveStates: {},   // Live-Zustände über WS-Subscription (state_changed)
+    liveSubscribed: false,
+    liveTimer: null,
+    flowSig: null,
   };
 
   const $ = (root, sel) => root.querySelector(sel);
@@ -395,13 +416,27 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     return n + " " + u;
   }
 
-  const st = (entityId) =>
-    (state.hass && entityId && state.hass.states[entityId]) || null;
+  function st(entityId) {
+    if (!entityId) return null;
+    if (state.liveStates && state.liveStates[entityId]) return state.liveStates[entityId];
+    return (state.hass && state.hass.states && state.hass.states[entityId]) || null;
+  }
   function num(entityId) {
     const s = st(entityId);
     if (!s) return null;
     const v = parseFloat(s.state);
     return isNaN(v) ? null : v;
+  }
+  /** Leistungswert in Watt – kW/mW werden umgerechnet (Einheit beachten!). */
+  function numW(entityId) {
+    const s = st(entityId);
+    if (!s) return null;
+    const v = parseFloat(s.state);
+    if (isNaN(v)) return null;
+    const u = unitOf(entityId);
+    if (u === "kW") return v * 1000;
+    if (u === "mW") return v / 1000;
+    return v;
   }
   function unitOf(entityId) {
     const s = st(entityId);
@@ -477,6 +512,73 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   }
 
   /* ------------------------------------------------------------------ *
+   * Live-Daten: WS-Subscription auf state_changed + Fallback-Intervall.
+   * Garantiert, dass ALLE Werte aktualisieren – auch wenn HA die
+   * hass-Property nicht bei jeder Änderung neu setzt.
+   * ------------------------------------------------------------------ */
+  function subscribeLiveStates() {
+    if (state.liveSubscribed || !state.hass || !state.hass.connection) return;
+    state.liveSubscribed = true;
+    state.hass.connection
+      .subscribeMessage(
+        (msg) => {
+          const ev = msg && msg.event;
+          if (!ev || ev.event_type !== "state_changed") return;
+          const entityId = ev.data && ev.data.entity_id;
+          const newState = ev.data && ev.data.new_state;
+          if (!entityId) return;
+          if (newState) state.liveStates[entityId] = newState;
+          else delete state.liveStates[entityId];
+        },
+        { type: "subscribe_events", event_type: "state_changed" }
+      )
+      .catch(() => {
+        /* Subscription nicht verfügbar – der Intervall läuft trotzdem */
+      });
+  }
+
+  function startLiveLoop() {
+    if (state.liveTimer) return;
+    state.liveTimer = setInterval(() => {
+      if (!state.config) return;
+      liveNow();
+      updateHeaderChip();
+      updateDeviceLives();
+      updateFlow();
+    }, 1000);
+  }
+
+  function configSignature(cfg) {
+    const c = cfg || {};
+    const devs = (c.devices || []).map((d) => d.id).sort();
+    return devs.join(",") + "|" + JSON.stringify(c.energy || {});
+  }
+
+  function reloadAfterChange() {
+    const expected = configSignature(state.config);
+    const keepView = state.view;
+    let attempts = 0;
+    const tryFetch = () => {
+      fetchConfig()
+        .then((data) => {
+          if (configSignature(data.config) === expected || attempts >= 15) {
+            state.panel._renderApp();
+            if (keepView) state.panel._nav(keepView);
+          } else {
+            attempts += 1;
+            setTimeout(tryFetch, 800);
+          }
+        })
+        .catch(() => {
+          attempts += 1;
+          if (attempts >= 15) return;
+          setTimeout(tryFetch, 1000);
+        });
+    };
+    setTimeout(tryFetch, 1400);
+  }
+
+  /* ------------------------------------------------------------------ *
    * Haupt-Element
    * ------------------------------------------------------------------ */
   class PvmPanel extends HTMLElement {
@@ -519,6 +621,8 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       const wrap = buildShell();
       root.appendChild(wrap);
       applyTheme();
+      subscribeLiveStates();
+      startLiveLoop();
       this._nav("start");
     }
 
@@ -563,6 +667,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           <span class="chip"><span class="dot" data-el="statusdot"></span><span data-el="statuschip">…</span></span>
           <span class="chip">Überschuss <b data-live="surplus">–</b></span>
         </div>
+        <button class="btn ghost" data-action="go-home" title="Zurück zu Home Assistant">${I.back} Home Assistant</button>
       </header>
       <nav>
         <button data-view="start">${I.sun} ${esc(L.nav.start)}</button>
@@ -588,7 +693,10 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const labels = [];
     if (e.pv_sensor) labels.push("PV-Leistung");
     if (e.grid_sensor) labels.push("Netz");
+    if (e.grid_import_sensor) labels.push("Netzbezug");
+    if (e.grid_export_sensor) labels.push("Einspeisung");
     if (e.house_sensor) labels.push("Hausverbrauch");
+    if (e.battery_power_sensor) labels.push("Speicher");
     const any = labels.length > 0;
     return { any, labels, text: labels.length ? labels.join(", ") : "keine Sensoren verbunden" };
   }
@@ -664,9 +772,15 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
    * ------------------------------------------------------------------ */
   function calcExport() {
     const e = configEnergy();
-    const grid = num(e.grid_sensor);
-    const pv = num(e.pv_sensor);
-    const house = num(e.house_sensor);
+    const imp = numW(e.grid_import_sensor);
+    const exp = numW(e.grid_export_sensor);
+    if (e.grid_import_sensor || e.grid_export_sensor) {
+      if (exp != null) return Math.max(0, exp);
+      return null;
+    }
+    const grid = numW(e.grid_sensor);
+    const pv = numW(e.pv_sensor);
+    const house = numW(e.house_sensor);
     const kind = e.grid_kind || "net";
     if (e.grid_sensor && grid != null) return kind === "net" ? Math.max(0, -grid) : Math.max(0, grid);
     if (e.pv_sensor && pv != null) {
@@ -690,9 +804,12 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     if (key === "pv") return { text: energyText("pv_sensor"), raw: 0 };
     if (key === "house") return { text: energyText("house_sensor"), raw: 0 };
     if (key === "grid") return { text: energyText("grid_sensor"), raw: 0 };
+    if (key === "grid_import") return { text: energyText("grid_import_sensor"), raw: 0 };
+    if (key === "grid_export") return { text: energyText("grid_export_sensor"), raw: 0 };
+    if (key === "batt") return { text: energyText("battery_power_sensor"), raw: 0 };
     if (key.indexOf("devpwr:") === 0) {
       const d = deviceById(key.slice(7));
-      const v = d ? num(d.sensors && d.sensors.power) : null;
+      const v = d ? numW(d.sensors && d.sensors.power) : null;
       return { text: v == null ? "–" : fmtW(v), raw: v == null ? 0 : v };
     }
     if (key.indexOf("devsoc:") === 0) {
@@ -711,6 +828,10 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     if (key === "grid_sensor" && (e.grid_kind || "net") === "net" && !unitOf(id)) {
       return v < 0 ? "↦ " + fmtW(-v) : "↤ " + fmtW(v);
     }
+    if (key === "grid_import_sensor")
+      return "↓ " + fmtNum(v, unitOf(id) || "W");
+    if (key === "grid_export_sensor")
+      return "↑ " + fmtNum(v, unitOf(id) || "W");
     return fmtNum(v, unitOf(id));
   }
   let _liveT = 0;
@@ -726,18 +847,80 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     });
   }
 
+  /* Energiefluss-SVG live neu zeichnen (nur wenn sich Werte ändern) */
+  function flowParams() {
+    const e = configEnergy();
+    const imp = numW(e.grid_import_sensor);
+    const exp = numW(e.grid_export_sensor);
+    const grid = numW(e.grid_sensor);
+    const kind = e.grid_kind || "net";
+    let importOn = false;
+    let exportOn = false;
+    if (imp != null || exp != null) {
+      importOn = imp != null && imp > 40;
+      exportOn = exp != null && exp > 40;
+    } else if (grid != null) {
+      if (kind === "net") {
+        importOn = grid > 40;
+        exportOn = -grid > 40;
+      } else {
+        exportOn = grid > 40;
+      }
+    }
+    const surplus = liveValue("surplus");
+    const devNames = devicesOf()
+      .filter((d) => d.role !== "fahrzeug")
+      .map((d) => d.name || "Gerät");
+    return {
+      pvRaw: numW(e.pv_sensor),
+      houseV: numW(e.house_sensor),
+      gridV: grid,
+      imp,
+      exp,
+      batt: numW(e.battery_power_sensor),
+      importOn,
+      exportOn,
+      surplusOn: surplus ? surplus.raw > 0 : false,
+      devNames,
+    };
+  }
+
+  function flowSignature() {
+    const p = flowParams();
+    return [
+      p.pvRaw, p.houseV, p.gridV, p.imp, p.exp, p.batt,
+      p.importOn, p.exportOn, p.surplusOn, p.devNames.join(","),
+    ].join("|");
+  }
+
+  function updateFlow() {
+    const root = state.root;
+    if (!root || !state.config) return;
+    const box = $(root, "[data-flow-svg]");
+    if (!box) return;
+    const sig = flowSignature();
+    if (state.flowSig === sig) return;
+    state.flowSig = sig;
+    box.innerHTML = flowSvg(flowParams());
+    const small = $(root, "[data-el=flowsmall]");
+    if (small) {
+      const p = flowParams();
+      small.textContent = p.importOn
+        ? "du holst Strom aus dem Netz"
+        : p.exportOn
+          ? "du speist Überschuss ein"
+          : p.surplusOn
+            ? "Überschuss fließt an deine Geräte"
+            : "gerade kein Fluss";
+    }
+  }
+
   /* ------------------------------------------------------------------ *
    * Übersicht inkl. Energiefluss
    * ------------------------------------------------------------------ */
   function htmlOverview() {
     const devs = devicesOf();
     const e = configEnergy();
-    const surplusP = liveValue("surplus");
-    const surplus = surplusP ? surplusP.raw : 0;
-    const pvV = num(e.pv_sensor);
-    const gridV = num(e.grid_sensor);
-    const exportOn = calcExport() > 40;
-    const importOn = e.grid_sensor && gridV != null && (e.grid_kind || "net") === "net" && gridV > 40;
     const hasDevices = devs.length > 0;
     return `
       <h2 class="sec">Energie im Blick</h2>
@@ -746,13 +929,14 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         ${statCard("pv", "PV-Erzeugung", "–")}
         ${statCard("house", "Hausverbrauch", "–")}
         ${statCard("grid", "Netz", "–")}
+        ${e.battery_power_sensor ? statCard("batt", "Speicher", "–") : ""}
         ${statCard("surplus", "Überschuss für PVM", "–")}
       </div>
       <div class="flowbox">
         <div class="flowtitle">Dein Energiefluss
-          <small>${importOn ? "du holst Strom aus dem Netz" : exportOn ? "du speist Überschuss ein" : surplus > 0 ? "Überschuss fließt an deine Geräte" : "gerade kein Fluss"}</small>
+          <small data-el="flowsmall">…</small>
         </div>
-        ${flowSvg({ pvRaw: pvV, importOn, exportOn, surplusOn: surplus > 0, devNames: devs.map((d) => d.name || "Gerät") })}
+        <div data-flow-svg>${flowSvg(flowParams())}</div>
       </div>
       <div class="flowbox">
         <div class="flowtitle">PVM-Geräte ${hasDevices ? "" : "– noch keine"}
@@ -775,12 +959,13 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const W = 680, H = 250;
     const boxW = 150, boxH = 56;
     const rowY = 18;
-    // Positionen: PV(links) Haus(mitte) Netz(rechts)
+    // Positionen: PV(links) Haus(mitte) Netz(rechts) Speicher(links unten)
     const px = 20, hx = (W - boxW) / 2, gx = W - boxW - 20;
     const centerY = rowY + boxH / 2;      // 46
     const hubY = 138;                      // Überschuss-Hub
     const hubX = (W - 220) / 2;
     const devY = 214;
+    const batX = 20, batY = 128;
     const col = {
       pv: "#ffb020", haus: "#7cc4ff", netz: "#ff7b8a", surplus: "var(--acc)", green: "#2dd4a7",
     };
@@ -799,8 +984,10 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const parts = [];
     // --- Knoten ---
     parts.push(node(px, rowY, boxW, boxH, "PV", fmtW(o.pvRaw || 0), col.pv));
-    parts.push(node(hx, rowY, boxW, boxH, "Haus", liveSurplusText("house"), col.haus));
-    parts.push(node(gx, rowY, boxW, boxH, "Netz", liveSurplusText("grid"), col.netz));
+    parts.push(node(hx, rowY, boxW, boxH, "Haus", fmtW(o.houseV || 0), col.haus));
+    parts.push(node(gx, rowY, boxW, boxH, "Netz", netValue(o), col.netz));
+    if (o.batt != null)
+      parts.push(node(batX, batY, boxW, boxH - 6, "Speicher", fmtW(Math.abs(o.batt)), "#3ecf8e"));
     parts.push(node(hubX, hubY, 220, 54, "PVM-Überschuss", liveSurplusText("surplus"), col.surplus));
 
     // --- Verbindungen (obere Reihe) ---
@@ -812,6 +999,19 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       parts.push(arrow(gx, centerY, hx + boxW + 8, centerY, col.netz, "", "Netzbezug", gx - 60, centerY - 8));
     else if (o.exportOn)
       parts.push(arrow(hx + boxW, centerY, gx - 8, centerY, col.green, "slow", "Einspeisung", gx - 60, centerY - 8));
+    // --- Speicher <-> Hub ---
+    if (o.batt != null && Math.abs(o.batt) > 40) {
+      const charging = o.batt > 0; // positiv = Laden (Hub -> Speicher)
+      parts.push(arrow(
+        charging ? hubX - 8 : batX + boxW,
+        batY + boxH / 2 - 3,
+        charging ? batX + boxW : hubX - 8,
+        batY + boxH / 2 - 3,
+        col.green, charging ? "" : "slow",
+        charging ? "Laden" : "Entladen",
+        batX + boxW + 44, batY + boxH / 2 - 12
+      ));
+    }
     // --- zum Hub (aus PV, vertikal) ---
     if (o.surplusOn)
       parts.push(arrow(hx + boxW / 2, rowY + boxH, hx + boxW / 2, hubY - 8, col.surplus, "", "Überschuss", hx + boxW / 2 + 58, (rowY + boxH + hubY) / 2));
@@ -829,12 +1029,31 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     }
     return `<svg class="flow" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${parts.join("")}</svg>`;
   }
+  function netValue(o) {
+    // Netz-Knoten: getrennte Bezug-/Einspeisung-Sensoren -> beide anzeigen
+    if (o.imp != null || o.exp != null) {
+      const imp = o.imp != null ? o.imp : 0;
+      const exp = o.exp != null ? o.exp : 0;
+      return `↓ ${fmtW(imp)}  ↑ ${fmtW(exp)}`;
+    }
+    const g = o.gridV;
+    if (g == null) return "–";
+    if (g > 0) return "↓ " + fmtW(g);
+    return "↑ " + fmtW(-g);
+  }
 
   /* ------------------------------------------------------------------ *
    * Geräte
    * ------------------------------------------------------------------ */
   function htmlDevices() {
     const devs = devicesOf();
+    const cars = devs.filter((d) => d.role === "fahrzeug");
+    const others = devs.filter((d) => d.role !== "fahrzeug");
+    const empty = `
+      <div style="border:1px dashed var(--line);border-radius:16px;margin-top:16px;padding:34px 16px;text-align:center;color:var(--mut)">
+        Noch keine Geräte.
+        <div style="margin-top:12px"><button class="btn primary" data-action="add-device">${I.plus} Jetzt hinzufügen</button></div>
+      </div>`;
     return `
       <h2 class="sec">Geräte & Verbraucher</h2>
       <p class="sub">Jedes Gerät steuert PVM automatisch. Mit „Bearbeiten“ passt du Steuerung, Sensoren und Ziele an.</p>
@@ -842,17 +1061,18 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         <button class="btn primary" data-action="add-device">${I.plus} Gerät hinzufügen</button>
         <button class="btn ghost" data-action="run-scan">${I.radar} Automatisch suchen</button>
       </div>
-      ${devs.length
-        ? `<div class="devices" style="margin-top:14px">${devs.map(htmlDeviceCard).join("")}</div>`
-        : `<div style="border:1px dashed var(--line);border-radius:16px;margin-top:16px;padding:34px 16px;text-align:center;color:var(--mut)">
-            Noch keine Geräte.
-            <div style="margin-top:12px"><button class="btn primary" data-action="add-device">${I.plus} Jetzt hinzufügen</button></div>
-          </div>`}
+      ${others.length ? `<div class="devices" style="margin-top:14px">${others.map(htmlDeviceCard).join("")}</div>` : (devs.length ? "" : empty)}
+      ${cars.length ? `
+        <h2 class="sec" style="margin-top:22px">🚗 E-Autos
+          <span style="font-weight:400;color:var(--mut);font-size:12.5px"> – PVM erkennt automatisch, an welcher Wallbox jedes Auto lädt.</span>
+        </h2>
+        <div class="devices" style="margin-top:10px">${cars.map(htmlDeviceCard).join("")}</div>` : ""}
     `;
   }
 
   function htmlDeviceCard(device) {
     const role = device.role || "verbraucher";
+    if (role === "fahrzeug") return htmlCarCard(device);
     const ent = entOf(device.id);
     const autoOn = isOn(ent.auto);
     const pid = device.sensors && device.sensors.power;
@@ -888,6 +1108,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
             <div class="row"><span>Akku</span><span data-live="devsoc:${esc(device.id)}">–</span></div>
             <div class="socbar"><i id="socbar-${esc(device.id)}" style="width:${socV == null ? 0 : Math.max(0, Math.min(100, socV))}%"></i></div>
           </div>` : ""}
+        ${role === "wallbox" ? `<div class="goal" data-el="assigned-car"></div>` : ""}
         ${goalTxt ? `<div class="goal">${esc(goalTxt)}</div>` : ""}
         <div class="statusline" data-el="statusline">…</div>
         <div class="tags">${tags.map((t) => `<span class="${t.cls}">${esc(t.t)}</span>`).join("")}</div>
@@ -900,17 +1121,56 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       </div>`;
   }
 
+  function htmlCarCard(device) {
+    const sid = device.sensors && device.sensors.soc;
+    const pid = device.sensors && device.sensors.power;
+    const socV = num(sid);
+    const car = device.car || {};
+    const goalTxt = "Ziel " + Math.round(car.min_soc || 0) + "–" + Math.round(car.max_soc || 100) + " %";
+    return `
+      <div class="dev" data-device="${esc(device.id)}">
+        <div class="head">
+          <div class="ic">${I.car}</div>
+          <h3>${esc(device.name || "Auto")}</h3>
+          <span class="pill" data-el="pill">…</span>
+        </div>
+        <div class="mid">
+          ${pid ? `<div class="bigw" data-live="devpwr:${esc(device.id)}">–</div>` : ""}
+        </div>
+        ${sid ? `
+          <div class="soc">
+            <div class="row"><span>Akku</span><span data-live="devsoc:${esc(device.id)}">–</span></div>
+            <div class="socbar"><i id="socbar-${esc(device.id)}" style="width:${socV == null ? 0 : Math.max(0, Math.min(100, socV))}%"></i></div>
+          </div>` : ""}
+        <div class="goal">${esc(goalTxt)}</div>
+        <div class="statusline" data-el="statusline">…</div>
+        <div class="ops" style="justify-content:flex-end">
+          <button class="ico" data-action="edit-device" data-device="${esc(device.id)}" title="Bearbeiten">${I.edit}</button>
+          <button class="ico" data-action="del-device" data-device="${esc(device.id)}" title="Entfernen">${I.del}</button>
+        </div>
+      </div>`;
+  }
+
   function deviceStateText(device) {
+    if (device.role === "fahrzeug") {
+      const s = st(entOf(device.id).car_status);
+      if (s && s.state && !["unknown", "unavailable"].includes(s.state)) return s.state;
+      return "unterwegs";
+    }
     const s = st(entOf(device.id).status);
     if (s && s.state && !["unknown", "unavailable"].includes(s.state)) return s.state;
-    const v = num(device.sensors && device.sensors.power);
+    const v = numW(device.sensors && device.sensors.power);
     if (v != null && v > 60) return "läuft gerade";
     return "wartet auf PVM";
   }
 
   function statusPillFor(device) {
-    const autoOn = isOn(entOf(device.id).auto);
     const txt = deviceStateText(device);
+    if (device.role === "fahrzeug") {
+      if (/^lädt\b/.test(txt)) return `<span class="pill on">LÄDT</span>`;
+      return `<span class="pill">unterwegs</span>`;
+    }
+    const autoOn = isOn(entOf(device.id).auto);
     if (!autoOn) return `<span class="pill">Automatik aus</span>`;
     if (/^an\b|^läuft/i.test(txt)) return `<span class="pill on">AN</span>`;
     if (/fehler/i.test(txt)) return `<span class="pill warn">Fehler</span>`;
@@ -936,6 +1196,19 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       }
       const autoSw = $(card, '[data-action="toggle-auto"]');
       if (autoSw) autoSw.classList.toggle("on", isOn(entOf(d.id).auto));
+      // Wallbox: zeigt das automatisch zugeordnete Auto an
+      const assigned = $(card, '[data-el="assigned-car"]');
+      if (assigned) {
+        const names = devicesOf()
+          .filter((c) => c.role === "fahrzeug")
+          .filter((c) => {
+            const s = st(entOf(c.id).car_status);
+            return s && s.attributes && s.attributes.wallbox_id === d.id;
+          })
+          .map((c) => c.name || "Auto");
+        const txt = names.length ? "🚗 " + names.join(", ") : "";
+        if (assigned.textContent !== txt) assigned.textContent = txt;
+      }
     });
   }
 
@@ -943,7 +1216,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
    * Reihenfolge
    * ------------------------------------------------------------------ */
   function htmlOrder() {
-    const devs = devicesOf();
+    const devs = devicesOf().filter((d) => d.role !== "fahrzeug");
     if (!devs.length) {
       return `<h2 class="sec">Reihenfolge</h2>
         <p class="sub">Wer zuerst Überschuss bekommt, legst du hier fest.</p>
@@ -972,9 +1245,9 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
    * ------------------------------------------------------------------ */
   function htmlFound() {
     const sets = (state.scan && state.scan.sets) || [];
-    const measures = sets.filter((s) => ["pv", "grid", "house"].includes(s.role));
-    const devs = sets.filter((s) => !["pv", "grid", "house"].includes(s.role));
-    const rl = (r) => ({ pv: "PV-Leistung", grid: "Netz", house: "Haus", wallbox: "Wallbox", wp: "Wärmepumpe", verbraucher: "Verbraucher" }[r] || r);
+    const measures = sets.filter((s) => ["pv", "grid", "grid_import", "grid_export", "house"].includes(s.role));
+    const devs = sets.filter((s) => !["pv", "grid", "grid_import", "grid_export", "house"].includes(s.role));
+    const rl = (r) => ({ pv: "PV-Leistung", grid: "Netz", grid_import: "Netzbezug (separat)", grid_export: "Einspeisung (separat)", house: "Haus", wallbox: "Wallbox", wp: "Wärmepumpe", verbraucher: "Verbraucher", fahrzeug: "Auto" }[r] || r);
     return `
       <h2 class="sec">Automatisch gefunden</h2>
       <p class="sub">PVM durchsucht deine Geräte nach passenden Sensoren und Verbrauchern. Du übernimmst nur, was wirklich deins ist.</p>
@@ -1019,10 +1292,14 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       <p class="sub">Jede Gruppe klappt sich auf – Änderungen speichert PVM direkt.</p>
       ${accordion("energy", I.grid, "Energie-Sensoren", `
         ${energyRow("pv", "PV-Leistung", "Dein Wechselrichter (W oder kW)", e.pv_sensor)}
-        ${energyRow("grid", "Netzbezug / Einspeisung", "Dein Stromzähler am Netzanschluss", e.grid_sensor)}
+        ${energyRow("grid", "Netz (kombiniert)", "Ein Sensor mit Bezug + und Einspeisung −", e.grid_sensor)}
+        ${energyRow("grid_import", "Netzbezug (separat)", "Getrennter Zähler für Strom aus dem Netz", e.grid_import_sensor)}
+        ${energyRow("grid_export", "Einspeisung (separat)", "Getrennter Zähler für deine Netzeinspeisung", e.grid_export_sensor)}
         ${energyRow("house", "Hausverbrauch (optional)", "Gesamtverbrauch des Hauses", e.house_sensor)}
+        ${energyRow("battery_power", "Speicher-Leistung (optional)", "Lade-/Entladeleistung deines Batteriespeichers", e.battery_power_sensor)}
+        ${energyRow("battery_soc", "Speicher-SoC (optional)", "Ladezustand des Speichers in %", e.battery_soc_sensor)}
         <div class="row">
-          <span class="lbl grow">Art des Netz-Sensors<small>Wie dein Zähler misst – wichtig für die Richtung.</small></span>
+          <span class="lbl grow">Art des kombinierten Netz-Sensors<small>Wie dein Zähler misst – wichtig für die Richtung.</small></span>
           <select data-setting="grid_kind" style="max-width:300px">
             ${Object.keys(L.gridKinds).map((k) => `<option value="${k}" ${(e.grid_kind || "net") === k ? "selected" : ""}>${esc(L.gridKinds[k])}</option>`).join("")}
           </select>
@@ -1048,7 +1325,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         ${slider("wp_test_max", "Test: maximale Dauer", s.wp_test_max_duration_min, 10, 600, 10, "min", "Erreicht der Test das Ziel nicht rechtzeitig, bricht PVM ihn ab.")}
       `)}
       ${accordion("design", I.eye, "Design & Darstellung", `
-        <span class="lbl">Dein Look<small>PVM merkt sich das Design – drei Stimmungen stehen bereit.</small></span>
+        <span class="lbl">Dein Look<small>„Home Assistant“ folgt deinem HA-Theme (hell/dunkel); die anderen Designs sind feste Stimmungen.</small></span>
         <div class="pick">
           ${Object.keys(L.themes).map((t) => `
             <label class="${theme === t ? "sel" : ""}" data-theme-pick="${t}">
@@ -1080,6 +1357,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   }
   function themeDots(t) {
     const pal = {
+      ha: ["#03a9f4", "#039be5", "#3c8dbc"],
       sonnenaufgang: ["#ff9f1c", "#ff6b35", "#2dd4a7"],
       natur: ["#3ecf8e", "#1ea97c", "#38a8ff"],
       klar: ["#1a7fe0", "#7c6cff", "#ff9f1c"],
@@ -1240,7 +1518,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     return step === 1
       ? "Schritt 1 von 3 – Was ist es, wie heißt es?"
       : step === 2
-        ? "Schritt 2 von 3 – Wie steuerst du das Gerät?"
+        ? "Schritt 2 von 3 – Wie wird es gesteuert bzw. überwacht?"
         : "Schritt 3 von 3 – Sensoren und Ziele (alles ist optional).";
   }
 
@@ -1249,7 +1527,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       return `
         <div class="f"><label>Gerätetyp</label><small>Bestimmt, welche Ziele und Felder PVM anbietet.</small></div>
         <div class="pick">
-          ${["wallbox", "waermepumpe", "verbraucher"].map((r) => `
+          ${["wallbox", "waermepumpe", "verbraucher", "fahrzeug"].map((r) => `
             <label class="${d.role === r ? "sel" : ""}" data-role="${r}">
               <span class="rb"></span>
               <span class="tt"><b>${esc(L.roles[r])}</b><span>${esc(L.roleHint[r])}</span></span>
@@ -1260,6 +1538,17 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         </div>`;
     }
     if (step === 2) {
+      if (d.role === "fahrzeug") {
+        return `
+          <div class="founditem" style="margin-top:0">
+            <div class="grow">
+              <h4>Reine Überwachung 🚗</h4>
+              <p>Autos werden von PVM <b>nicht geschaltet</b> – PVM liest Akkustand und
+                 Ladeleistung und erkennt automatisch, an welcher Wallbox das Auto
+                 gerade lädt (oder ob es unterwegs ist).</p>
+            </div>
+          </div>`;
+      }
       return `
         <div class="f"><label>Steuerung</label><small>Wie schaltet PVM dein Gerät? Entweder/oder – PVM zeigt nur die passenden Felder.</small></div>
         <div class="pick">
@@ -1353,7 +1642,14 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           <button class="btn ghost" data-pick-field="${field}" type="button">${I.search} Wählen</button>
         </div>
       </div>`;
-    if (d.role === "wallbox") {
+    if (d.role === "fahrzeug") {
+      const car = d.car;
+      out.push(sensorRow("soc", "Akku (SoC)", "Ladezustand des Autos in % – z. B. von der Auto-Integration."));
+      out.push(sensorRow("power", "Aktuelle Ladeleistung", "Was das Auto gerade zieht – zum Vergleich mit den Wallboxen."));
+      out.push(numberField("capacity", "Batteriekapazität", car.capacity_kwh, 1, 300, 1, "kWh"));
+      out.push(numberField("min_soc", "Mindest-SOC", car.min_soc, 0, 100, 1, "%"));
+      out.push(numberField("max_soc", "Max-SOC", car.max_soc, 10, 100, 1, "%"));
+    } else if (d.role === "wallbox") {
       const car = d.car;
       out.push(sensorRow("power", "Leistung (lädt gerade)", "Zeigt live, wie viel die Wallbox zieht."));
       out.push(sensorRow("soc", "SoC des Autos (Ladezustand)", "Beispiel: sensor.auto_ladezustand – in Prozent."));
@@ -1413,6 +1709,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       d.role = roleEl.getAttribute("data-role");
       const fresh = defaultDevice(d.role);
       if (d.role === "wallbox") { d.car = d.car || fresh.car; d.wp = null; }
+      else if (d.role === "fahrzeug") { d.car = d.car || fresh.car; d.wp = null; }
       else if (d.role === "waermepumpe") { d.wp = d.wp || fresh.wp; d.car = null; }
       else { d.car = null; d.wp = null; }
       $$(overlay, "[data-role]").forEach((x) => x.classList.toggle("sel", x === roleEl));
@@ -1517,6 +1814,14 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   }
 
   function validateDevice(d) {
+    if (d.role === "fahrzeug") {
+      // Autos sind reine Überwachung – nur die SOC-Plausibilität prüfen
+      if (d.car && Number(d.car.min_soc) >= Number(d.car.max_soc)) {
+        toast("Mindest-SOC muss kleiner als Max-SOC sein.", "bad");
+        return false;
+      }
+      return true;
+    }
     const c = d.control;
     if (c.type === "buttons") {
       if (!c.on_entity || !c.off_entity) {
@@ -1604,6 +1909,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         jumpTo(el.getAttribute("data-to"));
         break;
       }
+      case "go-home": goHome(); break;
       case "add-device": openDeviceDialog(null); break;
       case "edit-device": {
         const d = deviceById(devId);
@@ -1663,13 +1969,19 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         const found = sets[idx];
         if (!found) return;
         const fields = found.fields || {};
-        if (["pv", "grid", "house"].includes(found.role)) {
+        if (["pv", "grid", "grid_import", "grid_export", "house"].includes(found.role)) {
           const eid = fields.entity;
           if (!eid) { toast("Keine passende Entität im Vorschlag.", "bad"); return; }
           state.config.energy[found.role + "_sensor"] = eid;
           saveConfig()
             .then(() => { toast("Sensor übernommen.", "ok"); reloadAfterChange(); })
             .catch((err) => toast("Fehler: " + err, "bad"));
+        } else if (found.role === "fahrzeug") {
+          const d = defaultDevice("fahrzeug");
+          d.name = found.title || "Auto";
+          if (fields.soc_sensor) d.sensors.soc = fields.soc_sensor;
+          if (fields.power_sensor) d.sensors.power = fields.power_sensor;
+          openDeviceDialog(d);
         } else {
           const role = found.role === "wp" ? "waermepumpe" : found.role;
           const d = defaultDevice(role);
@@ -1704,7 +2016,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       case "pick-energy": {
         const key = el.getAttribute("data-energy");
         openEntityPicker({
-          title: "Sensor für " + ({ pv: "PV-Leistung", grid: "Netz", house: "Hausverbrauch" }[key] || key),
+          title: "Sensor für " + ({ pv: "PV-Leistung", grid: "Netz (kombiniert)", grid_import: "Netzbezug", grid_export: "Einspeisung", house: "Hausverbrauch", battery_power: "Speicher-Leistung", battery_soc: "Speicher-SoC" }[key] || key),
           domains: ["sensor", "number", "input_number"],
         }, (entityId) => {
           state.config.energy[key + "_sensor"] = entityId;
@@ -1812,26 +2124,75 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     return opts.find((o) => o === label || o.indexOf(label) >= 0 || label.indexOf(o) >= 0) || null;
   }
 
-  function applyTheme() {
-    const theme = (state.config && state.config.settings && state.config.settings.ui_theme) || "sonnenaufgang";
-    const host = state.root && state.root.host;
-    if (host) host.setAttribute("theme", theme);
+  /* ------------------------------------------------------------------ *
+   * Design: „Home Assistant“-Theme übernimmt die Farben des HA-Themes.
+   * ------------------------------------------------------------------ */
+  function readHaVars() {
+    const map = {};
+    try {
+      const topDoc = window.top.document;
+      const app = topDoc.querySelector("home-assistant");
+      const cs = app ? topDoc.defaultView.getComputedStyle(app) : null;
+      if (cs) {
+        [
+          "--primary-color", "--accent-color", "--app-header-background-color",
+          "--app-header-text-color", "--sidebar-background-color",
+          "--sidebar-text-color", "--card-background-color", "--primary-text-color",
+          "--secondary-text-color", "--divider-color", "--ha-card-border-radius",
+          "--ha-card-box-shadow", "--primary-background-color",
+          "--background-color", "--state-icon-color",
+        ].forEach((prop) => {
+          const value = cs.getPropertyValue(prop).trim();
+          if (value) map[prop] = value;
+        });
+      }
+    } catch (err) {
+      /* Kein Zugriff auf das übergeordnete Dokument (z. B. Preview) */
+    }
+    return map;
   }
 
-  function reloadAfterChange() {
-    setTimeout(async () => {
+  function applyTheme() {
+    const theme = (state.config && state.config.settings && state.config.settings.ui_theme) || "ha";
+    const host = state.root && state.root.host;
+    if (!host) return;
+    host.setAttribute("theme", theme);
+    if (theme === "ha") {
+      const vars = readHaVars();
+      Object.keys(vars).forEach((k) => host.style.setProperty(k, vars[k]));
       try {
-        await fetchConfig();
-        state.panel._renderApp();
+        const scheme = window.top.getComputedStyle(window.top.document.documentElement).colorScheme;
+        if (scheme) host.style.colorScheme = scheme;
       } catch (err) {
-        setTimeout(async () => {
-          try {
-            await fetchConfig();
-            state.panel._renderApp();
-          } catch (err2) { /* alten Stand behalten */ }
-        }, 2200);
+        /* Standard behalten */
       }
-    }, 1600);
+    }
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Zurück zu Home Assistant: Seitenleiste öffnen + zur HA-Startseite.
+   * ------------------------------------------------------------------ */
+  function goHome() {
+    try {
+      const topDoc = window.top.document;
+      const drawer = topDoc.querySelector("ha-drawer");
+      if (drawer && typeof drawer.open === "boolean" && !drawer.open) drawer.open = true;
+    } catch (err) {
+      /* Seitenleiste nicht erreichbar – Navigation funktioniert trotzdem */
+    }
+    const url =
+      state.hass && typeof state.hass.hassUrl === "function"
+        ? state.hass.hassUrl("/")
+        : "/";
+    try {
+      if (window.top && window.top.location) {
+        window.top.location.href = url;
+        return;
+      }
+    } catch (err) {
+      /* Same-Origin-Beschränkung – unten im eigenen Fenster navigieren */
+    }
+    window.location.href = url;
   }
 
   function updateHeaderChip() {
@@ -1883,7 +2244,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       limits: { power_limit_w: 11000, min_on_power_w: 1400, min_on_s: 120, min_off_s: 60 },
       car: null, wp: null,
     };
-    if (role === "wallbox") {
+    if (role === "wallbox" || role === "fahrzeug") {
       base.car = { capacity_kwh: 60, min_soc: 50, max_soc: 80, min_charge_power_w: 4000, grid_min_allowed: true, grid_deadline_allowed: true, manual_force: false, deadline_time: null, deadline_soc: 0 };
     } else if (role === "waermepumpe") {
       base.wp = { comfort_c: 60, safety_min_c: 40, est_power_w: 2000, grid_fallback_allowed: true, test_active: false };

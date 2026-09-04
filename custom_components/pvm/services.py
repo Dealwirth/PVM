@@ -150,13 +150,17 @@ async def _async_handle_rebuild_dashboard(hass: HomeAssistant, call: ServiceCall
     if manager is None:
         return
     await async_rebuild_panel(hass, manager)
-    hass.components.persistent_notification.async_create(
-        title="PVM – Seite",
-        message=(
-            "Die **PV-Manager-Seite** wurde neu registriert. "
-            "Öffne sie über die Seitenleiste."
-        ),
-        notification_id=f"{DOMAIN}_dashboard",
+    await hass.services.async_call(
+        "persistent_notification",
+        "create",
+        {
+            "title": "PVM – Seite",
+            "message": (
+                "Die **PV-Manager-Seite** wurde neu registriert. "
+                "Öffne sie über die Seitenleiste."
+            ),
+            "notification_id": f"{DOMAIN}_dashboard",
+        },
     )
 
 
@@ -195,10 +199,14 @@ async def _async_handle_self_test(hass: HomeAssistant, call: ServiceCall) -> Non
     if not issues:
         issues.append("Alles in Ordnung – keine Probleme gefunden.")
 
-    hass.components.persistent_notification.async_create(
-        title="PVM – Selbsttest",
-        message="\n".join(f"- {issue}" for issue in issues),
-        notification_id=f"{DOMAIN}_self_test",
+    await hass.services.async_call(
+        "persistent_notification",
+        "create",
+        {
+            "title": "PVM – Selbsttest",
+            "message": "\n".join(f"- {issue}" for issue in issues),
+            "notification_id": f"{DOMAIN}_self_test",
+        },
     )
 
 

@@ -91,14 +91,18 @@ async def async_register_panel(hass: HomeAssistant, manager: PvmManager) -> None
         energy.get("pv_sensor") or energy.get("grid_sensor")
     )
     if fresh:
-        hass.components.persistent_notification.async_create(
-            title="PV Manager ist bereit ☀️",
-            message=(
-                "Weitere Einrichtung und Einstellungen findest du in der "
-                "**PV-Manager-Seite** in der Seitenleiste "
-                "(Erste Schritte → Sensoren und Geräte hinzufügen)."
-            ),
-            notification_id=f"{DOMAIN}_dashboard_ready",
+        await hass.services.async_call(
+            "persistent_notification",
+            "create",
+            {
+                "title": "PV Manager ist bereit ☀️",
+                "message": (
+                    "Weitere Einrichtung und Einstellungen findest du in der "
+                    "**PV-Manager-Seite** in der Seitenleiste "
+                    "(Erste Schritte → Sensoren und Geräte hinzufügen)."
+                ),
+                "notification_id": f"{DOMAIN}_dashboard_ready",
+            },
         )
 
 
