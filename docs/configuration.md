@@ -41,8 +41,11 @@ entfernen**:
 „Ein Sensor (Bezug + / Einspeisung −)“ und „Zwei getrennte Sensoren“ – PVM
 zeigt nur die passenden Felder und wertet beide Varianten korrekt aus
 (bei getrennten Zählern werden Bezug und Einspeisung unabhängig angezeigt).
-Für den kombinierten Sensor gibt es zusätzlich die Richtungs-Auswahl
-(„Kombiniert“ oder „Nur Einspeisung, positiv = Einspeisung“).
+Die Wahl wird gespeichert und bleibt auch nach Reloads/Neustarts erhalten.
+Für den kombinierten Sensor gibt es zusätzlich die Vorzeichen-Auswahl
+(„Bezug positiv (+), Einspeisung negativ (−)“, „Invertiert: Einspeisung
+positiv (+), Bezug negativ (−)“ oder „Nur Einspeisung“) – für Zähler, die
+Werte umgekehrt oder nur die Einspeisung liefern.
 
 Die Auswahlfelder akzeptieren **alle passenden Entitätenarten** (Sensor-,
 Zähler- und Zahlen-Entitäten) und zeigen verständliche Namen – der alte

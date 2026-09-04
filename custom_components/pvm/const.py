@@ -7,7 +7,7 @@ Logik-Modulen und Tests.
 
 DOMAIN = "pvm"
 NAME = "PV Manager"
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 
 # Von der Integration bereitgestellte Plattformen.
 PLATFORMS = ["sensor", "number", "switch", "button", "select", "time"]
@@ -77,13 +77,24 @@ CONTROL_LABELS = {
     CONTROL_BUTTONS: "Zwei Taster (Start/Stopp)",
 }
 
-# Energiesensor-Typen für den Netz-Sensor
-GRID_KIND_NET = "net"             # Import positiv, Export negativ
-GRID_KIND_EXPORT = "export_only"  # nur Einspeisung, positiv = Export
+# Netzanschluss-Variante (UI-Auswahl „Ein Sensor“ oder „Zwei getrennte“)
+GRID_MODE_COMBINED = "combined"  # ein Sensor: Bezug + / Einspeisung − (oder invertiert)
+GRID_MODE_SEPARATE = "separate"  # zwei getrennte Zähler (Bezug / Einspeisung)
+
+GRID_MODE_LABELS = {
+    GRID_MODE_COMBINED: "Ein Sensor (Bezug + / Einspeisung −)",
+    GRID_MODE_SEPARATE: "Zwei getrennte Sensoren",
+}
+
+# Richtung des kombinierten Netz-Sensors
+GRID_KIND_NET = "net"             # positiv = Bezug, negativ = Einspeisung
+GRID_KIND_EXPORT = "export_only"  # nur Einspeisung, positiv = Einspeisung
+GRID_KIND_INVERTED = "inverted"   # positiv = Einspeisung, negativ = Bezug (z. B. SolarNet)
 
 GRID_KIND_LABELS = {
-    GRID_KIND_NET: "Kombiniert (Bezug +, Einspeisung −)",
+    GRID_KIND_NET: "Bezug positiv (+), Einspeisung negativ (−)",
     GRID_KIND_EXPORT: "Nur Einspeisung (positiv = Einspeisung)",
+    GRID_KIND_INVERTED: "Invertiert (Einspeisung positiv (+), Bezug negativ (−))",
 }
 
 # Betriebsmodi (globaler Select)
@@ -195,6 +206,7 @@ DEFAULT_CONFIG = {
         "house_sensor": None,
         "battery_power_sensor": None,    # Speicher-Leistung (optional)
         "battery_soc_sensor": None,      # Speicher-SoC in % (optional)
+        "grid_mode": GRID_MODE_COMBINED, # Anschluss-Variante (combined/separate)
         "grid_kind": GRID_KIND_NET,
     },
     "settings": {

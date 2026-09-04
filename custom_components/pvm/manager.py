@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time as _time
+import uuid
 from collections import deque
 from datetime import datetime
 from typing import Any, Callable
@@ -38,6 +39,7 @@ from .const import (
     CONTROL_BUTTONS,
     DOMAIN,
     GRID_KIND_NET,
+    GRID_MODE_SEPARATE,
     MODE_AUTO,
     MODE_OFF,
     PHASE_VOLTAGE_V,
@@ -80,6 +82,10 @@ class PvmManager:
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
         self.entry = entry
+        # Einzigartige Instanz-Kennung: Nach einem Reload (z. B. wenn neue
+        # Geräte Entitäten bekommen) entsteht eine neue Instanz – die Seite
+        # erkennt daran zuverlässig, dass der Reload abgeschlossen ist.
+        self.instance_id = uuid.uuid4().hex[:10]
         self._store = PvmStore(hass)
         self.config: dict[str, Any] = {}
         self._loop_task: asyncio.Task | None = None
@@ -359,6 +365,7 @@ class PvmManager:
             export_valid=export_valid,
             house=house,
             house_valid=house_valid,
+            grid_mode=energy.get("grid_mode"),
             grid_kind=energy.get("grid_kind", GRID_KIND_NET),
         )
         return export, valid, net, pv, house
@@ -800,17 +807,15 @@ class PvmManager:
 
         Speichert sofort und aktualisiert die Live-Konfiguration – die
         Antwort an die Seite kommt also **ohne Wartezeit** (kein Hängen).
-        Neue/entfernte Geräte werden anschließend entprellt und geschützt
-        im Hintergrund per Entitäten-Reload nachgezogen.
+        Der Entitäten-Reload für neue/entfernte Geräte wird NICHT hier
+        ausgelöst: Die Seite ruft ihn gezielt über ``pvm/reload`` auf und
+        wartet darauf (deterministisch, ohne doppelte Reloads).
         """
         normalized = normalize_config(config)
-        devices_changed = self._devices_changed(normalized)
         await self._store.async_save(normalized)
         self.config = normalized
         self.request_cycle()
         self._broadcast()
-        if devices_changed:
-            self._schedule_entity_reload()
 
     def _schedule_entity_reload(self) -> None:
         """Lädt die Entitäten neu – entprellt und ohne Überschneidungen.
@@ -1067,20 +1072,26 @@ class PvmManager:
         return SETUP_LABELS.get(self.setup_stage(), self.setup_stage())
 
     def setup_missing(self) -> list[str]:
-        """Fehlende Messungs-Rollen (deutsche Kurztexte für das Tutorial)."""
+        """Fehlende Messungs-Rollen (deutsche Kurztexte für das Tutorial).
+
+        Achtet auf die gewählte Anschluss-Variante: Bei „ein Sensor“ fehlt nur
+        der kombinierte Netz-Sensor, bei „zwei Sensoren“ nur Bezug/Einspeisung.
+        """
         missing: list[str] = []
         energy = self.config.get("energy", {})
         if not energy_configured(self.config):
             return ["PV-Leistung", "Netzbezug / Einspeisung"]
-        for key, label in (
-            ("pv_sensor", "PV-Leistung"),
-            ("grid_sensor", "Netz (kombiniert)"),
-            ("grid_import_sensor", "Netzbezug (separat)"),
-            ("grid_export_sensor", "Einspeisung (separat)"),
-            ("house_sensor", "Hausverbrauch"),
-        ):
-            if not energy.get(key):
-                missing.append(label)
+        if not energy.get("pv_sensor"):
+            missing.append("PV-Leistung")
+        if energy.get("grid_mode") == GRID_MODE_SEPARATE:
+            if not energy.get("grid_import_sensor"):
+                missing.append("Netzbezug (separat)")
+            if not energy.get("grid_export_sensor"):
+                missing.append("Einspeisung (separat)")
+        elif not energy.get("grid_sensor"):
+            missing.append("Netz (kombiniert)")
+        if not energy.get("house_sensor"):
+            missing.append("Hausverbrauch (optional)")
         return missing
 
     # ------------------------------------------------------------------

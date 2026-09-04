@@ -131,6 +131,46 @@ def test_new_energy_keys_normalized():
     assert energy["pv_sensor"] is None
 
 
+def test_grid_mode_defaults_combined():
+    config = cm.normalize_config({"energy": {"grid_sensor": "sensor.netz"}})
+    assert config["energy"]["grid_mode"] == "combined"
+
+
+def test_grid_mode_derived_separate_from_legacy_config():
+    # Alte Installation mit getrennten Zählern (kein grid_mode-Feld):
+    # die Anschluss-Variante wird automatisch abgeleitet und gespeichert.
+    config = cm.normalize_config(
+        {"energy": {"grid_import_sensor": "sensor.bezug", "grid_export_sensor": "sensor.export"}}
+    )
+    assert config["energy"]["grid_mode"] == "separate"
+    # Und bleibt beim nächsten Durchlauf stabil erhalten
+    again = cm.normalize_config(config)
+    assert again["energy"]["grid_mode"] == "separate"
+
+
+def test_grid_mode_separate_keeps_choice_with_combined_sensor():
+    # Nutzer wählt „zwei getrennte“ – auch wenn ein kombinierter Sensor
+    # (z. B. von früher) noch in der Konfiguration liegt.
+    config = cm.normalize_config(
+        {
+            "energy": {
+                "grid_sensor": "sensor.netz",
+                "grid_mode": "separate",
+                "grid_import_sensor": "sensor.bezug",
+            }
+        }
+    )
+    assert config["energy"]["grid_mode"] == "separate"
+    assert config["energy"]["grid_sensor"] == "sensor.netz"  # wird nicht gelöscht
+
+
+def test_grid_kind_inverted_is_valid():
+    config = cm.normalize_config(
+        {"energy": {"grid_sensor": "sensor.netz", "grid_kind": "inverted"}}
+    )
+    assert config["energy"]["grid_kind"] == "inverted"
+
+
 def test_fahrzeug_defaults():
     device = cm.normalize_device(cm.default_device("fahrzeug", "Enyaq"))
     assert device["role"] == "fahrzeug"

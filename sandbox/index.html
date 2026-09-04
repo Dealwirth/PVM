@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<!--
+  PVM-„Prüf-Sandbox“ – führt die ECHTE panel.js gegen einen simulierten
+  Home-Assistant-WebSocket aus. Damit lassen sich die wichtigsten Abläufe
+  (Netzanschluss umstellen, Geräte hinzufügen/bearbeiten/entfernen, Live-
+  Aktualisierung) im Browser durchklicken und prüfen – ohne HA-Installation.
+
+  Nutzung:  sandbox/index.html im Browser öffnen (oder via Preview).
+-->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PVM – Prüf-Sandbox</title>
+<style>
+  html, body { margin:0; padding:0; }
+  #sandboxbar {
+    position: sticky; top:0; z-index: 999;
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    padding:8px 14px; font:13px Roboto, sans-serif;
+    background:#1c1c1e; color:#ddd; border-bottom:1px solid #000;
+  }
+  #sandboxbar b { color:#fff }
+  #sandboxbar button {
+    border:0; border-radius:6px; padding:6px 10px; cursor:pointer;
+    background:#0f6cbd; color:#fff; font-weight:600; font-size:12px;
+  }
+  #sandboxbar button.ghost { background:#333 }
+  #sandboxbar .log { color:#9aff9a; font-size:11px; flex:1; min-width:200px;
+    text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #host { min-height: 100vh; }
+  /* Leichtes HA-ähnliches Grund-Theme für die Vorschau (im echten HA kommt
+     das Theme vom HA-Seitendokument – applyTheme liest es dort). */
+  #host pvm-panel {
+    --primary-color:#0f6cbd; --accent-color:#0f6cbd;
+    --app-header-background-color:#f6f7f8; --app-header-text-color:#1c1c1e;
+    --card-background-color:#ffffff; --primary-text-color:#1c1c1e;
+    --secondary-text-color:#727274; --divider-color:rgba(0,0,0,.12);
+    --primary-background-color:#f6f7f8; --background-color:#f6f7f8;
+    --ha-card-border-radius:12px;
+    --ha-card-box-shadow:0 2px 8px 0 rgba(0,0,0,.12);
+    --primary-font-family:Roboto, sans-serif;
+  }
+</style>
+</head>
+<body>
+  <div id="sandboxbar">
+    <b>PVM-Prüf-Sandbox</b>
+    <button data-scenario="separate">Szenario: getrennte Zähler (SolarNet)</button>
+    <button data-scenario="combined">Szenario: ein kombinierter Sensor</button>
+    <button data-car="charging">🚗 Auto: lädt an Wallbox</button>
+    <button data-car="away">🚗 Auto: unterwegs</button>
+    <button class="ghost" data-reset>Zurücksetzen</button>
+    <span class="log" id="log"></span>
+  </div>
+  <div id="host"></div>
+
+  <!--__BUILD__-->
+  <script>
+  /*__SIM_JS__*/
+  </script>
+  <script>
+  /*__PVM_PANEL_JS__*/
+  </script>
+</body>
+</html>

@@ -2,6 +2,44 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.5.0] – 2026-09-04
+
+### Behoben – „Geräte hinzufügen“ reagierte nicht (wirkliche Ursache gefunden)
+- **Der Geräte-Dialog war komplett „taub“:** Beim Öffnen eines Dialogs wurde
+  der Geräte-Dialog-Zustand gelöscht, wodurch jeder Klick (Typ wählen, Weiter,
+  Speichern) still verworfen wurde. Dialoge sind jetzt **stapelbar**
+  (Entitäten-Picker öffnet sich über dem Dialog, ohne ihn zu zerstören), und
+  der Dialog-Zustand bleibt erhalten, bis der Dialog wirklich geschlossen ist.
+- **Seite blieb nach erneutem Öffnen auf „verbindet …“ hängen:** Wurde das
+  Panel-Element neu erzeugt (Seite erneut geöffnet), zeigte es endlos den
+  Ladebildschirm. Jetzt erscheint sofort der letzte Stand und die Seite lädt
+  parallel frische Daten – mit Endlos-Retry statt Endlos-Hänger.
+- **Geräte-Umbenennen löst den Entitäten-Reload korrekt aus** (Entität
+  „Status/Prio“ folgt dem Namen), reine Wertänderungen bleiben sofort wirksam
+  ohne Reload. Reload und Speichern laufen deterministisch über das neue
+  WebSocket-Kommando `pvm/reload` – kein doppelter Reload mehr.
+
+### Neu – „Dein Netzanschluss“ (kombiniert ↔ getrennt) hält jetzt wirklich
+- Die Umstellung **ein Sensor ↔ zwei getrennte Sensoren** wird im
+  Konfigurations-Modell gespeichert und bleibt nach Reload/Neustart/Neueröffnung
+  erhalten – vorher wurde die Auswahl stillschweigend wieder zurückgesetzt.
+- **Vorzeichen-Auswahl für kombinierte Zähler** („Bezug positiv (+), Einspeisung
+  negativ (−)“, „Invertiert“, „Nur Einspeisung“) – passt z. B. für Zähler, die
+  die Einspeisung positiv liefern.
+- Die Berechnung (Überschuss, Energiefluss, Kacheln) folgt Modus und Richtung
+  durchgängig; neue Tests decken beide Varianten ab.
+
+### Prüf-Sandbox & Qualität
+- **Neue Prüf-Sandbox** (`sandbox/`): führt die echte Panel-Seite gegen einen
+  simulierten Home-Assistant-WebSocket aus. Damit wurden Umstellung,
+  Geräte-Anlage/-Bearbeitung/-Löschung und die Auto-Zuordnung („lädt an
+  Wallbox“ ↔ „unterwegs“) im Browser durchgeklickt und verifiziert.
+- Übersichtlichere Geräteverwaltung: verständliche Gerätetypen, klare
+  Steuerungsarten mit Erklärtext, Vorfüllung beim Bearbeiten, deutsche
+  Formulierung – inklusive Formfehler-Korrekturen.
+- README/Doku: Installations-Button größer & auffälliger, Doku zur
+  Netzanschluss-Wahl, Sandbox-Anleitung für Entwickler.
+
 ## [1.4.0] – 2026-09-04
 
 ### Behoben – „Geräte hinzufügen hängt / Seite lädt nicht weiter“ (komplett überarbeitet)

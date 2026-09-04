@@ -193,4 +193,5 @@ def build_panel_payload(
         "scan": manager.last_scan or {},
         "setup": manager.setup_stage(),
         "version": VERSION,
+        "instance": getattr(manager, "instance_id", None),
     }

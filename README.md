@@ -2,7 +2,7 @@
 
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.2.0+-blue.svg)](https://www.home-assistant.io)
-[![GitHub Release](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/Dealwirth/PVM/releases)
+[![GitHub Release](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/Dealwirth/PVM/releases)
 [![License](https://img.shields.io/github/license/Dealwirth/PVM)](LICENSE)
 
 **PVM** ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deinen
@@ -11,11 +11,11 @@ eigene, klar gestaltete **PV-Manager-Seite** in der Seitenleiste. Kein YAML, kei
 Setup-Wizard: Installieren, öffnen, Geräte per Klick übernehmen – fertig.
 
 <p align="center">
-<a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Dealwirth&repository=PVM&category=integration">
-<img src="https://img.shields.io/badge/Integration_hinzufügen-41BDF5?style=for-the-badge&logo=homeassistant&logoColor=white" alt="Integration hinzufügen">
+<a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Dealwirth&repository=PVM&category=integration" style="text-decoration:none">
+<img src="https://img.shields.io/badge/⚡%20PVM%20in%20HACS%20installieren%20–%20ein%20Klick%20genügt-ffffff?style=for-the-badge&logo=homeassistant&logoColor=0f6cbd&labelColor=0f6cbd" alt="PVM in HACS installieren">
 </a>
 <br>
-<em>Ein Klick – HACS öffnet sich automatisch und installiert PVM.</em>
+<em style="font-size:15px">Klick auf den Button – HACS öffnet sich automatisch und installiert PVM.<br>Alternativ: <i>HACS → Custom repositories →</i> <code>https://github.com/Dealwirth/PVM</code> <i>→ Typ „Integration“</i>.</em>
 </p>
 
 ---

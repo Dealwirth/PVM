@@ -51,12 +51,22 @@ Alle `cycle_s` Sekunden (Standard 30 s):
   Konfiguration + Entitäten-Mapping + Scan-Ergebnis + Setup-Stufe.
   `build_entity_map(registry, config)` bildet unique_id → entity_id ab.
 - **Kommunikation** (`websocket.py`): die Seite liest/schreibt **nur** über
-  die vier Kommandos `pvm/get_config`, `pvm/save_config`, `pvm/scan`,
-  `pvm/list_entities`. Neue Daten → neues Kommando hier ergänzen.
+  die Kommandos `pvm/get_config`, `pvm/save_config`, `pvm/scan`,
+  `pvm/list_entities` und `pvm/reload` (letzteres lädt nach Geräte-
+  Änderungen die Entitäten nach und antwortet erst, wenn der Reload fertig
+  ist – die Seite wartet also nie vergeblich). Neue Daten → neues Kommando
+  hier ergänzen.
 - **UI** (`panel/panel.js`): eine einzige Datei (HTML-Template + CSS + JS,
   kein Build-Schritt, keine Frameworks). Reiter, Dialoge und Animationen sind
   reines DOM-Handling; Texte sind deutsch. Nach Änderungen: `node --check`
   ausführen (JS-Syntax).
+- **Dialoge sind stapelbar:** `openModal()` legt Dialoge auf einen Stapel
+  (`state.modalStack`) – der Entitäten-Picker öffnet sich *über* dem
+  Geräte-Dialog, ohne ihn zu zerstören. Beim Schließen eines Dialogs wird nur
+  der oberste entfernt; erst wenn keiner mehr offen ist, wird der
+  Geräte-Dialog-Zustand (`state.deviceDialog`) verworfen. Wird das Panel-
+  Element neu erzeugt (Seite erneut geöffnet), zeigt es sofort den letzten
+  Stand und lädt parallel frisch – nie endlos „verbindet …“.
 
 ## Neue Geräte-/Steuerungsprofile
 
@@ -87,6 +97,28 @@ stellt harmlose Platzhalter für die HA-Importe bereit). `test_imports.py`
 lädt alle Module der Integration als Smoke-Test; `test_panel_data.py` prüft
 das Entitäten-Mapping mit einem Registry-Stub. Die HA-Schicht wird in einer
 echten Instanz geprüft.
+
+## Prüf-Sandbox (UI-Durchklicken ohne HA)
+
+Unter `sandbox/` liegt eine eigenständige **Prüf-Sandbox**: Sie führt die
+**echte** `panel/panel.js` gegen einen simulierten Home-Assistant-
+WebSocket aus (Entitäten, Reload, Scan, Live-Ticker). Damit lassen sich die
+wichtigsten Nutzer-Abläufe im Browser durchklicken und prüfen:
+
+- Netzanschluss umstellen („ein Sensor“ ↔ „zwei getrennte Sensoren“),
+- Geräte hinzufügen / bearbeiten / entfernen (inkl. Entitäten-Picker),
+- Auto-Zuordnung live („lädt an Wallbox“ ↔ „unterwegs“),
+- Umbenennen, Speichern, Neuaufbau nach Änderungen.
+
+```bash
+py sandbox/build_preview.py          # erzeugt sandbox/preview.html (selbst-enthaltend)
+# sandbox/preview.html im Browser öffnen – keine Installation nötig
+```
+
+Szenario-Buttons oben wechseln die Anschluss-Variante bzw. die Auto-
+Situation; jede Änderung durchläuft dieselben WebSocket-Kommandos wie im
+echten HA. `sandbox/preview.html` ist generiert und wird nicht eingecheckt
+(`.gitignore`); die Quelle der Wahrheit bleibt die echte `panel.js`.
 
 ## Code-Stil
 

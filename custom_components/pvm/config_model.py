@@ -27,7 +27,10 @@ from .const import (
     DEFAULT_WP_EST_POWER_W,
     DEFAULT_WP_SAFETY_MIN_C,
     DEFAULT_WP_TARGET_C,
+    GRID_KIND_INVERTED,
     GRID_KIND_NET,
+    GRID_MODE_COMBINED,
+    GRID_MODE_SEPARATE,
     MODE_AUTO,
     ROLE_FAHRZEUG,
     ROLE_VERBRAUCHER,
@@ -42,7 +45,8 @@ from .const import (
 # Erlaubte Rollen/Modi (Vermeidet kaputte Daten durch Tippfehler)
 VALID_ROLES = (ROLE_WALLBOX, ROLE_WAERMEPUMPE, ROLE_VERBRAUCHER, ROLE_FAHRZEUG)
 VALID_MODES = ("auto", "surplus", "deadline", "off")
-VALID_GRID_KINDS = ("net", "export_only")
+VALID_GRID_MODES = (GRID_MODE_COMBINED, GRID_MODE_SEPARATE)
+VALID_GRID_KINDS = (GRID_KIND_NET, "export_only", GRID_KIND_INVERTED)
 
 # Zahlengrenzen je Schlüssel
 LIMITS = {
@@ -270,6 +274,18 @@ def normalize_config(data: dict | None) -> dict:
         "battery_soc_sensor",
     ):
         energy[key] = energy.get(key) or None
+    # Anschluss-Variante: vorhandene Installationen ohne grid_mode werden aus
+    # den Sensoren abgeleitet (getrennte Zähler -> separate), danach fest
+    # gespeichert, damit die UI-Auswahl dauerhaft erhalten bleibt.
+    raw_energy = (data or {}).get("energy") if isinstance(data, dict) else None
+    if not isinstance(raw_energy, dict):
+        raw_energy = {}
+    stored_mode = raw_energy.get("grid_mode")
+    if stored_mode not in VALID_GRID_MODES:
+        if energy.get("grid_import_sensor") or energy.get("grid_export_sensor"):
+            energy["grid_mode"] = GRID_MODE_SEPARATE
+        else:
+            energy["grid_mode"] = GRID_MODE_COMBINED
     if energy.get("grid_kind") not in VALID_GRID_KINDS:
         energy["grid_kind"] = GRID_KIND_NET
 
@@ -356,6 +372,15 @@ def deadline_next_ts(now_local, deadline_time: str | None) -> float | None:
     return candidate.timestamp()
 
 
+def _derive_grid_mode(
+    grid_import: float | None, grid_export: float | None
+) -> str:
+    """Leitet die Anschluss-Variante aus den Sensoren ab (Migration)."""
+    if grid_import is not None or grid_export is not None:
+        return GRID_MODE_SEPARATE
+    return GRID_MODE_COMBINED
+
+
 def compute_energy_flow(
     *,
     pv: float | None = None,
@@ -368,30 +393,49 @@ def compute_energy_flow(
     export_valid: bool = False,
     house: float | None = None,
     house_valid: bool = False,
+    grid_mode: str | None = None,
     grid_kind: str = GRID_KIND_NET,
 ) -> tuple[float, bool, float]:
     """Berechnet (export_w, gültig, netz_w) aus allen Sensor-Kombinationen.
 
     Reihenfolge (reines Python, gut testbar):
-    1. Getrennte Netzbezug-/Einspeisung-Sensoren (bevorzugt).
-    2. Kombinierter Netz-Sensor (Richtung über ``grid_kind``).
-    3. PV minus Hausverbrauch (ohne Haus-Sensor: PV-Leistung als Überschuss).
+    1. ``grid_mode`` = separate (zwei Zähler): nur die getrennten Bezug-/
+       Einspeisung-Sensoren werden gewertet.
+    2. ``grid_mode`` = combined (ein Zähler): der kombinierte Netz-Sensor wird
+       je nach ``grid_kind`` gelesen (net/inverted/export_only).
+    3. Sonst: PV minus Hausverbrauch (ohne Haus-Sensor: PV-Leistung).
 
-    Liegt nur der Bezug vor (Einspeisung unbekannt), ist der Überschuss
-    **unbekannt** (gültig=False) – die Engine hält dann den Zustand, statt
-    fälschlich „kein Überschuss“ zu melden.
+    ``grid_mode`` ist die explizite, gespeicherte Auswahl des Nutzers – damit
+    bleibt die Umstellung zwischen „ein Sensor“ und „zwei Sensoren“ dauerhaft
+    erhalten. Fehlt die Angabe (alte Konfigurationen), wird sie aus den
+    Sensoren abgeleitet.
+
+    Liegt bei getrennten Zählern nur der Bezug vor (Einspeisung unbekannt),
+    ist der Überschuss **unbekannt** (gültig=False) – die Engine hält dann
+    den Zustand, statt fälschlich „kein Überschuss“ zu melden.
     """
-    # 1) Getrennte Sensoren (Netzbezug + Einspeisung)
-    if grid_import is not None or grid_export is not None:
-        if export_valid and grid_export is not None:
-            export = max(0.0, grid_export)
-            net = (grid_import or 0.0) - export if import_valid else -export
-            return export, True, net
-        if import_valid and grid_import is not None:
-            return 0.0, False, max(0.0, grid_import)
-        return 0.0, False, grid_import or 0.0
+    mode = grid_mode or _derive_grid_mode(grid_import, grid_export)
+    # 1) Zwei getrennte Zähler (Netzbezug + Einspeisung)
+    if mode == GRID_MODE_SEPARATE:
+        if grid_import is not None or grid_export is not None:
+            if export_valid and grid_export is not None:
+                export = max(0.0, grid_export)
+                net = (grid_import or 0.0) - export if import_valid else -export
+                return export, True, net
+            if import_valid and grid_import is not None:
+                return 0.0, False, max(0.0, grid_import)
+            return 0.0, False, grid_import or 0.0
+        # Separate gewählt, aber keine Werte -> wie „keine Messung“
+        if pv_valid and pv is not None:
+            return max(0.0, pv), True, 0.0
+        return 0.0, False, 0.0
     # 2) Kombinierter Netz-Sensor
     if grid_valid and grid is not None:
+        if grid_kind == GRID_KIND_INVERTED:
+            # positiv = Einspeisung, negativ = Bezug (z. B. SolarNet)
+            export = max(0.0, grid)
+            net = -grid
+            return export, True, net
         if grid_kind == GRID_KIND_NET:
             # positiv = Bezug, negativ = Einspeisung
             return max(0.0, -grid), True, grid

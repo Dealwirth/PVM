@@ -26,3 +26,6 @@ Thumbs.db
 config/
 .storage/
 *.log
+
+# Generierte Sandbox-Vorschau (mit py sandbox/build_preview.py erzeugen)
+sandbox/preview.html

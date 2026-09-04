@@ -105,3 +105,54 @@ def test_negative_import_is_clamped():
     assert valid is True
     assert export == 0.0
     assert net == 0.0
+
+
+def test_combined_inverted_kind():
+    # SolarNet-typisch: positiv = Einspeisung, negativ = Bezug
+    export, valid, net = compute_energy_flow(
+        grid=3200.0, grid_valid=True, grid_kind="inverted"
+    )
+    assert valid is True
+    assert export == 3200.0
+    assert net == -3200.0
+    # Negativer Wert = Bezug -> keine Einspeisung
+    export, valid, net = compute_energy_flow(
+        grid=-1400.0, grid_valid=True, grid_kind="inverted"
+    )
+    assert valid is True
+    assert export == 0.0
+    assert net == 1400.0
+
+
+def test_explicit_mode_separate_ignores_combined_sensor():
+    # Nutzer wählt „zwei getrennte Sensoren“, ein alter kombinierter Sensor
+    # liegt noch im Config (nicht gelöscht) – er darf NICHT mehr zählen.
+    export, valid, net = compute_energy_flow(
+        grid=8000.0,
+        grid_valid=True,
+        grid_import=400.0,
+        import_valid=True,
+        grid_export=2500.0,
+        export_valid=True,
+        grid_mode="separate",
+    )
+    assert valid is True
+    assert export == 2500.0
+    assert net == -2100.0  # 400 - 2500 (kombinierter Sensor wird ignoriert)
+
+
+def test_explicit_mode_combined_ignores_separate_sensors():
+    # Umgekehrt: „ein Sensor“ gewählt, aber Bezug/Einspeisung liegen noch im
+    # Config – der kombinierte Wert ist die Wahrheit.
+    export, valid, net = compute_energy_flow(
+        grid=-5000.0,
+        grid_valid=True,
+        grid_import=999.0,
+        import_valid=True,
+        grid_export=999.0,
+        export_valid=True,
+        grid_mode="combined",
+    )
+    assert valid is True
+    assert export == 5000.0
+    assert net == -5000.0

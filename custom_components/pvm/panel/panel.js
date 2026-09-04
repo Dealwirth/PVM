@@ -70,8 +70,17 @@
       off: "PVM steuert nichts – alles bleibt, wie es ist.",
     },
     gridKinds: {
-      net: "Kombiniert (Bezug +, Einspeisung −)",
+      net: "Bezug positiv (+), Einspeisung negativ (−)",
+      inverted: "Invertiert: Einspeisung positiv (+), Bezug negativ (−)",
       export_only: "Nur Einspeisung (positiv = Einspeisung)",
+    },
+    gridModes: {
+      combined: "Ein Sensor (Bezug + / Einspeisung −)",
+      separate: "Zwei getrennte Sensoren",
+    },
+    gridModeHint: {
+      combined: "Ein Zähler liefert beides – z. B. SolarNet „Leistung Netz“ oder ein kombinierter Zähler.",
+      separate: "Eigene Zähler für Netzbezug und Netzeinspeisung – PVM wertet beide getrennt aus.",
     },
     themes: {
       ha: "Home Assistant",
@@ -88,24 +97,26 @@
 :host { all: initial; }
 * { box-sizing: border-box; }
 :host {
-  /* Home-Assistant-Farben zuerst – werden beim Start aus dem HA-Theme
-     gelesen (applyTheme). Fallback: die alten PVM-Paletten. */
-  --acc: var(--primary-color, #ff9f1c); --acc2: var(--accent-color, #ff6b35);
-  --ok: #2dd4a7; --warn: #ffb020; --bad: #ff5d6c; --net: #5b9cf0;
-  --bg0: var(--primary-background-color, #071426);
-  --bg1: var(--app-header-background-color, #0b1d33);
-  --bg2: var(--card-background-color, #10243f);
-  --card: var(--card-background-color, rgba(255,255,255,.045));
-  --card2: var(--card-background-color, rgba(255,255,255,.09));
-  --line: var(--divider-color, rgba(255,255,255,.12));
-  --txt: var(--primary-text-color, #eaf2fb);
-  --mut: var(--secondary-text-color, #9db2c9);
-  --r: var(--ha-card-border-radius, 14px);
-  --sh: var(--ha-card-box-shadow, 0 2px 8px rgba(0,0,0,.12));
-  color-scheme: dark;
-  font-family: Roboto, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  /* Home-Assistant-Design: alle Farben/Ecken/Schatten kommen direkt aus dem
+     HA-Theme (applyTheme liest sie beim Start). Fallback: dezente Defaults. */
+  --acc: var(--primary-color, #0f6cbd); --acc2: var(--accent-color, #0f6cbd);
+  --ok: var(--state-active-color, #2dd4a7); --warn: var(--warning-color, #ffb020);
+  --bad: var(--error-color, #ff5d6c); --net: var(--state-inactive-color, #5b9cf0);
+  --bg0: var(--background-color, var(--primary-background-color, #f6f7f8));
+  --bg1: var(--app-header-background-color, var(--background-color, #f6f7f8));
+  --bg2: var(--card-background-color, #ffffff);
+  --card: var(--ha-card-background, var(--card-background-color, #ffffff));
+  --card2: var(--ha-card-background, var(--secondary-background-color, rgba(0,0,0,.05)));
+  --line: var(--divider-color, rgba(0,0,0,.12));
+  --txt: var(--primary-text-color, #1c1c1e);
+  --mut: var(--secondary-text-color, #727274);
+  --r: var(--ha-card-border-radius, 12px);
+  --sh: var(--ha-card-box-shadow, 0 2px 8px 0 rgba(0,0,0,.12));
+  --btn: var(--primary-color, #0f6cbd);
+  color-scheme: var(--ha-scheme, light);
+  font-family: var(--primary-font-family, Roboto, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif);
   color: var(--txt);
-  background: var(--primary-background-color, linear-gradient(180deg, var(--bg1), var(--bg0)));
+  background: var(--background-color, var(--primary-background-color, #f6f7f8));
   display: block; width: 100%; min-height: 100vh;
   -webkit-font-smoothing: antialiased;
 }
@@ -132,7 +143,8 @@
 }
 .wrap { max-width: 1060px; margin: 0 auto; padding: 16px 16px 90px; }
 
-header { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding: 6px 2px 16px; }
+header { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding: 10px 4px 18px;
+  border-bottom:1px solid var(--line); margin-bottom:6px; }
 .logo { width:46px;height:46px;border-radius:14px;flex:0 0 auto; display:grid;place-items:center;color:#fff;
   background:linear-gradient(135deg,var(--acc),var(--acc2)); box-shadow:0 6px 18px rgba(0,0,0,.35); }
 .logo svg{width:26px;height:26px}
@@ -185,16 +197,17 @@ p.sub { color:var(--mut); margin:2px 0 14px; font-size:13.5px; line-height:1.5; 
 .step span { color:var(--mut); font-size:12.5px; line-height:1.45; flex:1; }
 .btnrow { display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
 
-button.btn { border:0; cursor:pointer; font:inherit; font-size:13.5px; font-weight:500; padding:10px 16px;
-  border-radius:4px; transition:.18s; display:inline-flex; align-items:center; gap:8px; }
+button.btn { border:0; cursor:pointer; font:inherit; font-size:13.5px; font-weight:600; padding:11px 18px;
+  border-radius:10px; transition:.18s; display:inline-flex; align-items:center; gap:8px;
+  min-height:40px; }
 button.btn svg{width:16px;height:16px}
-.btn.primary { background:var(--acc); color:#fff; font-weight:500;
+.btn.primary { background:var(--btn); color:var(--primary-text-on-color, #fff); font-weight:600;
   box-shadow:0 2px 6px rgba(0,0,0,.18); }
 .btn.primary:hover { filter:brightness(1.08); }
 .btn.ghost { background:var(--card2); color:var(--txt); border:1px solid var(--line); }
-.btn.ghost:hover { border-color: var(--acc); }
-.btn.danger { background:rgba(255,93,108,.14); color:var(--bad); border:1px solid rgba(255,93,108,.4); }
-.btn.danger:hover { background:rgba(255,93,108,.26); }
+.btn.ghost:hover { border-color: var(--btn); }
+.btn.danger { background:color-mix(in srgb, var(--bad) 14%, transparent); color:var(--bad); border:1px solid color-mix(in srgb, var(--bad) 40%, transparent); }
+.btn.danger:hover { background:color-mix(in srgb, var(--bad) 26%, transparent); }
 .btn:disabled { opacity:.45; cursor:not-allowed; transform:none !important; }
 button.ico { background:var(--card2); border:1px solid var(--line); border-radius:9px; cursor:pointer;
   width:32px;height:32px; display:grid;place-items:center; color:var(--mut); transition:.15s; padding:0; }
@@ -382,8 +395,12 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     entityListLoaded: false,
     view: "start",
     toastSeq: 0,
-    modal: null,
+    modal: null,        // oberster geöffneter Dialog (für Kompatibilität)
+    modalStack: [],     // gestapelte Dialoge: Picker/Sub-Dialoge zerstören den
+                        // darunterliegenden Dialog nicht mehr (wichtig: Geräte-Dialog)
     deviceDialog: null,
+    instance: null,     // Instanz des aktuell geladenen Managers
+    lastInstance: null, // Instanz beim letzten Speichern (für Reload-Erkennung)
     lastLive: 0,
     liveStates: {},   // Live-Zustände über WS-Subscription (state_changed)
     liveSubscribed: false,
@@ -393,6 +410,14 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
 
   const $ = (root, sel) => root.querySelector(sel);
   const $$ = (root, sel) => Array.from(root.querySelectorAll(sel));
+
+  /* CSS.escape gibt es nicht in jeder Umgebung (z. B. ältere WebViews) –
+   * einfacher Fallback, damit Geräte-IDs mit Sonderzeichen sicher bleiben. */
+  function cssEsc(id) {
+    const s = String(id == null ? "" : id);
+    if (window.CSS && typeof CSS.escape === "function") return CSS.escape(s);
+    return s.replace(/[^a-zA-Z0-9_-]/g, (c) => "\\" + c);
+  }
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({
@@ -522,10 +547,14 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     state.scan = data.scan || {};
     state.setup = data.setup || "start";
     state.version = data.version || "";
+    state.instance = data.instance || null;
     return data;
   }
   async function saveConfig() {
     const res = await wsTimeout("pvm/save_config", { config: state.config }, 25000);
+    // Instanz VOR dem evtl. Entitäten-Reload merken – nach dem Reload ist
+    // die Instanz neu, daran erkennt settleAfterReload den Abschluss.
+    state.lastInstance = (res && res.instance) || null;
     return !!(res && res.ok);
   }
 
@@ -576,7 +605,32 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
    *  stilles Aufgeben. Die Antwort des Servers kommt immer (Konfiguration
    *  wird serverseitig sofort übernommen); neue Entitäten folgen im
    *  Hintergrund und werden hier nachgezogen. */
-  async function saveAndRefresh(msg) {
+  /* Signatur der Geräte-Struktur: ändert sie sich (neues/entferntes Gerät,
+   * Rollen- oder Namenswechsel), müssen die Entitäten neu geladen werden. */
+  function deviceSig() {
+    return devicesOf().map((d) => (d.id || "") + ":" + (d.role || "") + ":" + String(d.name || "")).join("|");
+  }
+
+  /* Löst den Entitäten-Reload aus und wartet, bis er fertig ist. Mehrere
+   * schnelle Aufrufe werden aneinander gereiht (kein paralleler Reload). */
+  let reloadChain = Promise.resolve();
+  function reloadEntities() {
+    const p = reloadChain.then(() =>
+      wsTimeout("pvm/reload", {}, 40000).catch((err) => {
+        state.reloadError = errText(err);
+        return null;
+      })
+    );
+    reloadChain = p.then(() => {});
+    return p;
+  }
+
+  /** Speichert und aktualisiert die Seite sofort – ohne Wartezeit und ohne
+   *  stilles Aufgeben. Bei ``opts.reload`` (Gerät hinzugefügt/entfernt oder
+   *  Rolle/Name geändert) wird zuerst der Entitäten-Reload abgewartet, damit
+   *  die neuen Geräte ihre Schalter/Sensoren sofort haben. */
+  async function saveAndRefresh(msg, opts) {
+    opts = opts || {};
     try {
       await saveConfig();
       toast(msg || "Gespeichert.", "ok");
@@ -584,9 +638,14 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       toast("Speichern fehlgeschlagen: " + errText(err), "bad");
       return;
     }
+    if (opts.reload) {
+      await reloadEntities();
+      if (state.reloadError) {
+        toast("Gerät gespeichert – neue Bedienelemente folgen gleich. Falls nichts erscheint: Seite neu laden. (" + state.reloadError + ")", "bad");
+        state.reloadError = null;
+      }
+    }
     await refreshFromServer();
-    // Neue Geräte-Entitäten erzeugt der Server zeitversetzt (Reload) –
-    // der zweite Abgleich holt deren Zuordnung nach.
     settleAfterReload();
   }
 
@@ -601,29 +660,39 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     });
   }
 
+  /** Wartet nach dem Speichern, bis ein nötiger Entitäten-Reload abgeschlossen
+   *  ist (erkennbar an einer neuen Instanz) bzw. alle Geräte Entitäten haben.
+   *  Endet IMMER mit einem Neuaufbau – nie still hängen lassen. */
   function settleAfterReload() {
+    const before = state.lastInstance;
     let tries = 0;
+    const MAX = 20; // ~18 s – Reloads dauern je nach Gerätezahl einige Sekunden
+    const finish = () => {
+      const keepView = state.view;
+      state.panel._renderApp();
+      state.panel._nav(keepView);
+      liveNow();
+    };
     const step = () => {
       wsTimeout("pvm/get_config", {}, 8000)
         .then((data) => {
           if (!data || !data.config) return;
           state.entities = data.entities || {};
           tries += 1;
-          if (entityMapComplete() || tries >= 6) {
-            const keepView = state.view;
-            state.panel._renderApp();
-            state.panel._nav(keepView);
-            liveNow();
+          const reloaded = !!(data.instance && before && data.instance !== before);
+          if (entityMapComplete() || reloaded || tries >= MAX) {
+            finish();
           } else {
-            setTimeout(step, 900);
+            setTimeout(step, 700);
           }
         })
         .catch(() => {
           tries += 1;
-          if (tries < 6) setTimeout(step, 1200);
+          if (tries < MAX) setTimeout(step, 900);
+          else finish();
         });
     };
-    setTimeout(step, 1200);
+    setTimeout(step, 700);
   }
 
   function errText(err) {
@@ -666,7 +735,17 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       this.attachShadow({ mode: "open" });
       state.panel = this;
       state.root = this.shadowRoot;
-      renderLoading();
+      if (state.config) {
+        // Das Element wird neu aufgebaut (z. B. Seitenleiste erneut geöffnet):
+        // sofort den letzten Stand zeigen und parallel frische Daten holen –
+        // nie endlos auf dem Ladebildschirm hängen bleiben.
+        this._renderApp();
+        this._nav(state.view || "start");
+        liveNow();
+        updateHeaderChip();
+      } else {
+        renderLoading();
+      }
       setTimeout(() => this._init(), 30);
     }
 
@@ -682,17 +761,29 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     }
 
     async _init() {
-      if (!state.hass || state.config) return;
+      if (!state.hass || this._initialized) return;
+      this._initialized = true;
       // Beim Öffnen kann PVM gerade neu laden – automatisch erneut versuchen,
       // statt sofort eine Fehlerseite zu zeigen.
       for (let i = 0; i < 6; i++) {
         try {
           await fetchConfig();
           this._renderApp();
+          this._nav(state.view || "start");
+          liveNow();
           return;
         } catch (err) {
           if (i === 5) {
-            renderError(String((err && err.message) || err));
+            if (state.config) {
+              // Server gerade nicht erreichbar: letzten Stand anzeigen, damit
+              // die Seite nie schwarz/leer bleibt.
+              this._renderApp();
+              this._nav(state.view || "start");
+              liveNow();
+              toast("Aktualisierung fehlgeschlagen – es werden die letzten Daten angezeigt.", "bad");
+            } else {
+              renderError(String((err && err.message) || err));
+            }
             return;
           }
           await new Promise((r) => setTimeout(r, 900));
@@ -781,9 +872,13 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const e = configEnergy();
     const labels = [];
     if (e.pv_sensor) labels.push("PV-Leistung");
-    if (e.grid_sensor) labels.push("Netz");
-    if (e.grid_import_sensor) labels.push("Netzbezug");
-    if (e.grid_export_sensor) labels.push("Einspeisung");
+    if (gridSeparate()) {
+      if (e.grid_import_sensor) labels.push("Netzbezug");
+      if (e.grid_export_sensor) labels.push("Einspeisung");
+      if (!e.grid_import_sensor && !e.grid_export_sensor) labels.push("Netz (getrennt) – noch nicht gewählt");
+    } else {
+      if (e.grid_sensor) labels.push("Netz (kombiniert)");
+    }
     if (e.house_sensor) labels.push("Hausverbrauch");
     if (e.battery_power_sensor) labels.push("Speicher");
     const any = labels.length > 0;
@@ -813,12 +908,11 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       design: "Design anpassen – dein Dashboard, deine Farben.",
     };
     const firstOpen = allSteps.find((s) => !stepState[s]) || allSteps[allSteps.length - 1];
-    const sepGrid = e.grid_import_sensor || e.grid_export_sensor;
     const quick = `
       <div class="cards">
         ${statCard("pv", "PV-Erzeugung", liveSurplusText("pv"))}
         ${statCard("surplus", "Überschuss", liveSurplusText("surplus"))}
-        ${sepGrid ? statCard("grid_import", "Netzbezug", "–") + statCard("grid_export", "Einspeisung", "–") : statCard("grid", "Netz", "–")}
+        ${gridSeparate() ? statCard("grid_import", "Netzbezug", "–") + statCard("grid_export", "Einspeisung", "–") : statCard("grid", "Netz", "–")}
       </div>`;
     return `
       <div class="hero">
@@ -862,17 +956,32 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
    * ------------------------------------------------------------------ */
   function calcExport() {
     const e = configEnergy();
-    const imp = numW(e.grid_import_sensor);
-    const exp = numW(e.grid_export_sensor);
-    if (e.grid_import_sensor || e.grid_export_sensor) {
-      if (exp != null) return Math.max(0, exp);
-      return null;
-    }
+    const kind = e.grid_kind || "net";
     const grid = numW(e.grid_sensor);
     const pv = numW(e.pv_sensor);
     const house = numW(e.house_sensor);
-    const kind = e.grid_kind || "net";
-    if (e.grid_sensor && grid != null) return kind === "net" ? Math.max(0, -grid) : Math.max(0, grid);
+    if (gridSeparate()) {
+      // Zwei getrennte Zähler – der Überschuss ist die Einspeisung.
+      if (e.grid_import_sensor || e.grid_export_sensor) {
+        const imp = numW(e.grid_import_sensor);
+        const exp = numW(e.grid_export_sensor);
+        if (exp != null) return Math.max(0, exp);
+        // Nur Bezug bekannt -> Überschuss unbekannt (nie fälschlich 0)
+        if (e.grid_import_sensor) return null;
+        return null;
+      }
+      // Noch keine Netz-Sensoren -> PV-Hausverbrauch als Anhaltspunkt
+      if (e.pv_sensor && pv != null) {
+        if (e.house_sensor && house != null) return Math.max(0, pv - house);
+        return Math.max(0, pv);
+      }
+      return null;
+    }
+    if (e.grid_sensor && grid != null) {
+      if (kind === "inverted") return Math.max(0, grid); // positiv = Einspeisung
+      if (kind === "export_only") return Math.max(0, grid);
+      return Math.max(0, -grid);
+    }
     if (e.pv_sensor && pv != null) {
       if (e.house_sensor && house != null) return Math.max(0, pv - house);
       return Math.max(0, pv);
@@ -893,7 +1002,19 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     }
     if (key === "pv") return { text: energyText("pv_sensor"), raw: 0 };
     if (key === "house") return { text: energyText("house_sensor"), raw: 0 };
-    if (key === "grid") return { text: energyText("grid_sensor"), raw: 0 };
+    if (key === "grid") {
+      if (gridSeparate()) {
+        // Beide Richtungen bei getrennten Sensoren in einer Kachel zeigen
+        const imp = numW(e.grid_import_sensor);
+        const exp = numW(e.grid_export_sensor);
+        if (imp == null && exp == null) return { text: "–", raw: 0 };
+        const parts = [];
+        if (imp != null) parts.push("↓ " + fmtW(imp));
+        if (exp != null) parts.push("↑ " + fmtW(exp));
+        return { text: parts.join("  "), raw: Math.max(0, imp || 0) };
+      }
+      return { text: energyText("grid_sensor"), raw: 0 };
+    }
     if (key === "grid_import") {
       const v = numW(e.grid_import_sensor);
       return { text: v == null ? "–" : fmtW(v), raw: v == null ? 0 : v };
@@ -923,10 +1044,10 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     if (v == null) return "–";
     if (key === "grid_sensor") {
       // Richtung des kombinierten Sensors verständlich anzeigen
-      if ((e.grid_kind || "net") === "net") {
-        return v < 0 ? "↦ " + fmtW(-v) : "↤ " + fmtW(v);
-      }
-      return v > 0 ? "↦ " + fmtW(v) : "–";
+      const kind = e.grid_kind || "net";
+      if (kind === "net") return v < 0 ? "↑ " + fmtW(-v) : "↓ " + fmtW(v);
+      if (kind === "inverted") return v > 0 ? "↑ " + fmtW(v) : "↓ " + fmtW(-v);
+      return v > 0 ? "↑ " + fmtW(v) : "–";
     }
     return fmtNum(v, unitOf(id));
   }
@@ -952,13 +1073,16 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const kind = e.grid_kind || "net";
     let importOn = false;
     let exportOn = false;
-    if (imp != null || exp != null) {
+    if (gridSeparate()) {
       importOn = imp != null && imp > 40;
       exportOn = exp != null && exp > 40;
     } else if (grid != null) {
       if (kind === "net") {
         importOn = grid > 40;
         exportOn = -grid > 40;
+      } else if (kind === "inverted") {
+        importOn = grid < -40;  // negativ = Bezug
+        exportOn = grid > 40;   // positiv = Einspeisung
       } else {
         exportOn = grid > 40;
       }
@@ -1024,7 +1148,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       <div class="cards">
         ${statCard("pv", "PV-Erzeugung", "–")}
         ${statCard("house", "Hausverbrauch", "–")}
-        ${e.grid_import_sensor || e.grid_export_sensor ? statCard("grid_import", "Netzbezug", "–") + statCard("grid_export", "Einspeisung", "–") : statCard("grid", "Netz", "–")}
+        ${gridSeparate() ? statCard("grid_import", "Netzbezug", "–") + statCard("grid_export", "Einspeisung", "–") : statCard("grid", "Netz", "–")}
         ${e.battery_power_sensor ? statCard("batt", "Speicher", "–") : ""}
         ${statCard("surplus", "Überschuss für PVM", "–")}
       </div>
@@ -1127,15 +1251,18 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   }
   function netValue(o) {
     // Netz-Knoten: getrennte Bezug-/Einspeisung-Sensoren -> beide anzeigen
-    if (o.imp != null || o.exp != null) {
+    if (gridSeparate()) {
       const imp = o.imp != null ? o.imp : 0;
       const exp = o.exp != null ? o.exp : 0;
       return `↓ ${fmtW(imp)}  ↑ ${fmtW(exp)}`;
     }
     const g = o.gridV;
+    const kind = (configEnergy().grid_kind) || "net";
     if (g == null) return "–";
-    if (g > 0) return "↓ " + fmtW(g);
-    return "↑ " + fmtW(-g);
+    if (kind === "inverted") return g > 0 ? "↑ " + fmtW(g) : "↓ " + fmtW(-g);
+    if (kind === "export_only") return g > 0 ? "↑ " + fmtW(g) : "–";
+    if (g > 0) return "↓ " + fmtW(g); // Bezug
+    return "↑ " + fmtW(-g); // Einspeisung
   }
 
   /* ------------------------------------------------------------------ *
@@ -1281,7 +1408,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const root = state.root;
     if (!root || !state.config) return;
     devicesOf().forEach((d) => {
-      const card = $(root, '[data-device="' + CSS.escape(d.id) + '"]');
+      const card = $(root, '[data-device="' + cssEsc(d.id) + '"]');
       if (!card) return;
       const pill = $(card, '[data-el="pill"]');
       if (pill) {
@@ -1291,7 +1418,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       const line = $(card, '[data-el="statusline"]');
       if (line) line.textContent = deviceStateText(d);
       const sid = d.sensors && d.sensors.soc;
-      const bar = $(card, "#socbar-" + CSS.escape(d.id));
+      const bar = $(card, "#socbar-" + cssEsc(d.id));
       if (bar) {
         const v = num(sid);
         bar.style.width = (v == null ? 0 : Math.max(0, Math.min(100, v))) + "%";
@@ -1385,37 +1512,40 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   /* ------------------------------------------------------------------ *
    * Einstellungen
    * ------------------------------------------------------------------ */
+  /* Anschluss-Variante: die Auswahl des Nutzers wird in ``grid_mode``
+   * gespeichert und überlebt damit jeden Neustart/Neuaufbau – nur bei
+   * alten Konfigurationen wird sie aus den Sensoren abgeleitet. */
   function gridModeOf(e) {
+    const m = e && e.grid_mode;
+    if (m === "separate" || m === "combined") return m;
     return e.grid_import_sensor || e.grid_export_sensor ? "separate" : "combined";
   }
+  function gridSeparate() { return gridModeOf(configEnergy()) === "separate"; }
   function htmlSettings() {
     const s = configSettings();
     const e = configEnergy();
-    const theme = s.ui_theme || "sonnenaufgang";
+    const theme = s.ui_theme || "ha";
     const gridMode = gridModeOf(e);
     const gridChoice = `
-      <div class="f"><label>Dein Netzanschluss</label><small>Wie misst dein Zähler? PVM zeigt nur die passenden Felder – du kannst jederzeit wechseln.</small></div>
+      <div class="f"><label>Dein Netzanschluss</label><small>Wie misst dein Zähler? Änderungen werden sofort gespeichert – du kannst jederzeit wechseln.</small></div>
       <div class="pick">
-        <label class="${gridMode === "combined" ? "sel" : ""}" data-grid-mode="combined">
-          <span class="rb"></span>
-          <span class="tt"><b>Ein Sensor (Bezug + / Einspeisung −)</b><span>Ein Zähler liefert beides – z. B. SolarNet „Leistung Netz“ oder ein kombinierter Zähler.</span></span>
-        </label>
-        <label class="${gridMode === "separate" ? "sel" : ""}" data-grid-mode="separate">
-          <span class="rb"></span>
-          <span class="tt"><b>Zwei getrennte Sensoren</b><span>Eigene Zähler für Netzbezug und Netzeinspeisung – PVM wertet beide getrennt aus.</span></span>
-        </label>
+        ${Object.keys(L.gridModes).map((m) => `
+          <label class="${gridMode === m ? "sel" : ""}" data-grid-mode="${m}">
+            <span class="rb"></span>
+            <span class="tt"><b>${esc(L.gridModes[m])}</b><span>${esc(L.gridModeHint[m])}</span></span>
+          </label>`).join("")}
       </div>`;
     const combinedRows = gridMode === "combined" ? `
-        ${energyRow("grid", "Netz (kombiniert)", "Ein Sensor: Bezug positiv, Einspeisung negativ (oder umgekehrt – siehe Richtung)", e.grid_sensor)}
+        ${energyRow("grid", "Netz (kombiniert)", "Ein Sensor für beides: Bezug und Einspeisung aus einem Zähler.", e.grid_sensor)}
         <div class="row">
-          <span class="lbl grow">Richtung des kombinierten Sensors<small>Wie dein Zähler die Werte liefert – wichtig für die Berechnung.</small></span>
-          <select data-setting="grid_kind" style="max-width:300px">
+          <span class="lbl grow">Vorzeichen deines Zählers<small>Wie dein Zähler die Werte liefert – wichtig für die Berechnung.</small></span>
+          <select data-setting="grid_kind" style="max-width:100%;flex:1">
             ${Object.keys(L.gridKinds).map((k) => `<option value="${k}" ${(e.grid_kind || "net") === k ? "selected" : ""}>${esc(L.gridKinds[k])}</option>`).join("")}
           </select>
         </div>` : "";
     const separateRows = gridMode === "separate" ? `
-        ${energyRow("grid_import", "Netzbezug (separat)", "Strom aus dem Netz – positiv = Bezug (z. B. SolarNet „Leistung Netzbezug“)", e.grid_import_sensor)}
-        ${energyRow("grid_export", "Einspeisung (separat)", "Strom ins Netz – positiv = Einspeisung (z. B. SolarNet „Leistung Netzeinspeisung“)", e.grid_export_sensor)}` : "";
+        ${energyRow("grid_import", "Netzbezug", "Strom aus dem Netz – positiv = Bezug (z. B. SolarNet „Leistung Netzbezug“)", e.grid_import_sensor)}
+        ${energyRow("grid_export", "Einspeisung", "Strom ins Netz – positiv = Einspeisung (z. B. SolarNet „Leistung Netzeinspeisung“)", e.grid_export_sensor)}` : "";
     return `
       <h2 class="sec">Einstellungen</h2>
       <p class="sub">Jede Gruppe klappt sich auf – Änderungen speicherst du unten mit einem Klick.</p>
@@ -1514,7 +1644,6 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
    * Dialoge (vollständig selbst gebaut)
    * ------------------------------------------------------------------ */
   function openModal(html) {
-    closeModal();
     const overlay = document.createElement("div");
     overlay.className = "overlay";
     overlay.innerHTML = `<div class="modal">${html}</div>`;
@@ -1522,13 +1651,17 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       if (ev.target === overlay) closeModal();
     });
     state.root.appendChild(overlay);
+    state.modalStack.push(overlay);
     state.modal = overlay;
     return overlay;
   }
   function closeModal() {
-    if (state.modal) state.modal.remove();
-    state.modal = null;
-    state.deviceDialog = null;
+    const overlay = state.modalStack.pop();
+    if (overlay) overlay.remove();
+    state.modal = state.modalStack[state.modalStack.length - 1] || null;
+    // Der Geräte-Dialog-Lebenszyklus hängt am obersten Dialog: Erst wenn wirklich
+    // kein Dialog mehr offen ist, vergessen wir den Geräte-Dialog-Zustand.
+    if (!state.modal) state.deviceDialog = null;
   }
   function confirmModal(title, text, okLabel, onOk) {
     const overlay = openModal(`
@@ -1639,10 +1772,10 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
 
   function deviceSub(step) {
     return step === 1
-      ? "Schritt 1 von 3 – Was ist es, wie heißt es?"
+      ? "Schritt 1 von 3 – Typ und Name festlegen"
       : step === 2
-        ? "Schritt 2 von 3 – Wie wird es gesteuert bzw. überwacht?"
-        : "Schritt 3 von 3 – Sensoren und Ziele (alles ist optional).";
+        ? "Schritt 2 von 3 – Steuerung anbinden (Schalter, Taster oder Leistung)"
+        : "Schritt 3 von 3 – Sensoren & Ziele – alles optional, später änderbar.";
   }
 
   function deviceBody(step, d) {
@@ -1709,33 +1842,33 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   function controlFields(d) {
     const c = d.control;
     let html = "";
-    const row = (field, label, hint) => `
+    const row = (field, label, hint, placeholder) => `
       <div class="f">
         <label>${esc(label)}</label><small>${esc(hint)}</small>
         <div class="ent">
-          <input type="text" data-field="${field}" value="${esc(c[field] || "")}" readonly placeholder="Tippen zum Wählen" style="cursor:pointer">
+          <input type="text" data-field="${field}" value="${esc(c[field] || "")}" readonly placeholder="${esc(placeholder || "Tippen zum Wählen")}" style="cursor:pointer">
           <button class="btn ghost" data-pick-field="${field}" type="button">${I.search} Wählen</button>
         </div>
       </div>`;
     if (c.type === "buttons") {
-      html += row("on_entity", "Start-Taster", "Beispiel: button.wallbox_laden_starten");
-      html += row("off_entity", "Stopp-Taster", "Beispiel: button.wallbox_laden_stoppen");
+      html += row("on_entity", "Start-Knopf", "Mit diesem Knopf startet das Laden (falls dein Gerät zwei getrennte Taster hat).", "z. B. Knopf „Laden starten“ wählen");
+      html += row("off_entity", "Stopp-Knopf", "Mit diesem Knopf stoppt das Laden wieder.", "z. B. Knopf „Laden stoppen“ wählen");
     } else {
-      html += row("switch_entity", "Schalter (An/Aus)", "Beispiel: switch.wallbox_freigabe");
+      html += row("switch_entity", "Schalter (An/Aus)", "Dein Gerät muss sich über einen Schalter an- und ausschalten lassen.", "z. B. Schalter „Freigabe“ wählen");
     }
     if (c.type === "switch_number") {
-      html += row("number_entity", "Leistungs-/Strom-Limit", "Beispiel: number.wallbox_max_strom");
+      html += row("number_entity", "Leistungs-Einstellung", "Hier stellt dein Gerät ein, mit wie viel Leistung es läuft.", "z. B. „Max. Strom“ wählen");
       html += `
         <div class="row">
-          <span class="lbl grow">Einheit des Limit-Werts<small>In welcher Einheit gibt deine Wallbox das Limit an?</small></span>
-          <select data-field="number_unit" style="max-width:160px">
+          <span class="lbl grow">Einheit der Leistungs-Einstellung<small>Wird die Leistung als Watt, Kilowatt, Ampere oder Milliampere angegeben?</small></span>
+          <select data-field="number_unit" style="max-width:170px">
             ${["W", "kW", "A", "mA"].map((u) => `<option ${c.number_unit === u ? "selected" : ""}>${u}</option>`).join("")}
           </select>
         </div>
         <div class="row">
-          <span class="lbl grow">Phasen<small>Wird für die Umrechnung von Ampere in Watt genutzt.</small></span>
-          <select data-field="phases" style="max-width:160px">
-            <option value="3" ${c.phases === 3 ? "selected" : ""}>3 Phasen</option>
+          <span class="lbl grow">Anzahl Phasen<small>Wie viele Phasen nutzt dein Gerät? (Für die Umrechnung Ampere → Watt)</small></span>
+          <select data-field="phases" style="max-width:170px">
+            <option value="3" ${c.phases === 3 ? "selected" : ""}>3 Phasen (Standard)</option>
             <option value="1" ${c.phases === 1 ? "selected" : ""}>1 Phase</option>
           </select>
         </div>`;
@@ -1767,20 +1900,20 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       </div>`;
     if (d.role === "fahrzeug") {
       const car = d.car;
-      out.push(sensorRow("soc", "Akku (SoC)", "Ladezustand des Autos in % – z. B. von der Auto-Integration."));
-      out.push(sensorRow("power", "Aktuelle Ladeleistung", "Was das Auto gerade zieht – zum Vergleich mit den Wallboxen."));
-      out.push(numberField("capacity", "Batteriekapazität", car.capacity_kwh, 1, 300, 1, "kWh"));
-      out.push(numberField("min_soc", "Mindest-SOC", car.min_soc, 0, 100, 1, "%"));
-      out.push(numberField("max_soc", "Max-SOC", car.max_soc, 10, 100, 1, "%"));
+      out.push(sensorRow("soc", "Akku-Stand (SoC)", "Ladezustand des Autos in % – z. B. vom Auto-Hersteller."));
+      out.push(sensorRow("power", "Aktuelle Ladeleistung", "Was das Auto gerade zieht – PVM vergleicht das mit den Wallboxen."));
+      out.push(numberField("capacity", "Batteriegröße", car.capacity_kwh, 1, 300, 1, "kWh"));
+      out.push(numberField("min_soc", "Untergrenze (Minimum)", car.min_soc, 0, 100, 1, "%"));
+      out.push(numberField("max_soc", "Obergrenze (Maximum)", car.max_soc, 10, 100, 1, "%"));
     } else if (d.role === "wallbox") {
       const car = d.car;
       out.push(sensorRow("power", "Leistung (lädt gerade)", "Zeigt live, wie viel die Wallbox zieht."));
-      out.push(sensorRow("soc", "SoC des Autos (Ladezustand)", "Beispiel: sensor.auto_ladezustand – in Prozent."));
-      out.push(numberField("capacity", "Batteriekapazität", car.capacity_kwh, 1, 300, 1, "kWh"));
-      out.push(numberField("min_soc", "Mindest-SOC (Sicherheit)", car.min_soc, 0, 100, 1, "%"));
-      out.push(numberField("max_soc", "Max-SOC (Ladestopp)", car.max_soc, 10, 100, 1, "%"));
+      out.push(sensorRow("soc", "Akku-Stand des Autos", "Ladezustand in % – z. B. sensor.auto_ladezustand."));
+      out.push(numberField("capacity", "Batteriegröße", car.capacity_kwh, 1, 300, 1, "kWh"));
+      out.push(numberField("min_soc", "Untergrenze (Minimum)", car.min_soc, 0, 100, 1, "%"));
+      out.push(numberField("max_soc", "Obergrenze (Maximum)", car.max_soc, 10, 100, 1, "%"));
       out.push(`<div class="f">
-        <label>Zeit-Ziel (bis wann laden?)</label><small>Optional: SOC-Ziel und Uhrzeit – PVM lädt bis dahin (nötigenfalls mit Netz). 0 % = deaktiviert.</small>
+        <label>Fertig-Ziel (bis wann laden?)</label><small>Optional: Akku-Ziel und Uhrzeit – PVM lädt bis dahin (nötigenfalls mit Netz). 0 % = aus.</small>
         <div class="ent" style="margin-top:4px">
           <input type="range" data-num="deadline_soc" min="0" max="100" step="1" value="${Number(car.deadline_soc || 0)}" style="flex:1">
           <span style="color:var(--mut);width:60px;font-size:13px">%</span>
@@ -1789,11 +1922,11 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           <input type="time" data-field="deadline_time" value="${esc(car.deadline_time || "")}" style="flex:1">
         </div>
       </div>`);
-      out.push(toggleRow("manual_force", "Power Charge (jetzt voll laden)", !!car.manual_force, "Lädt sofort mit voller Leistung bis zum Max-SOC – unabhängig vom Überschuss."));
+      out.push(toggleRow("manual_force", "Sofort voll laden (Power Charge)", !!car.manual_force, "Lädt jetzt mit voller Leistung bis zur Obergrenze – auch ohne Überschuss."));
       out.push(numberField("power_limit", "Max. Ladeleistung", d.limits.power_limit_w, 500, 22000, 100, "W"));
       out.push(numberField("min_on_power", "Mindest-Überschuss zum Laden", d.limits.min_on_power_w, 100, 11000, 100, "W"));
-      out.push(toggleRow("grid_min", "Netz für Mindest-SOC", car.grid_min_allowed, "Erlaubt PVM, bei fast leerem Akku kurz Netzstrom zu nutzen."));
-      out.push(toggleRow("grid_deadline", "Netz für Zeit-Ziele", car.grid_deadline_allowed, "Damit dein Auto bis zur Abfahrtszeit das Ziel schafft."));
+      out.push(toggleRow("grid_min", "Netzstrom für die Untergrenze", car.grid_min_allowed, "Erlaubt PVM, bei fast leerem Akku kurz Strom aus dem Netz zu nutzen."));
+      out.push(toggleRow("grid_deadline", "Netzstrom für das Fertig-Ziel", car.grid_deadline_allowed, "Damit dein Auto bis zur Abfahrtszeit sein Ziel erreicht."));
     } else if (d.role === "waermepumpe") {
       const wp = d.wp;
       out.push(sensorRow("temp", "Temperatur-Sensor", "Vorlauf-/Speichertemperatur in °C."));
@@ -1808,7 +1941,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     }
     out.push(`
       <div class="row" style="border-top:1px solid var(--line);padding-top:12px">
-        <span class="lbl grow">Gerät aktiv (Automatik)<small>Ausgeschaltet lässt PVM das Gerät in Ruhe.</small></span>
+        <span class="lbl grow">Automatik aktiv<small>Wenn aus, lässt PVM das Gerät komplett in Ruhe.</small></span>
         <span class="sw ${d.enabled !== false ? "on" : ""}" data-field-toggle="enabled"><i></i></span>
       </div>`);
     return out.join("");
@@ -1897,15 +2030,19 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       collectDialogFields(overlay, d);
       if (!validateDevice(d)) return;
       const devs = devicesOf();
+      const sigBefore = deviceSig();
       const idx = devs.findIndex((x) => x.id === d.id);
       if (idx >= 0) devs[idx] = d;
       else {
         d.id = d.id || ("dev" + Math.random().toString(36).slice(2, 8));
         devs.push(d);
       }
+      const structureChanged = deviceSig() !== sigBefore;
       toast("Speichere …");
       closeModal();
-      saveAndRefresh("Gerät gespeichert.");
+      // Nur wenn wirklich ein neues Gerät/Rolle dazukam, werden Entitäten neu
+      // geladen – reine Wertänderungen sind sofort wirksam (kein Reload).
+      saveAndRefresh(structureChanged ? "Gerät übernommen – wird eingerichtet …" : "Gerät gespeichert.", { reload: structureChanged });
     }
   }
 
@@ -1951,7 +2088,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     if (d.role === "fahrzeug") {
       // Autos sind reine Überwachung – nur die SOC-Plausibilität prüfen
       if (d.car && Number(d.car.min_soc) >= Number(d.car.max_soc)) {
-        toast("Mindest-SOC muss kleiner als Max-SOC sein.", "bad");
+        toast("Die Untergrenze muss kleiner als die Obergrenze sein.", "bad");
         return false;
       }
       return true;
@@ -1959,16 +2096,16 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const c = d.control;
     if (c.type === "buttons") {
       if (!c.on_entity || !c.off_entity) {
-        toast("Bei „Zwei Taster“ brauchst du einen Start- UND einen Stopp-Taster.", "bad");
+        toast("Bei zwei Tastern brauchst du einen Start- UND einen Stopp-Knopf.", "bad");
         return false;
       }
       if (!d.sensors.power) {
-        toast("Bei „Zwei Taster“ braucht PVM einen Leistungs-Sensor, um zu erkennen, ob das Gerät läuft.", "bad");
+        toast("Bei zwei Tastern braucht PVM einen Leistungs-Sensor, um zu erkennen, ob das Gerät läuft.", "bad");
         return false;
       }
     } else if (c.type === "switch_number") {
       if (!c.switch_entity || !c.number_entity) {
-        toast("Bitte wähle Schalter und Limit-Wert.", "bad");
+        toast("Bitte wähle Schalter und Leistungs-Einstellung.", "bad");
         return false;
       }
     } else if (!c.switch_entity) {
@@ -1977,7 +2114,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     }
     if (d.role === "wallbox" && d.car) {
       if (Number(d.car.min_soc) >= Number(d.car.max_soc)) {
-        toast("Mindest-SOC muss kleiner als Max-SOC sein.", "bad");
+        toast("Die Untergrenze muss kleiner als die Obergrenze sein.", "bad");
         return false;
       }
     }
@@ -2013,15 +2150,18 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const gridModeEl = ev.target.closest("[data-grid-mode]");
     if (gridModeEl) {
       const mode = gridModeEl.getAttribute("data-grid-mode");
-      const e = configEnergy();
-      $$(root, "[data-grid-mode]").forEach((x) => x.classList.toggle("sel", x === gridModeEl));
-      if (mode === "combined") {
-        e.grid_import_sensor = null;
-        e.grid_export_sensor = null;
-        saveAndRefresh("Netz-Modus: ein kombinierter Sensor.");
-      } else {
-        e.grid_sensor = null;
-        saveAndRefresh("Netz-Modus: getrennte Sensoren – jetzt unten wählen.");
+      if (mode === "combined" || mode === "separate") {
+        // Auswahl wird im Konfig-Modell gespeichert (nicht aus den Sensoren
+        // abgeleitet) – so bleibt der Modus auch nach Reload/Neustart erhalten
+        // und es gehen keine bereits gewählten Sensoren verloren.
+        configEnergy().grid_mode = mode;
+        if (mode === "separate") {
+          // Beim Wechsel auf getrennte Zähler den alten kombinierten Wert
+          // nicht stillschweigend weiterverwenden.
+          saveAndRefresh("Umgestellt: Netzbezug & Einspeisung getrennt – jetzt die Sensoren wählen.");
+        } else {
+          saveAndRefresh("Umgestellt: ein kombinierter Sensor – jetzt den Sensor wählen.");
+        }
       }
       return;
     }
@@ -2070,7 +2210,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         if (!d) return;
         confirmModal("Gerät entfernen", "„" + (d.name || "") + "“ wird aus PVM entfernt. Das Gerät selbst bleibt in Home Assistant unverändert erhalten.", "Entfernen", () => {
           state.config.devices = devicesOf().filter((x) => x.id !== devId);
-          saveAndRefresh("Gerät entfernt.");
+          saveAndRefresh("Gerät entfernt.", { reload: true });
         });
         break;
       }
@@ -2119,7 +2259,10 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         if (["pv", "grid", "grid_import", "grid_export", "house"].includes(found.role)) {
           const eid = fields.entity;
           if (!eid) { toast("Keine passende Entität im Vorschlag.", "bad"); return; }
-          state.config.energy[found.role + "_sensor"] = eid;
+          const e = state.config.energy;
+          e[found.role + "_sensor"] = eid;
+          if (found.role === "grid") e.grid_mode = "combined";
+          if (found.role === "grid_import" || found.role === "grid_export") e.grid_mode = "separate";
           saveAndRefresh("Sensor übernommen.");
         } else if (found.role === "fahrzeug") {
           const d = defaultDevice("fahrzeug");
@@ -2152,6 +2295,9 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       case "clear-energy": {
         const key = el.getAttribute("data-energy");
         state.config.energy[key + "_sensor"] = null;
+        const e = state.config.energy;
+        if (key === "grid_import" && !e.grid_export_sensor) e.grid_mode = e.grid_mode || "combined";
+        if (key === "grid_export" && !e.grid_import_sensor) e.grid_mode = e.grid_mode || "combined";
         saveAndRefresh("Sensor entfernt.");
         break;
       }
@@ -2161,7 +2307,12 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           title: "Sensor für " + ({ pv: "PV-Leistung", grid: "Netz (kombiniert)", grid_import: "Netzbezug", grid_export: "Einspeisung", house: "Hausverbrauch", battery_power: "Speicher-Leistung", battery_soc: "Speicher-SoC" }[key] || key),
           domains: ["sensor", "number", "input_number"],
         }, (entityId) => {
-          state.config.energy[key + "_sensor"] = entityId;
+          const e = state.config.energy;
+          e[key + "_sensor"] = entityId;
+          // Sensor passt zur gewählten Anschluss-Variante – Modus mitführen,
+          // damit die Seite die richtigen Kacheln/den richtigen Fluss zeigt.
+          if (key === "grid") e.grid_mode = "combined";
+          if (key === "grid_import" || key === "grid_export") e.grid_mode = "separate";
           saveAndRefresh("Sensor gespeichert.");
         });
         break;
