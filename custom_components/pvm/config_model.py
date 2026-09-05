@@ -374,7 +374,10 @@ def normalize_config(data: dict | None) -> dict:
     settings["auto_pairing"] = bool(settings.get("auto_pairing", False))
     settings["manual_mode"] = bool(settings.get("manual_mode", False))
     # PV-Prognose & vorausschauende Regelung (Standard: an, offline-sicher)
-    settings["forecast_enabled"] = bool(settings.get("forecast_enabled", True))
+    settings["forecast_enabled"] = bool(settings.get("forecast_enabled", False))
+    # Optionale API (z. B. eigener Open-Meteo-/Solcast-/Forecast.solar-Schlüssel)
+    # – nur als zusätzliche Quelle; ohne Schlüssel läuft die anonyme Abfrage.
+    settings["forecast_api_key"] = str(settings.get("forecast_api_key") or "").strip()
     settings["pre_charge"] = bool(settings.get("pre_charge", True))
     # Alte WP-Kalibrierungs-Einstellungen entfernen (Leistungsmessung gelöscht)
     settings.pop("wp_test_target_c", None)

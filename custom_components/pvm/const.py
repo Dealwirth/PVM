@@ -9,7 +9,7 @@ DOMAIN = "pvm"
 # Name in der HA-Seitenleiste (kompakt) und voller Produktname (Doku/Logs)
 NAME = "PV Manager"
 SIDEBAR_NAME = "PVM"
-VERSION = "1.9.1"
+VERSION = "1.9.2"
 
 # Von der Integration bereitgestellte Plattformen.
 PLATFORMS = ["sensor", "number", "switch", "button", "select", "time"]
@@ -154,8 +154,10 @@ DEFAULT_WP_BOOST_C = 65.0
 # Verbraucher
 DEFAULT_CONSUMER_NOMINAL_W = 2000.0
 
-# PV-Prognose (vorausschauende Regelung, ohne eigenen API-Schlüssel)
-FORECAST_ENABLED_DEFAULT = True       # Open-Meteo + lokales Modell
+# PV-Prognose (vorausschauende Regelung)
+# Standard: AUS. Die Prognose erscheint erst, wenn sie in den Einstellungen
+# eingeschaltet wird (optional mit eigenem API-Schlüssel für höhere Auflösung).
+FORECAST_ENABLED_DEFAULT = False
 FORECAST_REFRESH_S = 900               # alle 15 min aktualisieren
 FORECAST_SERIES_MIN = 15               # 15-Minuten-Auflösung der Kurve
 FORECAST_HORIZON_S = 3 * 3600          # Kurve: nächste 3 Stunden
@@ -250,8 +252,10 @@ DEFAULT_CONFIG = {
         "auto_pairing": False,
         # Manueller Modus: PVM steuert nichts, misst aber weiter (Monitor).
         "manual_mode": False,
-        # PV-Prognose & vorausschauende Regelung (Standard: an, offline-sicher)
+        # PV-Prognose & vorausschauende Regelung (Standard: aus, optional
+        # mit eigenem API-Schlüssel – dann höher aufgelöst)
         "forecast_enabled": FORECAST_ENABLED_DEFAULT,
+        "forecast_api_key": "",
         "pre_charge": True,
     },
     "devices": [],

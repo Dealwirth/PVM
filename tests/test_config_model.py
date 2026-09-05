@@ -312,3 +312,16 @@ def test_settings_auto_pairing_and_manual_defaults():
     on = cm.normalize_config({"settings": {"auto_pairing": True, "manual_mode": True}})
     assert on["settings"]["auto_pairing"] is True
     assert on["settings"]["manual_mode"] is True
+
+
+def test_forecast_settings_default_off_and_api_key():
+    # Prognose ist standardmäßig AUS (erscheint erst nach Einschalten);
+    # der optionale API-Schlüssel wird als Text übernommen und gestrippt.
+    config = cm.normalize_config(None)
+    assert config["settings"]["forecast_enabled"] is False
+    assert config["settings"]["forecast_api_key"] == ""
+    cfg = cm.normalize_config(
+        {"settings": {"forecast_enabled": True, "forecast_api_key": "  abc123  "}}
+    )
+    assert cfg["settings"]["forecast_enabled"] is True
+    assert cfg["settings"]["forecast_api_key"] == "abc123"

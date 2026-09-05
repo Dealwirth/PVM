@@ -72,6 +72,10 @@ _LOGGER = logging.getLogger(__name__)
 
 # Maximale Länge der Verlaufs-Puffer für die Korrelationsprüfung
 BUFFER_MAX = 60
+
+# Nach einem fehlgeschlagenen number.set_value (z. B. out_of_range) wird die
+# Entität für diese Zeit nicht erneut beschrieben – das Log bleibt lesbar.
+SERVICE_FAIL_COOLDOWN_S = 900.0
 # Abstand zwischen zwei manuell angestoßenen Zyklen (Entprellung)
 MIN_CYCLE_GAP_S = 3.0
 # Ab Leistung über dieser Schwelle gilt eine Wallbox/Verbraucher als „an“
@@ -111,6 +115,10 @@ class PvmManager:
 
         # Entitäten, die über Zyklus-Updates benachrichtigt werden
         self._listeners: list[Callable[[], None]] = []
+
+        # Cooldown pro Entität nach fehlgeschlagenen number.set_value-Aufrufen
+        # (z. B. out_of_range) – verhindert Log-Spam alle 30 s.
+        self._svc_fail_until: dict[str, float] = {}
 
         # Laufzeit-Zustand
         self.surplus_w = 0.0
@@ -738,9 +746,7 @@ class PvmManager:
                 self._set_temp_status(device_id, device, False, normal_c)
                 continue
             if current is None or abs(current - target) > 0.4:
-                await self._call_service(
-                    "number", "set_value", temp_entity, value=round(target, 1)
-                )
+                await self._send_number_value(temp_entity, target, decimals=1)
             self._temp_targets[device_id] = target
             self._set_temp_status(
                 device_id,
@@ -814,8 +820,8 @@ class PvmManager:
             if prev is None or abs(prev - target_value) > self._value_tolerance(
                 control
             ):
-                await self._call_service(
-                    "number", "set_value", number_entity, value=target_value
+                await self._send_number_value(
+                    number_entity, target_value, decimals=3
                 )
                 changed = True
             self._applied[device_id] = {
@@ -1150,6 +1156,94 @@ class PvmManager:
                 return value, False
         return value, True
 
+    def _number_limits(self, entity_id: str | None) -> tuple[float | None, float | None, float | None]:
+        """Min/Max/Step einer Nummern-Entität (aus den HA-Attributen).
+
+        Viele Geräte (z. B. Viessmann) erlauben nur einen kleinen Bereich –
+        Werte außerhalb werden vom Entity mit „out_of_range“ abgelehnt.
+        PVM liest daher die echten Grenzen und hält sich daran.
+        """
+        state = self.hass.states.get(entity_id) if entity_id else None
+        if state is None or not state.attributes:
+            return None, None, None
+
+        def _num(key: str) -> float | None:
+            try:
+                value = float(state.attributes.get(key))  # type: ignore[arg-type]
+            except (TypeError, ValueError):
+                return None
+            return value
+
+        return _num("min"), _num("max"), _num("step")
+
+    def _fit_number_value(
+        self, entity_id: str, value: float, decimals: int = 1
+    ) -> float:
+        """Pass einen Zielwert an die Entity-Grenzen an (nie out_of_range).
+
+        - auf Min/Max der Entity begrenzen,
+        - auf die Schrittweite gerastet (nur wenn sauber teilbar),
+        - auf dezente Nachkommastellen gerundet.
+        """
+        lo, hi, step = self._number_limits(entity_id)
+        out = float(value)
+        if lo is not None:
+            out = max(lo, out)
+        if hi is not None:
+            out = min(hi, out)
+        if step and step > 0 and lo is not None:
+            # Nur rasten, wenn die Grenzen selbst auf dem Raster liegen
+            # (sonst Rundungsfehler – z. B. Lo=45.5, Step=5).
+            if abs(lo / step - round(lo / step)) < 1e-6:
+                out = lo + round((out - lo) / step) * step
+                if hi is not None:
+                    out = min(hi, out)
+        return round(out, decimals)
+
+    async def _send_number_value(
+        self, entity_id: str | None, value: float, decimals: int = 1
+    ) -> None:
+        """Setzt einen Zahlenwert fehlertolerant:
+
+        - Wert wird vorher auf die Entity-Grenzen gepasst (out_of_range
+          kann nicht mehr passieren),
+        - nach einem Fehlschlag pausiert die Entität (Cooldown), damit
+          das Log nicht pro Zyklus volläuft.
+        """
+        if not entity_id:
+            return
+        now = _time.time()
+        until = self._svc_fail_until.get(entity_id, 0.0)
+        if now < until:
+            return  # Entität schlägt gerade fehl – Pause (kein Log-Spam)
+        fitted = self._fit_number_value(entity_id, value, decimals)
+        try:
+            await asyncio.wait_for(
+                self.hass.services.async_call(
+                    "number",
+                    "set_value",
+                    {"entity_id": entity_id, "value": fitted},
+                    blocking=True,
+                ),
+                timeout=8,
+            )
+        except TimeoutError:
+            self._svc_fail_until[entity_id] = now + SERVICE_FAIL_COOLDOWN_S
+            _LOGGER.warning(
+                "PVM: number.set_value für %s dauerte zu lange (%s s Pause)",
+                entity_id,
+                SERVICE_FAIL_COOLDOWN_S,
+            )
+        except Exception as err:  # noqa: BLE001
+            self._svc_fail_until[entity_id] = now + SERVICE_FAIL_COOLDOWN_S
+            _LOGGER.warning(
+                "PVM: number.set_value für %s fehlgeschlagen (%s) – "
+                "Werte werden %s s nicht erneut gesendet",
+                entity_id,
+                err,
+                SERVICE_FAIL_COOLDOWN_S,
+            )
+
     def unit_of(self, entity_id: str | None) -> str:
         """Einheit (unit_of_measurement) einer Entität ("" bei unbekannt)."""
         if not entity_id:
@@ -1412,6 +1506,7 @@ class PvmManager:
     async def _refresh_forecast(self) -> None:
         """Holt die PV-Prognose (Open-Meteo, sonst lokales Modell)."""
         try:
+            settings = self.config.get("settings", {})
             energy = self.config.get("energy", {})
             pv, _v = self.read_power(energy.get("pv_sensor"))
             lat = float(getattr(self.hass.config, "latitude", 0.0) or 0.0)
@@ -1430,7 +1525,12 @@ class PvmManager:
             if lat and lon and self.hass.helpers is not None:
                 try:
                     session = self.hass.helpers.aiohttp_client.async_get_clientsession()
-                    meteo = await fc.fetch_open_meteo(session, lat, lon)
+                    meteo = await fc.fetch_open_meteo(
+                        session,
+                        lat,
+                        lon,
+                        api_key=settings.get("forecast_api_key") or None,
+                    )
                 except Exception:  # noqa: BLE001
                     meteo = None
             if meteo:

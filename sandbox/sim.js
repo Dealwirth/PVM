@@ -175,6 +175,7 @@
         mode: "auto", reserve_w: 100, cycle_s: 30, min_on_s: 120, min_off_s: 60,
         ui_theme: "ha", accent: "auto", accent_custom: "", intro_done: false,
         auto_pairing: false, manual_mode: false, forecast_enabled: true,
+        forecast_api_key: "", pre_charge: true,
       },
       devices: separate ? [wallbox, auto, wp] : [wallbox, auto, wp],
     };
@@ -251,7 +252,7 @@
     ensureEntity("number.wallbox_garage_max", "Wallbox Garage Max", "16", { unit_of_measurement: "A" });
     ensureEntity("switch.poolpumpe", "Poolpumpe", "off");
     ensureEntity("sensor.wp_vorlauf", "Wärmepumpe Vorlauf", "52.0", { unit_of_measurement: "°C", device_class: "temperature" });
-    ensureEntity("number.wp_soll", "Wärmepumpe Soll-Temperatur", "60.0", { unit_of_measurement: "°C" });
+    ensureEntity("number.wp_soll", "Wärmepumpe Soll-Temperatur", "60.0", { unit_of_measurement: "°C", min: 30, max: 70, step: 0.5 });
     ensureEntity("sensor.haus_leistung", "Haus Leistung", "1.8", { unit_of_measurement: "kW", device_class: "power" });
     ensureEntity("sensor.pv_zaehlerstand", "PV Zählerstand (falsche Einheit)", "12.4", { unit_of_measurement: "kWh", device_class: "energy" });
   }

@@ -18,6 +18,17 @@ und bei zu wenig Überschuss wieder die normale Soll-Temperatur ein. Die
 Geräte-Erkennung schlägt diese Art automatisch vor, wenn sie eine
 einstellbare Temperatur findet.
 
+## Fehler „out_of_range“ beim Setzen der Temperatur
+
+Manche Hersteller-Entitäten (z. B. Viessmann) erlauben nur einen kleinen
+Temperaturbereich – ein Wert außerhalb wird abgelehnt. PVM liest seit
+Version 1.9.2 die **echten Grenzen der Entität** und passt Zielwerte
+automatisch an (bei der Automatik genauso wie an den manuellen Reglern).
+Tritt der Fehler trotzdem auf, pausiert PVM diese Entität für 15 Minuten,
+statt sie bei jedem Zyklus erneut zu belasten – danach wird es erneut
+versucht. Prüfe bei hartnäckigen Fällen in HA, ob die Entität selbst den
+Wert per Entwicklerwerkzeuge → Zustände annimmt.
+
 ## Meine Wallbox zeigt keinen Akku-Stand mehr
 
 Der Akku-Stand gehört jetzt zum **Auto**, nicht zur Wallbox – die

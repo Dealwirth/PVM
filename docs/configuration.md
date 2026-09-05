@@ -216,19 +216,26 @@ einzeln an- und abwählen** über die Punkte unter dem Diagramm; die Farben
 folgen deinem Design und deiner Wunschfarbe.
 
 Darunter steht die **PV-Prognose**: erwartete Leistung **jetzt, in 15
-Minuten, nächste 3 Stunden und für den Rest des Tages** – berechnet anonym
-über Open-Meteo (keine persönliche API, keine Anmeldung) mit lokalem
-Modell als Fallback. PVM nutzt diese Vorhersage, um kurze Wolkenphasen
-nicht zum Abschalten zu nutzen („erst abwarten, die Sonne kommt gleich
-wieder“).
+Minuten, nächste 3 Stunden und für den Rest des Tages** – sie ist
+**standardmäßig ausgeschaltet** und muss einmal unter *Einstellungen*
+aktiviert werden. Berechnet wird sie anonym über Open-Meteo (keine
+Anmeldung nötig) mit lokalem Modell als Fallback. PVM nutzt diese
+Vorhersage, um kurze Wolkenphasen nicht zum Abschalten zu nutzen
+(„erst abwarten, die Sonne kommt gleich wieder“). Bevorsteht in den
+nächsten 15 Minuten ein Einbruch, zeigt der Statistik-Reiter einen
+**orangefarbenen Benachrichtigungspunkt**.
 
-Unter **Einstellungen → PV-Prognose & smartes Laden** findest du zwei
-Schalter: **PV-Prognose** (an/aus) und **Vorausschauendes Laden**
-(Standard an). Letzteres bedeutet: Hat ein Auto eine **aktive Frist**
-(Ziel bis Uhrzeit), bleibt die Wallbox auch über eine kurze Wolkenphase an,
-statt abzuschalten – so geht untertags keine Ladezeit verloren und es wird
-seltener geschaltet. Ohne Frist fahren Wallboxen weiterhin live herunter,
-damit keine Energie aus dem Netz geholt wird.
+Unter **Einstellungen → PV-Prognose & smartes Laden** findest du die
+Schalter **PV-Prognose** (Standard aus) und **Vorausschauendes Laden**
+(Standard an) sowie das Feld **„Eigener API-Schlüssel (optional)“**: Wer
+einen Open-Meteo-Schlüssel besitzt, kann ihn dort zusätzlich hinterlegen –
+die Abfrage läuft dann mit höherer Priorität. Ohne Schlüssel bleibt es
+bei der anonymen Abfrage; ganz ohne Internet nimmt PVM das lokale Modell.
+Letzteres (Vorausschauendes Laden) bedeutet: Hat ein Auto eine **aktive
+Frist** (Ziel bis Uhrzeit), bleibt die Wallbox auch über eine kurze
+Wolkenphase an, statt abzuschalten – so geht untertags keine Ladezeit
+verloren und es wird seltener geschaltet. Ohne Frist fahren Wallboxen
+weiterhin live herunter, damit keine Energie aus dem Netz geholt wird.
 
 ## Gerätesuche (Auto-Erkennung)
 

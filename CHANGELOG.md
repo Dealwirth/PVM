@@ -2,6 +2,50 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.9.2] – 2026-09-05
+
+### Geräte-Steuerung repariert („out_of_range“)
+- **Temperatur-/Leistungs-Werte werden jetzt an die echten Grenzen der
+  Entität angepasst:** Viele Zähler (z. B. Viessmann) erlauben nur einen
+  kleinen Bereich – PVM lasest Min/Max/Schrittweite direkt aus der Entität
+  und rastet den Zielwert darauf ein. Werte wie „65 °C auf eine 30–70 °C-
+  Entität“ können nicht mehr abgelehnt werden. Betroffen waren sowohl die
+  Automatik (Wärmepumpe schrieb alle 30 s Fehlermeldungen ins Log) als auch
+  die manuellen Regler im Ausklapp-Menü – deren Schieber folgen jetzt
+  ebenfalls den echten Entitäts-Grenzen.
+- **Fehler-Cooldown:** Schlägt ein Schreibzugriff trotzdem fehl, pausiert
+  PVM diese Entität 15 Minuten statt sie bei jedem Zyklus erneut zu
+  belasten – das Log bleibt lesbar.
+
+### Statistik: echte Live-Grafiken statt „Bild“
+- **Verlauf lädt jetzt wirklich:** Die Zeitstempel der HA-Historie werden
+  korrekt gelesen (Felder `lu`/`lc` der Recorder-Antwort) – vorher blieb
+  das Diagramm leer bzw. zeigte nur die Achsen. Bei genau einer Entität
+  antwortet HA mit einer nackten Liste – auch das wird abgefangen.
+- **Einheiten korrekt:** kW-Sensoren werden × 1000 gerechnet (ein
+  „4,8 kW“-Wallbox-Zähler taucht nicht mehr als „5 W“ auf) – die Kurven
+  zeigen die tatsächlichen Leistungen. Das große Störbild (Icon ohne Größe
+  renderkte seitenbreit) ist behoben.
+
+### PV-Prognose: optional, mit eigenem API-Schlüssel
+- **Standardmäßig aus:** Die Prognose erscheint erst nach dem Einschalten
+  unter *Einstellungen → PV-Prognose & smartes Laden*.
+- **Eigener API-Schlüssel (optional):** Wer einen Open-Meteo-Schlüssel
+  besitzt, kann ihn zusätzlich hinterlegen – die Abfrage läuft dann als
+  Kunden-Anfrage. Ohne Schlüssel bleibt es bei der anonymen Abfrage; ganz
+  offline nimmt PVM das lokale Modell.
+- **Wolken-Frühwarnung:** Steht in den nächsten 15 Minuten ein Einbruch
+  bevor, zeigt der Statistik-Reiter einen orangefarbenen
+  Benachrichtigungspunkt – wie eine App-Badge.
+
+### Startverhalten wie eine App
+- **Übersicht statt Einführung:** Ist die Einrichtung abgeschlossen, öffnet
+  PVM immer direkt die Übersicht – nur beim allerersten Start erscheint die
+  Einführung.
+- **Benachrichtigungspunkte an den Reitern:** Noch offene Punkte (Einführung,
+  fehlende Geräte, fehlende Energie-Sensoren) werden als roter Punkt am
+  jeweiligen Reiter markiert – auf einen Blick sichtbar, wie bei einer App.
+
 ## [1.9.1] – 2026-09-04
 
 ### Review-Runde: Vorausschauendes Laden & Statistik-Feinschliff

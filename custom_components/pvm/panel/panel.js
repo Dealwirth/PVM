@@ -124,6 +124,13 @@
   const CSS = `
 :host { all: initial; }
 * { box-sizing: border-box; }
+/* Icons ohne eigene Größenangabe erhalten eine Basisgröße – sonst rendert
+   ein freies SVG mit der vollen Seitenbreite (der „nur ein Bild“-Fehler).
+   Charts (svg.flow, .chartbox svg) überschreiben das bewusst. */
+h2 svg, h3 svg, button svg, .lbl svg, .stat .k svg, nav svg, .chip svg,
+.step svg, .founditem svg, .seg svg, .devctl svg, .fdev svg, .serieschip svg,
+.fcstrip svg, .cloud-badge svg, .flowtitle svg, .energycard svg {
+  width:16px; height:16px; flex:0 0 auto; }
 :host {
   /* Home-Assistant-Design: alle Farben/Ecken/Schatten kommen direkt aus dem
      HA-Theme (applyTheme liest sie beim Start). Fallback: dezente Defaults. */
@@ -218,11 +225,19 @@ nav button:hover { color:var(--txt); background:var(--card2); }
 nav button.on { background:var(--card); color:var(--txt); font-weight:600; box-shadow:var(--sh), 0 0 0 1px var(--line); }
 nav button.on svg { color:var(--acc); }
 @media (min-width: 980px) { nav { flex-wrap:nowrap; } nav button { flex:1 1 0; justify-content:center; } }
+/* Benachrichtigungs-Punkt an Reitern (wie App-Badges): zeigt, dass hier
+   noch etwas offen ist (Einführung, Geräte, Energie-Sensoren) – der
+   orangefarbene Punkt warnt vor einer kommenden Wolkenphase (Prognose). */
+.navdot { width:8px;height:8px;border-radius:50%;flex:0 0 auto;
+  background:var(--bad); box-shadow:0 0 6px var(--bad); display:inline-block;
+  animation:pulse 1.6s infinite; }
+.navdot.cloud { background:var(--warn); box-shadow:0 0 6px var(--warn); }
 
 section.view { animation:fade .22s ease; }
 @keyframes fade { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
 .hidden { display:none !important; }
 h2.sec { font-size:17px; margin:20px 0 4px; }
+h2.sec svg { width:18px; height:18px; vertical-align:-3px; color:var(--acc); }
 p.sub { color:var(--mut); margin:2px 0 14px; font-size:13.5px; line-height:1.5; }
 
 .hero { border-radius:var(--r); padding:26px 24px; margin-top:16px; position:relative; overflow:hidden;
@@ -701,6 +716,25 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     return index >= 0 ? index + 1 : 0;
   }
 
+  /** Startansicht: Einrichtung fertig -> Übersicht (wie eine App, die immer
+   *  mit dem Dashboard öffnet); sonst die Einführung. */
+  function initialView() {
+    return configSettings().intro_done ? "overview" : "start";
+  }
+
+  /** Setup-Punkte für die Benachrichtigungs-Punkte (wie bei einer App):
+   *  Energie-Sensoren fehlen / keine Geräte / Intro noch offen. */
+  function setupBadges() {
+    const e = configEnergy();
+    const hasEnergy = !!(e.pv_sensor || e.grid_sensor ||
+      e.grid_import_sensor || e.grid_export_sensor);
+    const badges = [];
+    if (!hasEnergy) badges.push("energy");
+    if (!devicesOf().length) badges.push("devices");
+    if (!configSettings().intro_done) badges.push("intro");
+    return badges;
+  }
+
   /* ------------------------------------------------------------------ *
    * WebSocket / Konfiguration
    * ------------------------------------------------------------------ */
@@ -904,7 +938,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         // sofort den letzten Stand zeigen und parallel frische Daten holen –
         // nie endlos auf dem Ladebildschirm hängen bleiben.
         this._renderApp();
-        this._nav(state.view || "start");
+        this._nav(state.view || initialView());
         liveNow();
         updateHeaderChip();
       } else {
@@ -933,7 +967,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         try {
           await fetchConfig();
           this._renderApp();
-          this._nav(state.view || "start");
+          this._nav(state.view || initialView());
           liveNow();
           return;
         } catch (err) {
@@ -942,7 +976,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
               // Server gerade nicht erreichbar: letzten Stand anzeigen, damit
               // die Seite nie schwarz/leer bleibt.
               this._renderApp();
-              this._nav(state.view || "start");
+              this._nav(state.view || initialView());
               liveNow();
               toast("Aktualisierung fehlgeschlagen – es werden die letzten Daten angezeigt.", "bad");
             } else {
@@ -1019,11 +1053,11 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         <button class="btn ghost" data-action="go-home" title="Zurück zu Home Assistant">${I.back} Home Assistant</button>
       </header>
       <nav>
-        <button data-view="start">${I.sun} ${esc(L.nav.start)}</button>
+        <button data-view="start">${I.sun} ${esc(L.nav.start)}${setupBadges().includes("intro") ? '<i class="navdot"></i>' : ""}</button>
         <button data-view="overview">${I.eye} ${esc(L.nav.overview)}</button>
-        <button data-view="devices">${I.plug} ${esc(L.nav.devices)}</button>
+        <button data-view="devices">${I.plug} ${esc(L.nav.devices)}${setupBadges().includes("devices") ? '<i class="navdot"></i>' : ""}</button>
         <button data-view="order">${I.list} ${esc(L.nav.order)}</button>
-        <button data-view="found">${I.radar} ${esc(L.nav.found)}</button>
+        <button data-view="found">${I.radar} ${esc(L.nav.found)}${setupBadges().includes("energy") ? '<i class="navdot"></i>' : ""}</button>
         <button data-view="stats">${I.chart} ${esc(L.nav.stats)}</button>
         <button data-view="settings">${I.gear} ${esc(L.nav.settings)}</button>
       </nav>
@@ -1599,10 +1633,15 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     if (!autoOn) {
       if (c.type === "wp_temp" && c.temp_entity) {
         const v = num(c.temp_entity);
+        // Regler an die echten Grenzen der Entität anpassen (z. B. Viessmann:
+        // 30–70 °C) – sonst lehnt die Entität den Wert ab (out_of_range).
+        const rng = numberEntityRange(c.temp_entity, { lo: 40, hi: 80, step: 0.5 });
+        const start = v == null ? (device.wp && device.wp.boost_c) || 60 : v;
+        const clamped = Math.min(rng.hi, Math.max(rng.lo, start));
         ctl.push(`
           <div class="ctlline"><b>Ziel-Temperatur</b>
-            <input type="range" data-manual-temp min="40" max="80" step="0.5" value="${v == null ? (device.wp && device.wp.boost_c) || 60 : v}" style="flex:1" data-target="${esc(c.temp_entity)}" data-unit="°C">
-            <b class="numval">${esc(fmtNum(v == null ? (device.wp && device.wp.boost_c) || 60 : v, "°C"))}</b>
+            <input type="range" data-manual-temp min="${rng.lo}" max="${rng.hi}" step="${rng.step}" value="${clamped}" style="flex:1" data-target="${esc(c.temp_entity)}" data-unit="°C">
+            <b class="numval">${esc(fmtNum(clamped, "°C"))}</b>
           </div>`);
       } else if (c.type === "buttons" && c.on_entity && c.off_entity) {
         ctl.push(`<div class="ctlline"><b>Start / Stopp</b>
@@ -1614,12 +1653,14 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           <button class="btn ghost" data-action="dev-cmd" data-cmd="off" data-device="${esc(device.id)}" style="padding:6px 14px">Ausschalten</button></div>`);
       }
       if (c.has_limiter && c.number_entity) {
-        const limit = manualLimitRange(c);
+        const limit = numberEntityRange(c.number_entity, manualLimitRange(c));
         const v = num(c.number_entity);
+        const start = v == null ? (limit.lo + limit.hi) / 2 : v;
+        const clamped = Math.min(limit.hi, Math.max(limit.lo, start));
         ctl.push(`
           <div class="ctlline"><b>Leistung ${c.number_unit || "W"}</b>
-            <input type="range" data-manual-limit min="${limit.lo}" max="${limit.hi}" step="${limit.step}" value="${v == null ? (limit.lo + limit.hi) / 2 : v}" style="flex:1" data-target="${esc(c.number_entity)}" data-unit="${esc(c.number_unit || "W")}">
-            <b class="numval">${esc(v == null ? "" : v + " " + (c.number_unit || ""))}</b>
+            <input type="range" data-manual-limit min="${limit.lo}" max="${limit.hi}" step="${limit.step}" value="${clamped}" style="flex:1" data-target="${esc(c.number_entity)}" data-unit="${esc(c.number_unit || "W")}">
+            <b class="numval">${esc(fmtNum(clamped, c.number_unit || "W"))}</b>
           </div>`);
       }
     }
@@ -1630,6 +1671,23 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const u = c.number_unit || "W";
     return { W: { lo: 500, hi: 22000, step: 100 }, kW: { lo: 0.5, hi: 22, step: 0.1 },
       A: { lo: 3, hi: 63, step: 0.5 }, mA: { lo: 3000, hi: 63000, step: 500 } }[u] || { lo: 0, hi: 100, step: 1 };
+  }
+  /** Echte Grenzen einer Nummern-Entität aus HA (min/max/step) – schlägt die
+   *  des Geräts fehl, fällt der Regler auf die gewünschten Defaults zurück.
+   *  So schickt die manuelle Steuerung nie Werte, die die Entität ablehnt. */
+  function numberEntityRange(entityId, fallback) {
+    const s = st(entityId);
+    const a = s && s.attributes ? s.attributes : {};
+    const f = (k) => {
+      const v = parseFloat(a[k]);
+      return isNaN(v) ? null : v;
+    };
+    const lo = f("min"), hi = f("max"), stp = f("step");
+    return {
+      lo: lo != null ? lo : fallback.lo,
+      hi: hi != null ? hi : fallback.hi,
+      step: stp && stp > 0 ? stp : fallback.step,
+    };
   }
 
   function htmlCarCard(device) {
@@ -1969,6 +2027,11 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         minimal_response: true,
         no_attributes: true,
       });
+      // HA antwortet: Dict {entity_id: [..]} – bei genau einer Entität aber
+      // eine nackte Liste (bekanntes HA-Verhalten). Beides normalisieren.
+      const byEntity = Array.isArray(raw) && entityIds.length === 1
+        ? { [entityIds[0]]: raw }
+        : (raw || {});
       const series = {};
       const per = Math.max(1, Math.round(statState.rangeH * 3600 / 120)); // ~120 Stützpunkte
       const startTs = start.getTime();
@@ -1979,15 +2042,29 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         const sums = new Array(per).fill(0);
         const cnts = new Array(per).fill(0);
         src[key].forEach((entityId) => {
-          const states = (raw && raw[entityId]) || [];
+          const states = byEntity[entityId] || [];
+          // Einheiten-Umrechnung je Entität (kW → W, mW → W): Der Chart
+          // rechnet durchgängig in Watt – ein kW-Sensor darf nicht als
+          // „6 W“ auftauchen (das machte alle Kurven platt).
+          const sNow = st(entityId);
+          const unit = sNow && sNow.attributes
+            ? sNow.attributes.unit_of_measurement || "" : "";
+          const factor = unit === "kW" ? 1000 : unit === "mW" ? 0.001 : 1;
           states.forEach((stRec) => {
             const v = parseFloat(stRec && (stRec.s != null ? stRec.s : stRec.state));
             if (stRec == null || isNaN(v)) return;
-            const tsRaw = stRec.l || stRec.last_updated || stRec.last_changed;
+            // minimal_response: Zeitstempel in "lu" (last_updated) bzw. "lc"
+            // (last_changed) – beide sind epoch-Sekunden. Ohne minimal_response
+            // heißen die Felder last_updated/last_changed (ISO-String).
+            const tsRaw = stRec.lu != null ? stRec.lu
+              : stRec.lc != null ? stRec.lc
+              : stRec.l != null ? stRec.l
+              : stRec.last_updated != null ? stRec.last_updated
+              : stRec.last_changed;
             const ts = typeof tsRaw === "number" ? tsRaw * 1000 : Date.parse(tsRaw);
             if (isNaN(ts) || ts < startTs || ts > endTs) return;
             const bi = Math.min(per - 1, Math.max(0, Math.floor(((ts - startTs) / (endTs - startTs)) * per)));
-            sums[bi] += v; cnts[bi] += 1;
+            sums[bi] += v * factor; cnts[bi] += 1;
           });
         });
         for (let i = 0; i < per; i++) {
@@ -2099,7 +2176,31 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       const fc = await wsTimeout("pvm/forecast", {}, 15000).catch(() => null);
       statState.forecast = fc;
       drawForecastPanel();
+      updateForecastBadge();
     } catch (err) { /* Prognose optional */ }
+  }
+
+  /** Benachrichtigungs-Punkt am Statistik-Reiter, wenn eine Wolkenphase
+   *  bevorsteht (Prognose eingeschaltet & Einbruch erkannt). */
+  function updateForecastBadge() {
+    const root = state.root;
+    if (!root) return;
+    const btn = root.querySelector('nav button[data-view="stats"]');
+    if (!btn) return;
+    const fc = statState.forecast || {};
+    const series = fc.series || [];
+    const nowVal = series.length ? series[0].pv_w : null;
+    const in15 = series.length > 1 ? series[1].pv_w : null;
+    const cloudy = configSettings().forecast_enabled
+      && nowVal != null && in15 != null && in15 < nowVal * 0.6;
+    const hasDot = !!btn.querySelector(".navdot.cloud");
+    if (cloudy && !hasDot) {
+      const dot = document.createElement("i");
+      dot.className = "navdot cloud";
+      btn.appendChild(dot);
+    } else if (!cloudy && hasDot) {
+      btn.querySelector(".navdot.cloud").remove();
+    }
   }
 
   function drawForecastPanel() {
@@ -2233,9 +2334,14 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       `)}
       ${accordion("prognose", I.cloud, "PV-Prognose & smartes Laden", `
         <div class="row">
-          <span class="lbl grow">PV-Prognose<small>PVM schätzt die kommende PV-Leistung (nächste 15 Min genau, 3 h, ganzer Tag) – anonym über Open-Meteo, offline über das lokale Modell. Damit werden kurze Wolkenphasen nicht mehr zum Abschalten genutzt und die Heizung flackert nicht mehr.</small></span>
-          <span class="sw ${s.forecast_enabled !== false ? "on" : ""}" data-settings-toggle="forecast_enabled"><i></i></span>
+          <span class="lbl grow">PV-Prognose<small>Standard: aus. Einschalten, wenn PVM die kommende PV-Leistung abschätzen soll (nächste 15 Min genau, 3 h, ganzer Tag). Ohne Internet fällt PVM auf das lokale Modell zurück – die Steuerung funktioniert immer.</small></span>
+          <span class="sw ${s.forecast_enabled ? "on" : ""}" data-settings-toggle="forecast_enabled"><i></i></span>
         </div>
+        ${s.forecast_enabled ? `
+        <div class="row">
+          <span class="lbl grow">Eigener API-Schlüssel (optional)<small>Zusätzlich zur kostenlosen Abfrage: Wer einen Open-Meteo-API-Schlüssel hat, bekommt schnelleren/höher aufgelösten Datenzugriff. Frei lassen = es bleibt bei der anonymen Abfrage.</small></span>
+          <input type="text" placeholder="(optional)" value="${esc(s.forecast_api_key || "")}" data-setting-input="forecast_api_key" style="flex:1;min-width:180px" autocomplete="off">
+        </div>` : ""}
         <div class="row">
           <span class="lbl grow">Vorausschauendes Laden<small>Hat ein Auto eine aktive Frist (Ziel bis Uhrzeit), hält PVM die Wallbox über kurze Wolkenphasen an statt abzuschalten – die Sonne kommt laut Prognose gleich wieder. So geht keine Ladezeit verloren und es wird seltener geschaltet.</small></span>
           <span class="sw ${s.pre_charge !== false ? "on" : ""}" data-settings-toggle="pre_charge"><i></i></span>
@@ -3443,6 +3549,19 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       configSettings().accent_custom = hex;
       applyTheme();
       saveAndRefresh("Farbe gespeichert: " + hex);
+      return;
+    }
+    // Optionaler Prognose-API-Schlüssel (wird beim Verlassen des Feldes
+    // gespeichert; leer = anonyme Abfrage weiter nutzen).
+    const apiInp = ev.target.closest("[data-setting-input]");
+    if (apiInp) {
+      const key = apiInp.getAttribute("data-setting-input");
+      configSettings()[key] = String(apiInp.value || "").trim();
+      saveAndRefresh(
+        configSettings()[key]
+          ? "API-Schlüssel gespeichert – Prognose nutzt jetzt deinen Zugang."
+          : "API-Schlüssel entfernt – zurück zur anonymen Abfrage."
+      );
     }
   }
 
