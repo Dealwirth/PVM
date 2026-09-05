@@ -2,6 +2,27 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.9.9] – 2026-09-05
+
+### PV-Prognose – jetzt kostenlos OHNE API-Schlüssel (+ Analyse-Tool)
+- **Kein Schlüssel mehr nötig:** PVM fragt die kostenlose Open-Meteo-Strahlung
+  (`api.open-meteo.com`) ab und kombiniert sie mit einer **Lernkurve aus den
+  letzten Tagen**: Aus der HA-Historie (bis 14 Tage) wird gelernt, wie viel
+  PV-Leistung die Anlage bei welchem **Sonnenstand** erzeugt (normiert auf
+  wolkenlose Einstrahlung).
+- **Genauere Vorhersage:** Sonnenhöhe wird für jeden Zeitpunkt selbst
+  berechnet (NOAA-Formel); die Strahlungsprognose skaliert die Kurve mit dem
+  Wolkenanteil. Ohne Internet fällt PVM auf eine Clear-Sky-Schätzung aus der
+  Lernkurve zurück – nie mehr „gar nichts“.
+- **Neues Analyse-Tool (Statistik → PV-Analyse):** Balken-Diagramm der
+  Lernkurve (W je 1000 W/m² bei welchem Sonnenstand) plus Tagesbilanz der
+  letzten 14 Tage (Erzeugung, Spitze, Sonnenschein) – die Daten, aus denen
+  die Prognose lernt, direkt sichtbar und per Knopf aktualisierbar.
+- **API-Schlüssel bleibt optional** (stabilerer Kunden-Endpunkt) – die
+  Einstellungen erklären das jetzt klar, ebenso wie „URL ist kein Schlüssel“.
+- Neue reine Funktionen in `forecast.py` (Sonnenstand, Clear-Sky, Lernkurve,
+  Vorhersage) inkl. Tests; Gesamtsuite jetzt 130 Tests.
+
 ## [1.9.8] – 2026-09-05
 
 ### Feedback & Bedienung (Speichern/Laden nie mehr stumm)

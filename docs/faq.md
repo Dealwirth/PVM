@@ -203,33 +203,42 @@ schaltest – du kannst die Regler/Knöpfe sofort nutzen, ohne weiteren
 Klick. Bleibt eine Karte trotzdem stehen: ganze HA-Seite neu laden
 (ältere Browser-Caches zeigen sonst die alte Version).
 
-## Die PV-Prognose zeigt nichts / „Lädt es noch oder geht es kostenlos nicht?“
+## Die PV-Prognose zeigt nichts / „Lädt es noch oder geht es kostenlos?“
+
+Seit **1.9.9 funktioniert die Prognose ganz ohne API-Schlüssel** – kostenlos.
+PVM nutzt die freie Open-Meteo-Strahlung und lernt aus deinen letzten Tagen,
+wie viel Leistung deine Anlage bei welchem Sonnenstand erzeugt (Lernkurve).
 
 Solange oben rechts ein **Spinner mit „PV-Prognose wird berechnet …“** läuft,
-lädt PVM gerade (erste Abfrage kann 10–30 Sekunden dauern). Wenn danach eine
-Meldung erscheint („keine Prognose-Daten“ / Anleitung), ist die Ursache eine
-der folgenden:
+lädt PVM gerade (erste Abfrage kann 10–30 Sekunden dauern – danach wird
+gecacht). Wenn danach eine Meldung erscheint („keine Prognose-Daten“), ist
+die Ursache eine der folgenden:
 
-- **„API-Schlüssel fehlt“** → es lädt **nicht**, es fehlt der Schlüssel
-  (siehe unten).
-- **„Schlüssel ungültig (401)“ / Limit (429)“** → der eingetragene Schlüssel
-  stimmt nicht bzw. das Tageslimit ist erreicht.
+- **„Noch keine Lern-Daten“** → PVM braucht ein paar sonnige Tage, um die
+  Sonnenstand-Kurve zu lernen; danach wird die Prognose automatisch genauer.
 - **„Keine Koordinaten“** → Standort der HA-Installation prüfen oder
   Breiten-/Längengrad unter *Einstellungen → PV-Prognose* eintragen.
+- **„Schlüssel ungültig (401)“ / Limit (429)“** → nur relevant, wenn du
+  zusätzlich einen eigenen Schlüssel hinterlegt hast.
 
 **Ist die Adresse `api.open-meteo.com/v1/forecast?…` der API-Schlüssel?**
 Nein. Das ist eine **Webadresse (URL)** – sie gehört **nicht** ins
-Schlüssel-Feld. Der Schlüssel ist ein kurzer Code (z. B. `aB3xK9…`), den du
-nur nach Abschluss eines Open-Meteo-Tarifs erhältst; PVM ergänzt die Adresse
-selbst. Fügst du eine URL ein, bricht PVM das Speichern ab und erklärt das.
+Schlüssel-Feld und wird dort auch gar nicht mehr gebraucht (der Schlüssel
+ist seit 1.9.9 optional). Wer trotzdem einen Schlüssel nutzt: es ist ein
+kurzer Code (z. B. `aB3xK9…`) aus deinem Open-Meteo-Tarif, keine URL.
 
-**Geht es nicht kostenlos?** In PVM nicht: Die Prognose ist **bewusst nur
-mit Schlüssel** nutzbar (PVM fragt ausschließlich den Kunden-Endpunkt
-`customer-api.open-meteo.com` ab – der anonyme Endpunkt war unzuverlässig).
-Ohne Schlüssel bleibt die Kurve leer – das ist kein Fehler, sondern
-beabsichtigt.
+**Woher kommen die Prognose-Zahlen?** Aus drei Bausteinen:
+1. **Sonnenstand:** PVM berechnet die Sonnenhöhe für jeden Zeitpunkt selbst
+   (aus Koordinaten + Uhrzeit).
+2. **Lernkurve:** Aus den letzten Tagen wird gelernt, wie viel PV-Leistung
+   bei welchem Sonnenstand erzeugt wurde (normiert auf wolkenlose
+   Einstrahlung) – siehst du unter **Statistik → PV-Analyse**.
+3. **Wolken:** Die kostenlose Open-Meteo-Strahlungsprognose skaliert die
+   Kurve mit dem Wolkenanteil. Ohne Internet nutzt PVM nur Sonnenstand +
+   Lernkurve (Clear-Sky-Schätzung).
 
-So legst du einen Schlüssel an: ① [open-meteo.com/en/pricing](https://open-meteo.com/en/pricing)
+Wer mag, legt zusätzlich einen eigenen Schlüssel für den stabileren
+Kunden-Endpunkt an: ① [open-meteo.com/en/pricing](https://open-meteo.com/en/pricing)
 legst du einen Schlüssel an: ① [open-meteo.com/en/pricing](https://open-meteo.com/en/pricing)
 öffnen und einen Tarif wählen (z. B. „API Standard“), ② direkt nach dem
 Checkout erhältst du **sofort deinen API-Schlüssel**, ③ unter

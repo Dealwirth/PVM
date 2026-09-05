@@ -13,7 +13,7 @@ import logging
 import time as _time
 import uuid
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Callable
 
 from homeassistant.config_entries import ConfigEntry
@@ -107,9 +107,11 @@ class PvmManager:
         self.forecast_data: dict[str, Any] | None = None
         self.forecast_recovery_min: int | None = None
         self._last_forecast_refresh = 0.0
-        self._hist_pv: deque = deque(maxlen=2000)   # (ts, pv_w) für lokales Modell
+        self._hist_pv: deque = deque(maxlen=6000)   # (ts, pv_w) für Lernmodell
         self._hist_house: deque = deque(maxlen=1000)  # (ts, w)
+        self._last_hist_load = 0.0
         self._pv_derate: float | None = None
+        self._curve_cache: dict[str, Any] | None = None  # gelernte Sonnenstand-Kurve
         self._closing = False
         self._last_extra_cycle = 0.0
 
@@ -1236,23 +1238,9 @@ class PvmManager:
                 "note": "PV-Prognose ist in den Einstellungen ausgeschaltet.",
             }
             return
-        # Die Prognose ist zwingend API-gebunden: Ohne eigenen Open-Meteo-
-        # Schlüssel gibt es keine Abfrage (der offene Endpunkt wird von PVM
-        # nicht mehr genutzt – er war unzuverlässig).
-        if not str(settings.get("forecast_api_key") or "").strip():
-            self.forecast_data = {
-                "source": "off",
-                "ts": _time.time(),
-                "series": [],
-                "day_curve": [],
-                "day_kwh": None,
-                "recovery_min": None,
-                "note": (
-                    "API-Schlüssel fehlt: Unter Einstellungen → PV-Prognose "
-                    "einen Open-Meteo-Key eintragen (open-meteo.com/en/pricing)."
-                ),
-            }
-            return
+        # Kein Schlüssel nötig: PVM fragt den kostenlosen Open-Meteo-Endpunkt
+        # ab und kombiniert ihn mit einer gelernten Sonnenstand-Kurve aus den
+        # eigenen Sensoren. Ein hinterlegter Schlüssel wird weiter genutzt.
         energy = self.config.get("energy", {})
         if not (energy.get("pv_sensor") or energy.get("grid_export_sensor")):
             self.forecast_data = {
@@ -1752,10 +1740,6 @@ class PvmManager:
         settings = self.config.get("settings", {})
         if not settings.get("forecast_enabled", True):
             return
-        # API-gebunden: ohne hinterlegten Schlüssel nie abfragen (der offene
-        # Endpunkt ist unzuverlässig – die Prognose blieb sonst leer).
-        if not str(settings.get("forecast_api_key") or "").strip():
-            return
         energy = self.config.get("energy", {})
         if not (energy.get("pv_sensor") or energy.get("grid_export_sensor")):
             return  # ohne PV-Messung keine sinnvolle Prognose
@@ -1769,14 +1753,173 @@ class PvmManager:
             self._refresh_forecast(), name=f"{DOMAIN}_forecast"
         )
 
+    async def _ensure_pv_history(self) -> None:
+        """Lädt die letzten ~14 Tage der PV-Messung aus dem HA-Recorder.
+
+        Verdichtet auf ein 5-Minuten-Raster – Grundlage der Lernkurve
+        (Sonnenstand → PV-Leistung) und der Analyse. Läuft im Hintergrund
+        und wird höchstens stündlich aktualisiert.
+        """
+        now = _time.time()
+        if self._hist_pv and now - self._last_hist_load < 3600:
+            return
+        self._last_hist_load = now
+        energy = self.config.get("energy", {})
+        pv_id = energy.get("pv_sensor")
+        if not pv_id:
+            return
+        try:
+            from homeassistant.components import history  # Recorder
+            end = dt_util.utcnow()
+            start = end - timedelta(days=14)
+            try:
+                changes = await history.state_changes_during_period(
+                    self.hass, start, end, entity_id=pv_id, no_attributes=True
+                )
+            except TypeError:
+                changes = await self.hass.async_add_executor_job(
+                    history.get_state_changes_during_period,
+                    self.hass, start, end, pv_id, True, True,
+                )
+            entries = changes.get(pv_id, []) if isinstance(changes, dict) else changes or []
+            parsed: list[tuple[float, float]] = []
+            last_keep = 0.0
+            start_ts = start.timestamp()
+            for item in entries:
+                st = getattr(item, "new_state", item)
+                if st is None or getattr(st, "state", None) is None:
+                    continue
+                ts_dt = getattr(st, "last_updated", None)
+                if ts_dt is None:
+                    continue
+                ts = ts_dt.timestamp()
+                if ts < start_ts - 60 or ts > now + 60:
+                    continue
+                if ts - last_keep < 300:
+                    continue
+                try:
+                    val = float(st.state)
+                except (TypeError, ValueError):
+                    continue
+                last_keep = ts
+                parsed.append((ts, val))
+            if parsed:
+                self._hist_pv.clear()
+                for item in parsed:
+                    self._hist_pv.append(item)
+        except Exception:  # noqa: BLE001 – Prognose darf nie crashen
+            _LOGGER.debug("PVM: Historie nicht verfügbar (%s)", pv_id)
+
+    def _finalize_forecast(
+        self, full: list[dict], now: float, pv: float | None,
+        source: str, note: str,
+    ) -> dict[str, Any]:
+        """Schneidet eine komplette Kurve auf die üblichen Fenster zu."""
+        series = fc.split_series(full, now, horizon_s=3 * 3600)
+        dt_now = datetime.fromtimestamp(now)
+        midnight = now - (dt_now.hour * 3600 + dt_now.minute * 60 + dt_now.second)
+        day = fc.split_series(full, now, end_ts=midnight + 24 * 3600 - 60)
+        return {
+            "source": source,
+            "ts": now,
+            "series": series,
+            "day_curve": fc.hourly_day_curve(day),
+            "day_kwh": fc.energy_kwh(day),
+            "recovery_min": fc.recovery_minutes(series, pv),
+            "note": note,
+        }
+
+    async def build_analysis(self) -> dict[str, Any]:
+        """Analyse der letzten Tage fürs Panel (Sonnenstand-Kurve + Bilanzen).
+
+        Zeigt, wie viel PV-Leistung bei welchem Sonnenstand erzeugt wurde
+        und wie viel Energie die Tage gebracht haben – die gleichen Daten,
+        aus denen PVM die Prognose lernt.
+        """
+        result: dict[str, Any] = {
+            "ok": True, "note": "", "curve": {"points": []}, "days": [], "today": None,
+        }
+        try:
+            energy = self.config.get("energy", {})
+            if not energy.get("pv_sensor"):
+                result["note"] = "Verbinde zuerst einen PV-Sensor – dann analysiert PVM hier deine letzten Tage."
+                return result
+            await self._ensure_pv_history()
+            hist = list(self._hist_pv)
+            if len(hist) < 40:
+                result["note"] = (
+                    "Noch nicht genug Daten: PVM lernt aus den letzten Tagen. "
+                    "Sobald PV-Messungen im HA-Recorder liegen, erscheint hier die Analyse."
+                )
+                return result
+            ha_lat = float(getattr(self.hass.config, "latitude", 0.0) or 0.0)
+            ha_lon = float(getattr(self.hass.config, "longitude", 0.0) or 0.0)
+            settings = self.config.get("settings", {})
+            try:
+                lat = float(settings.get("forecast_lat") or ha_lat)
+            except (TypeError, ValueError):
+                lat = ha_lat
+            try:
+                lon = float(settings.get("forecast_lon") or ha_lon)
+            except (TypeError, ValueError):
+                lon = ha_lon
+            curve = fc.learn_elevation_curve(hist, lat, lon)
+            self._curve_cache = curve
+            step_s = 300.0
+            days: dict[str, dict[str, Any]] = {}
+            for ts, w in hist:
+                if w is None or w <= 0:
+                    continue
+                d = datetime.fromtimestamp(ts).date().isoformat()
+                day = days.setdefault(
+                    d, {"kwh": 0.0, "peak": 0.0, "sun_min": 0.0, "samples": 0}
+                )
+                day["kwh"] += w * (step_s / 3600.0) / 1000.0
+                day["peak"] = max(day["peak"], w)
+                day["samples"] += 1
+                if fc.solar_elevation(lat, lon, ts) > 3.0:
+                    day["sun_min"] += step_s / 60.0
+            day_list = []
+            for d, vals in sorted(days.items(), reverse=True):
+                day_list.append({
+                    "date": d,
+                    "kwh": round(vals["kwh"], 2),
+                    "peak_w": round(vals["peak"]),
+                    "sun_min": round(vals["sun_min"]),
+                    "samples": vals["samples"],
+                })
+            result["curve"] = curve
+            result["days"] = day_list[:14]
+            result["today"] = day_list[0] if day_list else None
+            if not curve.get("points"):
+                result["note"] = (
+                    "Lernkurve füllt sich: Bei Sonnenschein ordnet PVM die "
+                    "PV-Leistung dem Sonnenstand zu (normiert auf wolkenlose "
+                    "Einstrahlung)."
+                )
+            else:
+                result["note"] = (
+                    "Lernkurve: „PV-Leistung ÷ wolkenlose Einstrahlung“ je "
+                    "Sonnenstand – genau diese Kurve treibt die Prognose."
+                )
+        except Exception:  # noqa: BLE001
+            _LOGGER.warning("PVM: Analyse fehlgeschlagen", exc_info=True)
+            result["note"] = "Analyse konnte nicht berechnet werden."
+        return result
+
     async def _refresh_forecast(self) -> None:
-        """Holt die PV-Prognose (Open-Meteo, sonst lokales Modell)."""
+        """Holt die PV-Prognose – kostenlos OHNE Schlüssel.
+
+        Modell: 1) Sonnenstand (Elevation) aus Koordinaten + Zeit berechnen.
+        2) Aus den letzten Tagen eine Lernkurve aufbauen (PV bei welchem
+        Sonnenstand). 3) Open-Meteo-Strahlung (kostenlos) skaliert die Kurve
+        mit dem Wolkenanteil – auch ganz ohne API-Schlüssel. Mit hinterlegtem
+        Schlüssel wird der stabilere Kunden-Endpunkt genutzt.
+        """
         try:
             settings = self.config.get("settings", {})
             energy = self.config.get("energy", {})
             pv, _v = self.read_power(energy.get("pv_sensor"))
-            # Koordinaten: Überschreibung aus den Einstellungen, sonst Standort
-            # der HA-Installation (bei der Einrichtung bestätigt oder Standard).
             ha_lat = float(getattr(self.hass.config, "latitude", 0.0) or 0.0)
             ha_lon = float(getattr(self.hass.config, "longitude", 0.0) or 0.0)
             try:
@@ -1797,78 +1940,67 @@ class PvmManager:
                 "recovery_min": None,
                 "note": "Keine Prognose verfügbar (offline / keine Koordinaten).",
             }
-            meteo = None
             if not lat or not lon:
                 data["note"] = (
                     "Keine Koordinaten: Standort der HA-Installation oder unter "
                     "Einstellungen → PV-Prognose eintragen."
                 )
-            elif self.hass.helpers is not None:
-                try:
-                    session = self.hass.helpers.aiohttp_client.async_get_clientsession()
-                    meteo = await fc.fetch_open_meteo(
-                        session,
-                        lat,
-                        lon,
-                        api_key=settings.get("forecast_api_key") or None,
-                    )
-                except Exception:  # noqa: BLE001
-                    meteo = None
-            if meteo and meteo.get("error"):
-                data["note"] = (
-                    "Prognose fehlgeschlagen: " + meteo["error"]
-                    + ". Bitte Schlüssel bzw. Koordinaten prüfen "
-                    + "(Einstellungen → PV-Prognose)."
-                )
-            elif meteo:
-                rad_now = fc.radiation_now(meteo, now)
-                factor = fc._scale_to_now(rad_now, pv) or self._pv_derate
-                if factor is None:
+            else:
+                await self._ensure_pv_history()
+                hist = list(self._hist_pv)
+                curve = fc.learn_elevation_curve(hist, lat, lon)
+                self._curve_cache = curve
+                api_key = settings.get("forecast_api_key") or None
+                meteo = None
+                if self.hass.helpers is not None:
+                    try:
+                        session = self.hass.helpers.aiohttp_client.async_get_clientsession()
+                        meteo = await fc.fetch_open_meteo(
+                            session, lat, lon, api_key=api_key
+                        )
+                    except Exception:  # noqa: BLE001
+                        meteo = None
+                if meteo and meteo.get("error"):
                     data["note"] = (
-                        "Prognose kalibriert sich noch – bei Sonne wird die "
-                        "PV-Leistung gelernt."
+                        "Prognose fehlgeschlagen: " + meteo["error"]
+                        + ". Bitte Schlüssel bzw. Koordinaten prüfen "
+                        + "(Einstellungen → PV-Prognose)."
                     )
-                else:
-                    full = fc.build_open_meteo_series(
-                        meteo["times"], meteo["radiation"], factor, now,
+                elif meteo:
+                    full = fc.predict_from_radiation(
+                        meteo["times"], meteo["radiation"], lat, lon, curve, now,
                         horizon_s=36 * 3600,
                     )
-                    series = fc.split_series(full, now, horizon_s=3 * 3600)
-                    dt_now = datetime.fromtimestamp(now)
-                    midnight = now - (
-                        dt_now.hour * 3600 + dt_now.minute * 60 + dt_now.second
-                    )
-                    day = fc.split_series(
-                        full, now, end_ts=midnight + 24 * 3600 - 60
-                    )
-                    data = {
-                        "source": "openmeteo",
-                        "ts": now,
-                        "series": series,
-                        "day_curve": fc.hourly_day_curve(day),
-                        "day_kwh": fc.energy_kwh(day),
-                        "recovery_min": fc.recovery_minutes(series, pv),
-                        "note": "Open-Meteo über customer-api.open-meteo.com (eigener Schlüssel).",
-                    }
+                    if api_key:
+                        note = "Open-Meteo (eigener Schlüssel) + Lernkurve (" + str(curve.get("days", 0)) + " Tage)"
+                    else:
+                        note = "Open-Meteo (kostenlos, ohne Schlüssel) + Lernkurve (" + str(curve.get("days", 0)) + " Tage)"
+                    data = self._finalize_forecast(full, now, pv, "openmeteo", note)
+                    rad_now = fc.radiation_now(meteo, now)
                     self._pv_derate = fc._derate_from(pv, rad_now, self._pv_derate)
-            else:
-                local = fc.local_fallback_series(list(self._hist_pv), now)
-                if local:
-                    series = fc.split_series(local, now, horizon_s=3 * 3600)
-                    data = {
-                        "source": "local",
-                        "ts": now,
-                        "series": series,
-                        "day_curve": fc.hourly_day_curve(local),
-                        "day_kwh": fc.energy_kwh(
-                            fc.split_series(local, now, end_ts=now + 24 * 3600)
-                        ),
-                        "recovery_min": fc.recovery_minutes(series, pv),
-                        "note": (
-                            "Lokales Modell (gleiche Tageszeit der letzten "
-                            "Tage) – ohne Internet."
-                        ),
-                    }
+                elif curve.get("points"):
+                    # Kein Internet: Clear-Sky-Modell aus der Lernkurve
+                    step = 900.0
+                    horizon = 36 * 3600
+                    times = [now + i * step for i in range(int(horizon // step) + 1)]
+                    full = fc.predict_clear_sky(times, lat, lon, curve, now, horizon)
+                    data = self._finalize_forecast(
+                        full, now, pv, "local",
+                        "Lokales Modell (nur Sonnenstand + Lernkurve) – ohne Internet",
+                    )
+                else:
+                    local = fc.local_fallback_series(hist, now)
+                    if local:
+                        data = self._finalize_forecast(
+                            local, now, pv, "local",
+                            "Lokales Modell (gleiche Tageszeit der letzten Tage)",
+                        )
+                    else:
+                        data["note"] = (
+                            "Noch keine Lern-Daten: PVM sammelt die nächsten Tage "
+                            "PV-Messwerte und lernt daraus den Zusammenhang von "
+                            "Sonnenstand und PV-Leistung."
+                        )
             self.forecast_data = data
         except Exception:  # noqa: BLE001
             _LOGGER.exception("PVM: Prognose-Aktualisierung fehlgeschlagen")

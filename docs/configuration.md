@@ -237,12 +237,13 @@ auf der Seite ein Ladebalken.
 Darunter steht die **PV-Prognose**: erwartete Leistung **jetzt, in 15
 Minuten, nächste 3 Stunden und für den Rest des Tages** – sie ist
 **standardmäßig ausgeschaltet** und erscheint erst, wenn du sie unter
-*Einstellungen* aktivierst. Die Prognose ist **API-gebunden**: ohne
-eigenen Open-Meteo-API-Schlüssel bleibt sie aus (Anleitung + Link stehen
-direkt in den Einstellungen). PVM nutzt diese Vorhersage, um kurze
-Wolkenphasen nicht zum Abschalten zu nutzen („erst abwarten, die Sonne
-kommt gleich wieder“). Bevorsteht in den nächsten 15 Minuten ein Einbruch,
-zeigt der Statistik-Reiter einen **orangefarbenen Benachrichtigungspunkt**.
+*Einstellungen* aktivierst. Seit **1.9.9 funktioniert sie ganz ohne
+API-Schlüssel**: PVM kombiniert die kostenlose Open-Meteo-Strahlung mit
+einer **Lernkurve aus deinen letzten Tagen** (Sonnenstand → PV-Leistung).
+PVM nutzt diese Vorhersage, um kurze Wolkenphasen nicht zum Abschalten zu
+nutzen („erst abwarten, die Sonne kommt gleich wieder“). Bevorsteht in den
+nächsten 15 Minuten ein Einbruch, zeigt der Statistik-Reiter einen
+**orangefarbenen Benachrichtigungspunkt**.
 
 Unter **Einstellungen → PV-Prognose & smartes Laden** findest du die
 Schalter **PV-Prognose** (Standard aus) und **Vorausschauendes Laden**
@@ -250,22 +251,25 @@ Schalter **PV-Prognose** (Standard aus) und **Vorausschauendes Laden**
 (auch per Button „Prognose jetzt aktualisieren“) – nicht erst im
 15-Minuten-Takt.
 
-### Standort & API-Schlüssel (Pflichtfeld für die Prognose)
+### Standort & API-Schlüssel (Schlüssel seit 1.9.9 optional)
 
 - **Standard:** PVM nutzt die **Koordinaten deiner Home-Assistant-
   Installation** (unter *Einstellungen → System → Allgemein* einstellbar).
   Bei der Einrichtung fragt PVM deshalb: „Steht deine PV-Anlage hier?“
-- **PV woanders?** Im Abschnitt *API-Schlüssel, Standort & Koordinaten*
-  kannst du Breiten- und Längengrad deiner Anlage hinterlegen.
-- **API-Schlüssel (erforderlich):** PVM fragt die Prognose ausschließlich
-  über den Open-Meteo-Kunden-Endpunkt
-  (`customer-api.open-meteo.com`) ab – dafür brauchst du einen eigenen
-  Schlüssel: ① [open-meteo.com/en/pricing](https://open-meteo.com/en/pricing)
-  öffnen und einen Tarif wählen (z. B. „API Standard“), ② direkt nach dem
-  Checkout erhältst du **sofort deinen API-Schlüssel**, ③ Schlüssel im Feld
-  „API-Schlüssel“ einfügen und „Prognose jetzt aktualisieren“ drücken.
-  Ohne Schlüssel startet PVM keine Abfrage – die Kurve bleibt leer, die
-  Steuerung funktioniert davon unabhängig immer.
+- **PV woanders?** Im Abschnitt *Standort, Koordinaten & optionaler
+  API-Schlüssel* kannst du Breiten- und Längengrad deiner Anlage
+  hinterlegen.
+- **Kein Schlüssel nötig (Standard):** PVM fragt die **kostenlose
+  Open-Meteo-Strahlung** (`api.open-meteo.com`) ab und kombiniert sie mit
+  einer gelernten Lernkurve aus deinen letzten Tagen (Sonnenstand →
+  PV-Leistung).
+- **API-Schlüssel (optional):** Wer mag, hinterlegt zusätzlich einen
+  eigenen Schlüssel für den stabileren Kunden-Endpunkt
+  (`customer-api.open-meteo.com`): ①
+  [open-meteo.com/en/pricing](https://open-meteo.com/en/pricing) öffnen
+  und einen Tarif wählen, ② direkt nach dem Checkout erhältst du **sofort
+  deinen API-Schlüssel**, ③ Schlüssel im Feld „API-Schlüssel“ einfügen und
+  „Prognose jetzt aktualisieren“ drücken.
 
 > **Wichtig:** In das Feld „API-Schlüssel“ gehört **nur der kurze Code**
 > aus deinem Tarif (z. B. `aB3xK9…`) – **keine URL**. Die Adresse
@@ -274,9 +278,18 @@ Schalter **PV-Prognose** (Standard aus) und **Vorausschauendes Laden**
 
 **Feedback während der Berechnung:** Solange die Prognose rechnet, zeigt
 PVM einen Spinner mit „PV-Prognose wird berechnet …“ (erste Abfrage kann
-10–30 s dauern). Antwortet Open-Meteo mit 401/403/429 (Schlüssel ungültig,
-Limit erreicht), erscheint eine verständliche Meldung statt still leerer
-Kurven.
+10–30 s dauern – danach wird gecacht). Antwortet Open-Meteo mit 401/403/429
+(Schlüssel ungültig, Limit erreicht), erscheint eine verständliche Meldung
+statt still leerer Kurven.
+
+### 📈 PV-Analyse – die Lernkurve
+
+Im Reiter **Statistik** findest du darunter die **PV-Analyse**: PVM zeigt
+aus den letzten ~14 Tagen, wie viel Leistung deine Anlage **bei welchem
+Sonnenstand** erzeugt hat (normiert auf wolkenlose Einstrahlung) und eine
+**Tagesbilanz** (Erzeugung, Spitze, Sonnenschein). Genau diese Kurve treibt
+die Prognose – je mehr sonnige Tage gesammelt sind, desto genauer wird die
+Vorhersage. Die Analyse lässt sich per Knopf aktualisieren.
 
 Letzteres (Vorausschauendes Laden) bedeutet: Hat ein Auto eine **aktive
 Frist** (Ziel bis Uhrzeit), bleibt die Wallbox auch über eine kurze

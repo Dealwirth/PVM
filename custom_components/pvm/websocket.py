@@ -129,6 +129,26 @@ async def ws_forecast(
     )
 
 
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/analysis"})
+@websocket_api.async_response
+async def ws_analysis(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Liefert die PV-Analyse der letzten Tage (Sonnenstand-Kurve + Bilanzen)."""
+    manager = _get_manager(hass)
+    if manager is None:
+        connection.send_error(msg["id"], "not_loaded")
+        return
+    try:
+        result = await manager.build_analysis()
+        connection.send_result(msg["id"], result or {})
+    except Exception as err:  # noqa: BLE001 - immer antworten, nie hängen
+        _LOGGER.warning("PVM: Analyse fehlgeschlagen: %s", err)
+        connection.send_error(msg["id"], "analysis_failed", str(err))
+
+
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/forecast_refresh"})
 @websocket_api.async_response
 async def ws_forecast_refresh(
@@ -234,6 +254,7 @@ async def async_register_websocket(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_scan)
     websocket_api.async_register_command(hass, ws_list_entities)
     websocket_api.async_register_command(hass, ws_forecast)
+    websocket_api.async_register_command(hass, ws_analysis)
     websocket_api.async_register_command(hass, ws_forecast_refresh)
     websocket_api.async_register_command(hass, ws_control)
     websocket_api.async_register_command(hass, ws_energy_suggest)

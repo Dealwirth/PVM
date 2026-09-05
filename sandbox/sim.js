@@ -456,6 +456,9 @@
     if (t === "pvm/forecast") {
       return { result: mockForecast() };
     }
+    if (t === "pvm/analysis") {
+      return { result: mockAnalysis() };
+    }
     if (t === "pvm/forecast_refresh") {
       return { result: mockForecast() };
     }
@@ -544,6 +547,40 @@
       day_kwh: Math.round(dayKwh * 10) / 10,
       recovery_min: 9,
       note: "Kurze Wolkenphase in ~15 Minuten – danach wieder volle Sonne. (Sandbox-Daten)",
+    };
+  }
+
+  function mockAnalysis() {
+    // Lernkurve (Sonnenstand → W je 1000 W/m²) + letzte Tage
+    const curve = [
+      { elev: 12.5, factor: 0.18, count: 41 },
+      { elev: 17.5, factor: 0.26, count: 67 },
+      { elev: 22.5, factor: 0.30, count: 88 },
+      { elev: 27.5, factor: 0.32, count: 102 },
+      { elev: 32.5, factor: 0.33, count: 96 },
+      { elev: 37.5, factor: 0.31, count: 74 },
+      { elev: 42.5, factor: 0.28, count: 39 },
+    ];
+    const days = [];
+    const now = new Date();
+    const peak = [4.1, 3.6, 4.6, 4.9, 3.2, 4.4, 5.1];
+    for (let i = 0; i < peak.length; i++) {
+      const d = new Date(now.getTime() - i * 86400000);
+      const label = d.toISOString().slice(0, 10);
+      days.push({
+        date: label,
+        kwh: Math.round((peak[i] * 3.2) * 10) / 10,
+        peak_w: Math.round(peak[i] * 1000),
+        sun_min: 540 - i * 17,
+        samples: 140 - i * 6,
+      });
+    }
+    return {
+      ok: true,
+      curve: { points: curve, coverage: 507, days: 7 },
+      days: days,
+      today: days[0],
+      note: "Lernkurve: PV-Leistung ÷ wolkenlose Einstrahlung je Sonnenstand – Grundlage der Prognose. (Sandbox-Daten)",
     };
   }
 

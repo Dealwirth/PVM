@@ -483,6 +483,16 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
   animation:spin .7s linear infinite; margin-right:7px; vertical-align:-3px; }
 .stattools .btn.on, .stattools button.on { background:var(--acc); color:#fff; border-color:var(--acc); }
 .stattools .btn.on:hover { filter:brightness(1.08); }
+/* PV-Analyse: Lernkurve + Tagesbilanz */
+.anabars { display:flex; flex-direction:column; gap:6px; margin:4px 0 12px; }
+.anabar { display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--mut); }
+.anabar .anlbl { flex:0 0 38px; text-align:right; font-weight:700; color:var(--txt); font-variant-numeric:tabular-nums; }
+.anabar i { display:block; height:11px; border-radius:6px; background:linear-gradient(90deg,var(--acc),var(--acc2)); min-width:4px; transition:width .4s ease; }
+.anabar .anval { white-space:nowrap; }
+.anatbl { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:2px; }
+.anatbl th { text-align:left; color:var(--mut); font-size:11px; text-transform:uppercase; letter-spacing:.5px; padding:6px 8px; border-bottom:1px solid var(--line); }
+.anatbl td { padding:6px 8px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; }
+.anatbl tr:last-child td { border-bottom:0; }
 .stmsg .spinner { display:inline-block; width:15px;height:15px;border-radius:50%;border:2px solid var(--card2); border-top-color:var(--acc); animation:spin .7s linear infinite; margin-right:7px; vertical-align:-3px; }
 .stmsg.warnbox { border-color: var(--warn); }
 
@@ -804,12 +814,11 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
 
   function configEnergy() { return (state.config && state.config.energy) || {}; }
   function configSettings() { return (state.config && state.config.settings) || {}; }
-  /** Ist die PV-Prognose so eingerichtet, dass sie Daten liefern kann
-   *  (eingeschaltet + Schlüssel hinterlegt)? Nur dann macht das
-   *  vorausschauende Laden Sinn. */
+  /** Ist die PV-Prognose eingeschaltet? Seit 1.9.9 braucht sie KEINEN
+   *  Schlüssel mehr (Open-Meteo kostenlos + eigene Lernkurve) – nur dann
+   *  macht das vorausschauende Laden Sinn. */
   function forecastConfigured() {
-    const s = configSettings();
-    return s.forecast_enabled === true && !!(String(s.forecast_api_key || "").trim());
+    return configSettings().forecast_enabled === true;
   }
   function devicesOf() { return (state.config && state.config.devices) || []; }
   function deviceById(id) { return devicesOf().find((d) => d.id === id); }
@@ -1169,8 +1178,8 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
       updateHeaderChip();
       updateDeviceLives();
       if (view === "stats") {
-        // Verlauf erst laden, wenn die Sektion wirklich im DOM steht
-        setTimeout(() => { drawStatChart(); loadStats(); }, 30);
+        // Verlauf, Prognose und Analyse erst laden, wenn die Sektion im DOM steht
+        setTimeout(() => { drawStatChart(); loadStats(); loadAnalysisPanel(); }, 30);
       }
     }
   }
@@ -2102,6 +2111,7 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
     data: null,
     forecast: null,
     loading: false,
+    analysisLoading: false,
   };
   function statDefaultOn() { return { pv: true, house: true, grid: true, grid_import: true, grid_export: true, batt: true, wallbox: true, devices: true }; }
 
@@ -2162,9 +2172,16 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
       ` : `<div class="empty" style="border:1px dashed var(--line);border-radius:16px;padding:22px">Verbinde zuerst Energie-Sensoren (PV, Netz) – dann erscheint hier dein Verlauf.</div>`}
       <div class="flowbox" style="margin-top:14px">
         <div class="flowtitle">${I.cloud} PV-Prognose
-          <small>erwartete Leistung: nächste 15 Min, 3 h, ganzer Tag</small>
+          <small>erwartete Leistung: nächste 15 Min, 3 h, ganzer Tag – kostenlos, ohne Schlüssel</small>
         </div>
         <div data-el="stat-forecast"><span style="color:var(--mut)">…</span></div>
+      </div>
+      <div class="flowbox" style="margin-top:14px">
+        <div class="flowtitle">${I.chart} PV-Analyse – deine Lernkurve
+          <button class="btn ghost" data-action="analysis-refresh" style="padding:4px 10px;font-size:12px">${I.wifi} Aktualisieren</button>
+        </div>
+        <p class="sub" style="margin:4px 0 8px">Wie viel Leistung erzeugte deine Anlage bei welchem Sonnenstand? Aus diesen letzten Tagen lernt PVM die Prognose.</p>
+        <div data-el="stat-analysis"><span style="color:var(--mut)">…</span></div>
       </div>
     `;
   }
@@ -2382,23 +2399,7 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
     return m * 1000;
   }
 
-  /** Kompakte Anleitung (erscheint überall dort, wo ein API-Schlüssel fehlt
-   *  bzw. die Prognose leer bleibt – Statistik-Seite und Einstellungen). */
-  function forecastGuideBlock(intro, wide) {
-    return `
-      <div class="fcall" style="${wide ? "margin:10px 0" : ""}">
-        <div class="fchint warn" style="margin-top:4px">
-          <b>${esc(intro || "Für die PV-Prognose ist ein Open-Meteo-API-Schlüssel nötig.")}</b>
-          <p style="margin:6px 0 2px"><b>Wichtig:</b> Die Adresse <code>api.open-meteo.com/v1/forecast?…</code> ist <b>kein Schlüssel</b> – dort gehört nur der kurze Code aus deinem Tarif hinein (z. B. <code>aB3xK9…</code>). PVM ergänzt die Adresse selbst.</p>
-          <p style="margin:4px 0 2px"><b>Kostenlos ohne Schlüssel?</b> Nein – PVM fragt die Prognose bewusst <b>nur mit Schlüssel</b> ab. Ohne Schlüssel erscheint hier keine Kurve; das ist kein Fehler und kein Ladeproblem, sondern beabsichtigt.</p>
-          <ol class="fgsteps" style="margin:6px 0 2px">
-            <li>Öffne <a href="https://open-meteo.com/en/pricing" target="_blank" rel="noopener">open-meteo.com/en/pricing</a> und wähle einen Tarif (z. B. <b>„API Standard“</b>).</li>
-            <li>Direkt nach dem Checkout erhältst du <b>sofort deinen API-Schlüssel</b>.</li>
-            <li>Füge ihn unter <b>Einstellungen → PV-Prognose → API-Schlüssel</b> ein und drücke <b>„Prognose jetzt aktualisieren“</b>.</li>
-          </ol>
-        </div>
-      </div>`;
-  }
+
 
   async function loadForecastPanel() {
     const root = state.root;
@@ -2407,13 +2408,7 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
     const s = configSettings();
     if (s.forecast_enabled !== true) {
       statState.forecast = null;
-      el.innerHTML = `<div class="empty" style="padding:14px;color:var(--mut)">PV-Prognose ist in den Einstellungen ausgeschaltet.<br><small>Schalte sie dort ein und hinterlege den API-Schlüssel – dann berechnet PVM hier die erwartete PV-Leistung.</small></div>`;
-      return;
-    }
-    // API-gebunden: ohne hinterlegten Schlüssel keine Abfrage – stattdessen
-    // die kurze Anleitung mit Direktlink anzeigen (nie endlos „laden“ lassen).
-    if (!String(s.forecast_api_key || "").trim()) {
-      el.innerHTML = forecastGuideBlock("PV-Prognose ist an – dafür fehlt noch dein API-Schlüssel.");
+      el.innerHTML = `<div class="empty" style="padding:14px;color:var(--mut)">PV-Prognose ist in den Einstellungen ausgeschaltet.<br><small>Schalte sie dort ein – PVM berechnet sie dann kostenlos aus Open-Meteo und deiner Lernkurve (ohne Schlüssel).</small></div>`;
       return;
     }
     if (statState.forecastLoading) {
@@ -2424,7 +2419,12 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
     statState.forecastLoading = true;
     el.innerHTML = `<div class="stmsg"><span class="spinner"></span>PV-Prognose wird berechnet …<br><small>Die erste Abfrage an Open-Meteo kann 10–30 Sekunden dauern – die Seite bleibt dabei bedienbar.</small></div>`;
     try {
-      const fc = await wsTimeout("pvm/forecast", {}, 20000);
+      let fc = await wsTimeout("pvm/forecast", {}, 20000);
+      // Noch keine Daten da? Dann einmal nachrechnen lassen – der Nutzer
+      // muss nicht erst den Knopf finden (kostenlos, ohne Schlüssel).
+      if (!fc || fc.source === "off" || !(fc.series || []).length) {
+        fc = await wsTimeout("pvm/forecast_refresh", {}, 25000).catch(() => null);
+      }
       statState.forecast = fc;
       drawForecastPanel();
       updateForecastBadge();
@@ -2463,11 +2463,6 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
     const root = state.root;
     const el = root && $(root, "[data-el=stat-forecast]");
     if (!el) return;
-    const s = configSettings();
-    if (s.forecast_enabled && !String(s.forecast_api_key || "").trim()) {
-      el.innerHTML = forecastGuideBlock("PV-Prognose ist an – dafür fehlt noch dein API-Schlüssel.");
-      return;
-    }
     const fc = statState.forecast || {};
     const series = fc.series || [];
     const note = fc.note || "";
@@ -2476,7 +2471,7 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
     if (fc.source === "off" || !series.length) {
       el.innerHTML = `<div class="stmsg warnbox">
         <b>Noch keine Prognose-Daten.</b><br>
-        <small>${esc(note || "Die Prognose konnte noch nicht berechnet werden. Prüfe Schlüssel und Koordinaten unter Einstellungen → PV-Prognose, dann „Prognose jetzt aktualisieren“.")}</small>
+        <small>${esc(note || "Die Prognose konnte noch nicht berechnet werden – PVM versucht es automatisch weiter. Prüfe ggf. die Koordinaten unter Einstellungen → PV-Prognose oder drücke „Prognose jetzt aktualisieren“.")}</small>
       </div>`;
       return;
     }
@@ -2494,7 +2489,7 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
       </div>
       <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         ${fc.source === "openmeteo"
-          ? `<span class="cloud-badge ok">${I.cloud} Open-Meteo (Kunden-API)</span>`
+          ? `<span class="cloud-badge ok">${I.cloud} Open-Meteo ${configSettings().forecast_api_key ? "(mit Schlüssel)" : "(kostenlos, ohne Schlüssel)"} + Lernkurve</span>`
           : fc.source === "local"
             ? `<span class="cloud-badge ok">${I.sunny} lokales Modell</span>`
             : `<span class="cloud-badge warn">${I.cloud} keine Prognose</span>`}
@@ -2518,6 +2513,58 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
       <polygon points="${area}" fill="var(--acc)" opacity="0.14"/>
       <polyline points="${pts.join(" ")}" fill="none" stroke="var(--acc)" stroke-width="2.2"/>
     </svg>`;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * PV-Analyse: Lernkurve + Tagesbilanzen (Datenquelle der Prognose)
+   * ------------------------------------------------------------------ */
+  async function loadAnalysisPanel() {
+    const root = state.root;
+    const el = root && $(root, "[data-el=stat-analysis]");
+    if (!el) return;
+    if (statState.analysisLoading) return;
+    statState.analysisLoading = true;
+    el.innerHTML = `<div class="stmsg"><span class="spinner"></span>Analyse der letzten Tage wird berechnet …</div>`;
+    try {
+      const res = await wsTimeout("pvm/analysis", {}, 15000).catch(() => null);
+      drawAnalysisPanel(res);
+    } finally {
+      statState.analysisLoading = false;
+    }
+  }
+
+  function drawAnalysisPanel(res) {
+    const root = state.root;
+    const el = root && $(root, "[data-el=stat-analysis]");
+    if (!el) return;
+    if (!res) {
+      el.innerHTML = `<div class="stmsg">Die Analyse ist gerade nicht erreichbar.</div>`;
+      return;
+    }
+    const curve = (res.curve && res.curve.points) || [];
+    const days = res.days || [];
+    if (!curve.length && !days.length) {
+      el.innerHTML = `<div class="stmsg">${esc(res.note || "Noch keine Daten – PVM lernt aus den letzten Tagen.")}</div>`;
+      return;
+    }
+    const maxFac = Math.max(0.05, ...curve.map((p) => p.factor));
+    const bars = curve.length ? `
+      <div class="anabars">${curve.map((p) => {
+        const wPct = Math.max(4, Math.round((p.factor / maxFac) * 100));
+        const wPer1k = Math.round(p.factor * 1000);
+        return `<div class="anabar" title="${p.count} Messungen"><span class="anlbl">${p.elev}°</span>
+          <i style="width:${wPct}%"></i><span class="anval">${wPer1k} W je 1000 W/m²</span></div>`;
+      }).join("")}</div>` : `<div class="stmsg">Lernkurve füllt sich noch – bei Sonnenschein ordnet PVM die Messwerte dem Sonnenstand zu.</div>`;
+    const rows = days.length ? days.map((d) => `
+      <tr><td>${esc(d.date)}</td><td>${d.kwh.toFixed(1)} kWh</td><td>${fmtW(d.peak_w)}</td><td>${Math.round(d.sun_min)} min</td></tr>`).join("") : "";
+    const table = days.length ? `
+      <table class="anatbl"><thead><tr><th>Tag</th><th>Erzeugung</th><th>Spitze</th><th>Sonnenschein</th></tr></thead>
+      <tbody>${rows}</tbody></table>` : "";
+    el.innerHTML = `
+      <div class="fchint" style="margin:0 0 10px">${esc(res.note || "")}</div>
+      ${bars}
+      ${table}
+      <p class="sub" style="margin:8px 0 0">Die Lernkurve zeigt, wie viel Leistung deine Anlage bei welchem Sonnenstand erzeugt (normiert auf wolkenlose Einstrahlung) – genau daraus berechnet PVM die Prognose.</p>`;
   }
 
   /** Markiert die aktiven Knöpfe (Modus/24h·7Tage/Fläche·Linie) nach. */
@@ -2619,24 +2666,22 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
       `)}
       ${accordion("prognose", I.cloud, "PV-Prognose & smartes Laden", `
         <div class="row">
-          <span class="lbl grow">PV-Prognose<small>Standard: aus. Die Prognose ist <b>API-gebunden</b>: Ohne eigenen Open-Meteo-API-Schlüssel bleibt die Kurve leer (genaue Anleitung + Link direkt darunter). Die Steuerung funktioniert unabhängig davon immer.</small></span>
+          <span class="lbl grow">PV-Prognose<small>Standard: aus. Seit 1.9.9 <b>ganz ohne API-Schlüssel</b>: PVM kombiniert die kostenlose Open-Meteo-Strahlung mit einer Lernkurve aus deinen letzten Tagen (Sonnenstand → PV-Leistung). Die Steuerung funktioniert unabhängig davon immer.</small></span>
           <span class="sw ${s.forecast_enabled ? "on" : ""}" data-settings-toggle="forecast_enabled"><i></i></span>
         </div>
         ${s.forecast_enabled ? `
-        <div class="fcall">${s.forecast_api_key ? `<span class="cloud-badge ok">${I.check} Schlüssel hinterlegt</span>` : `<span class="cloud-badge warn">⚠ API-Schlüssel fehlt – Prognose bleibt aus</span>`}</div>
-        <details class="accdetails" open><summary>API-Schlüssel, Standort & Koordinaten</summary>
+        <div class="fcall">${s.forecast_api_key ? `<span class="cloud-badge ok">${I.check} Eigener Schlüssel hinterlegt (stabiler, höhere Limits)</span>` : `<span class="cloud-badge ok">${I.check} Kostenlose Prognose aktiv – kein Schlüssel nötig</span>`}</div>
+        <details class="accdetails" open><summary>Standort, Koordinaten & optionaler API-Schlüssel</summary>
           <div class="fcall">
-            <div class="fchint warn">
-              PVM fragt die Prognose ausschließlich über den <b>Open-Meteo-Kunden-Endpunkt</b>
-              (customer-api.open-meteo.com) ab – dafür ist ein eigener <b>API-Schlüssel</b> nötig.
-              <a href="https://open-meteo.com/en/pricing" target="_blank" rel="noopener">Tarif &amp; Schlüssel erstellen → (open-meteo.com/en/pricing)</a>
+            <div class="fchint">
+              <b>Kein Schlüssel nötig!</b> PVM fragt die kostenlose Open-Meteo-Strahlung
+              (api.open-meteo.com) ab und kombiniert sie mit einer Lernkurve aus deinen
+              letzten Tagen (Sonnenstand → PV-Leistung).
+              Wer mag, hinterlegt unten zusätzlich einen eigenen Schlüssel für den
+              stabileren Kunden-Endpunkt
+              (<a href="https://open-meteo.com/en/pricing" target="_blank" rel="noopener">open-meteo.com/en/pricing</a>).
             </div>
-            <ol class="fgsteps">
-              <li>Öffne <a href="https://open-meteo.com/en/pricing" target="_blank" rel="noopener">open-meteo.com/en/pricing</a> und wähle einen Tarif (z. B. <b>„API Standard“</b>).</li>
-              <li>Direkt nach dem Checkout erhältst du <b>sofort deinen API-Schlüssel</b> und eine Rechnung – kein Warten, keine Bestätigungsmail nötig.</li>
-              <li>Kopiere den Schlüssel unten in das Feld <b>API-Schlüssel</b> und drücke <b>„Prognose jetzt aktualisieren“</b> – die Berechnung startet sofort.</li>
-            </ol>
-            <p class="sub" style="margin-bottom:6px">Standort: Standardmäßig nutzt PVM die Koordinaten deiner Home-Assistant-Installation (HA: Einstellungen → System → Allgemein). Steht die PV-Anlage woanders, trag unten Breiten- und Längengrad ein.</p>
+            <p class="sub" style="margin:6px 0">Standort: Standardmäßig nutzt PVM die Koordinaten deiner Home-Assistant-Installation (HA: Einstellungen → System → Allgemein). Steht die PV-Anlage woanders, trag unten Breiten- und Längengrad ein.</p>
           <div class="row">
             <span class="lbl grow">Breitengrad (nur bei anderem PV-Standort)<small>Leer lassen = Standort der HA-Installation.</small></span>
             <input type="text" placeholder="z. B. 48.1374" value="${esc(s.forecast_lat || "")}" data-setting-input="forecast_lat" style="flex:1;min-width:120px" autocomplete="off">
@@ -2646,7 +2691,7 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
             <input type="text" placeholder="z. B. 11.5755" value="${esc(s.forecast_lon || "")}" data-setting-input="forecast_lon" style="flex:1;min-width:120px" autocomplete="off">
           </div>
           <div class="row">
-            <span class="lbl grow">API-Schlüssel (erforderlich)<small><b>Nur den Schlüssel einfügen – keine Webadresse/URL.</b> Der Schlüssel ist ein kurzer Code (z. B. <code>aB3xK…</code>) aus deinem Open-Meteo-Tarif. Die Adresse <code>api.open-meteo.com/…</code> ist KEIN Schlüssel und gehört hier nicht hinein. Ohne Schlüssel startet PVM keine Abfrage (kostenlose Abfrage ohne Schlüssel gibt es bei PVM bewusst nicht – sie war unzuverlässig).</small></span>
+            <span class="lbl grow">API-Schlüssel (optional)<small><b>Nur den Schlüssel einfügen – keine Webadresse/URL.</b> Der Schlüssel ist ein kurzer Code (z. B. <code>aB3xK…</code>) aus deinem Open-Meteo-Tarif. Die Adresse <code>api.open-meteo.com/…</code> ist KEIN Schlüssel. Ohne Schlüssel läuft die Prognose trotzdem – kostenlos.</small></span>
             <input type="text" placeholder="Nur den Schlüssel einfügen (z. B. aB3xK9… – keine URL)" value="${esc(s.forecast_api_key || "")}" data-setting-input="forecast_api_key" style="flex:1;min-width:220px" autocomplete="off">
           </div>
         </details>
@@ -2655,12 +2700,12 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
         </div>
         <p class="sub" style="margin-top:4px">Bei Wolken (PV-Einbruch in ~15 Min) erscheint der orangefarbene Punkt am Statistik-Reiter.</p>` : ""}
         <div class="row">
-          <span class="lbl grow">Vorausschauendes Laden<small>Hat ein Auto eine aktive Frist (Ziel bis Uhrzeit), hält PVM die Wallbox über kurze Wolkenphasen an statt abzuschalten – die Sonne kommt laut Prognose gleich wieder. So geht keine Ladezeit verloren und es wird seltener geschaltet.<br><b>Voraussetzung:</b> PV-Prognose an + Schlüssel hinterlegt (oben).</small></span>
+          <span class="lbl grow">Vorausschauendes Laden<small>Hat ein Auto eine aktive Frist (Ziel bis Uhrzeit), hält PVM die Wallbox über kurze Wolkenphasen an statt abzuschalten – die Sonne kommt laut Prognose gleich wieder. So geht keine Ladezeit verloren und es wird seltener geschaltet.<br><b>Voraussetzung:</b> PV-Prognose eingeschaltet (oben).</small></span>
           <span class="sw ${s.pre_charge !== false ? "on" : ""}" data-settings-toggle="pre_charge" ${forecastConfigured() ? "" : "style=opacity:.75"}><i></i></span>
         </div>
         ${forecastConfigured()
           ? `<div class="fcall"><span class="cloud-badge ok">${I.check} Prognose aktiv – vorausschauendes Laden möglich</span></div>`
-          : `<div class="fcall"><span class="cloud-badge warn">⚠ Erst PV-Prognose einschalten und API-Schlüssel eintragen – dann ist vorausschauendes Laden verfügbar.</span></div>`}
+          : `<div class="fcall"><span class="cloud-badge warn">⚠ Erst die PV-Prognose oben einschalten – dann ist vorausschauendes Laden verfügbar.</span></div>`}
       `)}
       ${accordion("design", I.eye, "Design & Darstellung", `
         <span class="lbl">Dein Look<small>„Home Assistant“ folgt deinem HA-Theme inkl. hell/dunkel; die anderen Designs sind feste Stimmungen.</small></span>
@@ -3912,11 +3957,6 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
         break;
       }
       case "forecast-refresh": {
-        const sFc = configSettings();
-        if (!String(sFc.forecast_api_key || "").trim()) {
-          toast("Zuerst den API-Schlüssel eintragen (Einstellungen → PV-Prognose).", "bad");
-          break;
-        }
         const doneFc = topBusy("PV-Prognose wird berechnet …");
         const fcEl = $(root, "[data-el=stat-forecast]");
         if (fcEl) fcEl.innerHTML = `<div class="stmsg"><span class="spinner"></span>PV-Prognose wird berechnet …<br><small>Das kann 10–30 Sekunden dauern – die Seite bleibt bedienbar.</small></div>`;
@@ -3937,6 +3977,15 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
       }
       case "stat-refresh": {
         loadStats();
+        break;
+      }
+      case "analysis-refresh": {
+        const doneAn = topBusy("Analyse wird berechnet …");
+        const anEl = $(root, "[data-el=stat-analysis]");
+        if (anEl) anEl.innerHTML = `<div class="stmsg"><span class="spinner"></span>Analyse wird berechnet …</div>`;
+        wsTimeout("pvm/analysis", {}, 15000)
+          .then((res) => { drawAnalysisPanel(res); doneAn(true, "Analyse aktualisiert ✓"); })
+          .catch(() => { doneAn(false, "Analyse fehlgeschlagen"); });
         break;
       }
       case "reload": window.location.reload(); break;
@@ -4054,8 +4103,8 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
       configSettings()[key] = raw;
       saveAndRefresh(
         key === "forecast_api_key" && raw
-          ? "API-Schlüssel gespeichert – Prognose nutzt jetzt deinen Zugang."
-          : key === "forecast_api_key" ? "API-Schlüssel entfernt – ohne Schlüssel keine Prognose."
+          ? "API-Schlüssel gespeichert – Prognose nutzt jetzt den stabileren Zugang."
+          : key === "forecast_api_key" ? "API-Schlüssel entfernt – PVM nutzt wieder die kostenlose Prognose."
           : "Einstellung gespeichert.",
         (key === "forecast_api_key" || key === "forecast_lat" || key === "forecast_lon") ? { forecast: true } : {}
       );

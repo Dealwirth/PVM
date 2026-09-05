@@ -28,11 +28,13 @@ gestellt::
 
 from __future__ import annotations
 
+import math
 from datetime import datetime
 
-# Open-Meteo: Der offene Endpunkt (api.open-meteo.com) wird von PVM nicht
-# mehr genutzt – er ist unzuverlässig (keine Garantie). PVM fragt ausschließ-
-# lich den Kunden-Endpunkt mit eigenem API-Schlüssel ab.
+# Open-Meteo: Der offene Endpunkt (api.open-meteo.com) funktioniert auch
+# OHNE API-Schlüssel – PVM nutzt ihn standardmäßig (kostenlos). Wer mag,
+# hinterlegt zusätzlich einen eigenen Schlüssel für den Kunden-Endpunkt
+# (customer-api.open-meteo.com) – stabiler und mit höheren Limits.
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_API_URL = "https://customer-api.open-meteo.com/v1/forecast"
 # Min. Strahlung, ab der ein Umrechnungsfaktor gelernt wird (W/m²)
@@ -253,3 +255,192 @@ def recovery_minutes(series: list[dict], live_pv_w: float | None) -> int | None:
         if i > 8:  # länger als 2 h weg? → kein „kurzer Einbruch“
             return None
     return None
+
+
+# ---------------------------------------------------------------------------
+# Lernmodell: Sonnenstand → PV-Leistung (kostenlos, ohne API-Schlüssel)
+# ---------------------------------------------------------------------------
+# Die Prognose funktioniert auch ganz ohne Open-Meteo-Schlüssel:
+#  1. PVM berechnet den Sonnenstand (Elevation) für jeden Zeitpunkt selbst.
+#  2. Aus den letzten Tagen wird eine „Eichkurve“ gelernt: Wie viel
+#     PV-Leistung erzeugt die Anlage bei welchem Sonnenstand (normiert auf
+#     die wolkenlose Einstrahlung)?
+#  3. Die kostenlose Open-Meteo-Strahlungsprognose skaliert diese Kurve mit
+#     dem Wolkenanteil – so entstehen genaue Kurven auch ohne Schlüssel.
+
+ELEV_BIN_DEG = 5.0      # Sonnenstands-Klassengröße (5°) für die Lernkurve
+CURVE_MAX_RATIO = 3.0   # nie mehr als 300 % „Wirkungsgrad“ (Schutz vor Ausreißern)
+
+
+def solar_elevation(lat: float, lon: float, ts: float) -> float:
+    """Sonnenhöhe in Grad über dem Horizont (0° = Sonnenaufgang).
+
+    Standardformel nach NOAA (Genauigkeit ≈ ±0,5° – völlig ausreichend für
+    eine PV-Prognose). ``ts`` ist ein Unix-Zeitstempel (Sekunden, UTC).
+    """
+    # Julianisches Datum
+    jd = ts / 86400.0 + 2440587.5
+    n = jd - 2451545.0
+    g = math.radians((357.529 + 0.98560028 * n) % 360.0)
+    q = math.radians((280.459 + 0.98564736 * n) % 360.0)
+    e = math.radians(23.439 - 0.00000036 * n)
+    lam = q + math.radians(1.915 * math.sin(g) + 0.020 * math.sin(2 * g))
+    ra = math.atan2(math.cos(e) * math.sin(lam), math.cos(lam))
+    dec = math.asin(math.sin(e) * math.sin(lam))
+    gmst = (280.46061837 + 360.98564736629 * n) % 360.0
+    ha = math.radians(gmst + lon) - ra
+    sin_alt = (
+        math.sin(dec) * math.sin(math.radians(lat))
+        + math.cos(dec) * math.cos(math.radians(lat)) * math.cos(ha)
+    )
+    return math.degrees(math.asin(max(-1.0, min(1.0, sin_alt))))
+
+
+def clear_sky_wm2(elev_deg: float) -> float:
+    """Grobe wolkenlose Einstrahlung (W/m²) bei gegebener Sonnenhöhe.
+
+    Einfaches Luftmassen-Modell: extraterrestrische Strahlung × Transparenz
+    der Atmosphäre – ohne Wolken. Basis für die Normierung der Lernkurve.
+    """
+    e = max(0.0, float(elev_deg))
+    if e <= 0.0:
+        return 0.0
+    sin_e = math.sin(math.radians(e))
+    if sin_e <= 0.02:
+        return 0.0
+    am = 1.0 / max(0.05, sin_e)          # Luftmasse ≈ 1/sin(h)
+    ext = 1361.0 * sin_e                 # extraterrestrisch (W/m²)
+    return max(0.0, min(1250.0, ext * (0.7 ** (am * 0.678))))
+
+
+def learn_elevation_curve(
+    history: list[tuple[float, float]],
+    lat: float,
+    lon: float,
+    bin_deg: float = ELEV_BIN_DEG,
+) -> dict:
+    """Lernt aus den letzten Tagen: PV-Leistung je Sonnenstand.
+
+    Für jeden Messpunkt wird das Verhältnis ``pv / clear_sky(elev)`` gebildet
+    und pro Sonnenstands-Klasse (5°) der Median genommen. Ausreißer (z. B.
+    Wolkenschatten) verpuffen dadurch. Ergebnis::
+
+        {
+          "points": [{"elev": 12.5, "factor": 0.34, "count": 47}, ...],
+          "coverage": 1234,   # Anzahl verwerteter Messpunkte
+          "days": 6,          # Tage mit Daten
+        }
+    """
+    buckets: dict[int, list[float]] = {}
+    days_seen: set[str] = set()
+    coverage = 0
+    for ts, w in history:
+        if w is None or w <= 0:
+            continue
+        elev = solar_elevation(lat, lon, ts)
+        clear = clear_sky_wm2(elev)
+        if elev < 2.0 or clear < 10.0:
+            continue
+        ratio = w / clear
+        if ratio <= 0.0:
+            continue
+        b = int(elev // bin_deg) * bin_deg
+        buckets.setdefault(b, []).append(min(CURVE_MAX_RATIO, ratio))
+        coverage += 1
+        days_seen.add(datetime.fromtimestamp(ts).date().isoformat())
+    points = []
+    for b in sorted(buckets):
+        vals = sorted(buckets[b])
+        median = vals[len(vals) // 2]
+        points.append({
+            "elev": round(b + bin_deg / 2.0, 1),
+            "factor": round(median, 4),
+            "count": len(vals),
+        })
+    return {"points": points, "coverage": coverage, "days": len(days_seen)}
+
+
+def elev_factor(elev: float, curve: dict | None) -> float | None:
+    """Interpoliert den gelernten Faktor für eine Sonnenhöhe."""
+    pts = (curve or {}).get("points") or []
+    if not pts:
+        return None
+    if elev <= 0.0:
+        return 0.0
+    if elev <= pts[0]["elev"]:
+        return pts[0]["factor"]
+    if elev >= pts[-1]["elev"]:
+        return pts[-1]["factor"]
+    for a, b in zip(pts, pts[1:], strict=False):
+        if a["elev"] <= elev <= b["elev"]:
+            span = max(1e-6, b["elev"] - a["elev"])
+            t = (elev - a["elev"]) / span
+            return a["factor"] + t * (b["factor"] - a["factor"])
+    return pts[-1]["factor"]
+
+
+def predict_from_radiation(
+    times: list[float],
+    radiation: list[float],
+    lat: float,
+    lon: float,
+    curve: dict | None,
+    now_ts: float,
+    horizon_s: int = 36 * 3600,
+) -> list[dict]:
+    """PV-Kurve (W) aus Strahlungsprognose × gelernte Sonnenstandskurve.
+
+    pv(t) = clear_sky(elev(t)) · factor(elev(t)) · (rad(t) / clear_sky(elev(t)))
+
+    Der Bruch rad/clear ist der „Wolkenfaktor“ (1 = sonnig, <1 = Wolken).
+    Fehlt die Strahlung für einen Zeitpunkt, wird sonnig angenommen.
+    """
+    out: list[dict] = []
+    for t, rad in zip(times, radiation, strict=False):
+        if t < now_ts - 60:
+            continue
+        if t > now_ts + horizon_s:
+            break
+        elev = solar_elevation(lat, lon, t)
+        clear = clear_sky_wm2(elev)
+        fac = elev_factor(elev, curve)
+        if fac is None:
+            out.append({"t": int(t), "pv_w": None})
+            continue
+        if clear <= 0.0 or elev < 1.0 or fac <= 0.0:
+            out.append({"t": int(t), "pv_w": 0})
+            continue
+        rad_v = rad if rad is not None and rad > 0 else clear
+        cloud = max(0.0, min(1.4, rad_v / clear))
+        pv = clear * fac * cloud
+        out.append({"t": int(t), "pv_w": round(pv)})
+    return out
+
+
+def predict_clear_sky(
+    times: list[float],
+    lat: float,
+    lon: float,
+    curve: dict | None,
+    now_ts: float,
+    horizon_s: int = 36 * 3600,
+) -> list[dict]:
+    """Ohne Wetterdaten: erwartete PV nur aus Sonnenstand + Lernkurve.
+
+    Dient als Offline-Fallback (Clear-Sky-Schätzung) – konservativ, aber
+    deutlich besser als „gar keine Prognose“.
+    """
+    out: list[dict] = []
+    for t in times:
+        if t < now_ts - 60:
+            continue
+        if t > now_ts + horizon_s:
+            break
+        elev = solar_elevation(lat, lon, t)
+        clear = clear_sky_wm2(elev)
+        fac = elev_factor(elev, curve)
+        if clear <= 0.0 or elev < 1.0 or fac is None or fac <= 0.0:
+            out.append({"t": int(t), "pv_w": 0})
+            continue
+        out.append({"t": int(t), "pv_w": round(clear * fac)})
+    return out
