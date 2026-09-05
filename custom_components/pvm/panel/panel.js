@@ -842,6 +842,15 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         state.reloadError = null;
       }
     }
+    if (opts.forecast) {
+      // Prognose nach Einschalten/Schlüssel-Eintrag sofort berechnen,
+      // damit die Statistik-Seite nicht 15 Minuten leer bleibt.
+      wsTimeout("pvm/forecast_refresh", {}, 15000).then((res) => {
+        statState.forecast = res || null;
+        drawForecastPanel();
+        updateForecastBadge();
+      }).catch(() => {});
+    }
     await refreshFromServer();
     settleAfterReload();
   }
@@ -1065,6 +1074,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     root.addEventListener("click", (ev) => onRootClick(root, ev));
     root.addEventListener("input", (ev) => onRootInput(root, ev));
     root.addEventListener("change", (ev) => onRootChange(root, ev));
+    root.addEventListener("change", (ev) => onRootChange(root, ev));
     return root;
   }
 
@@ -1145,6 +1155,9 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           <button class="btn primary" data-action="jump" data-to="energy">${I.grid} Energie-Sensoren</button>
           <button class="btn ghost" data-action="add-device">${I.plus} Gerät hinzufügen</button>
           <button class="btn ghost" data-action="run-scan">${I.radar} Automatisch suchen</button>
+        </div>
+        <div class="btnrow" style="margin-top:2px">
+          <button class="btn ghost" data-action="setup-location" title="Steht deine PV-Anlage am Standort deiner Home-Assistant-Installation? Dann berechnet PVM die Prognose sofort kostenlos – ganz ohne API-Schlüssel.">${I.cloud} PV-Standort prüfen & Prognose aktivieren</button>
         </div>
         ${complete
           ? `<div class="btnrow" style="margin-top:2px"><button class="btn primary" data-action="intro-finish" style="padding:14px 26px;font-size:15px">🎉 Einführung beenden</button></div>`
@@ -1639,7 +1652,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         const clamped = Math.min(rng.hi, Math.max(rng.lo, start));
         ctl.push(`
           <div class="ctlline"><b>Ziel-Temperatur</b>
-            <input type="range" data-manual-temp min="${rng.lo}" max="${rng.hi}" step="${rng.step}" value="${clamped}" style="flex:1" data-target="${esc(c.temp_entity)}" data-unit="°C">
+            <input type="range" data-manual-temp min="${rng.lo}" max="${rng.hi}" step="${rng.step}" value="${clamped}" style="flex:1" data-target="${esc(c.temp_entity)}" data-unit="°C" data-device="${esc(device.id)}">
             <b class="numval">${esc(fmtNum(clamped, "°C"))}</b>
           </div>`);
       } else if (c.type === "buttons" && c.on_entity && c.off_entity) {
@@ -1658,7 +1671,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         const clamped = Math.min(limit.hi, Math.max(limit.lo, start));
         ctl.push(`
           <div class="ctlline"><b>Leistung ${c.number_unit || "W"}</b>
-            <input type="range" data-manual-limit min="${limit.lo}" max="${limit.hi}" step="${limit.step}" value="${clamped}" style="flex:1" data-target="${esc(c.number_entity)}" data-unit="${esc(c.number_unit || "W")}">
+            <input type="range" data-manual-limit min="${limit.lo}" max="${limit.hi}" step="${limit.step}" value="${clamped}" style="flex:1" data-target="${esc(c.number_entity)}" data-unit="${esc(c.number_unit || "W")}" data-device="${esc(device.id)}">
             <b class="numval">${esc(fmtNum(clamped, c.number_unit || "W"))}</b>
           </div>`);
       }
@@ -2019,7 +2032,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       const end = new Date();
       const start = new Date(end.getTime() - statState.rangeH * 3600 * 1000);
       const raw = await state.hass.connection.sendMessagePromise({
-        type: "recorder/history_during_period",
+        type: "history/history_during_period",
         start_time: start.toISOString(),
         end_time: end.toISOString(),
         entity_ids: entityIds,
@@ -2307,7 +2320,10 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         ${energyRow("house", "Hausverbrauch (optional)", "Gesamtverbrauch des Hauses", e.house_sensor)}
         ${energyRow("battery_power", "Speicher-Leistung (optional)", "Lade-/Entladeleistung deines Batteriespeichers", e.battery_power_sensor)}
         ${energyRow("battery_soc", "Speicher-SoC (optional)", "Ladezustand des Speichers in %", e.battery_soc_sensor)}
-        <div class="row" style="justify-content:flex-end"><button class="btn primary" data-action="save-energy">${I.check} Speichern</button></div>
+        <div class="row" style="justify-content:flex-end;gap:8px">
+          <button class="btn ghost" data-action="energy-suggest" title="PVM durchsucht deine Sensoren und schlägt passende vor – du prüfst nur noch kurz.">${I.radar} Automatisch finden</button>
+          <button class="btn primary" data-action="save-energy">${I.check} Speichern</button>
+        </div>
       `, true)}
       ${accordion("steuerung", I.gear, "Steuerung", `
         <div class="row" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--card)">
@@ -2337,10 +2353,25 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           <span class="sw ${s.forecast_enabled ? "on" : ""}" data-settings-toggle="forecast_enabled"><i></i></span>
         </div>
         ${s.forecast_enabled ? `
-        <div class="row">
-          <span class="lbl grow">Eigener API-Schlüssel (optional)<small>Zusätzlich zur kostenlosen Abfrage: Wer einen Open-Meteo-API-Schlüssel hat, bekommt schnelleren/höher aufgelösten Datenzugriff. Frei lassen = es bleibt bei der anonymen Abfrage.</small></span>
-          <input type="text" placeholder="(optional)" value="${esc(s.forecast_api_key || "")}" data-setting-input="forecast_api_key" style="flex:1;min-width:180px" autocomplete="off">
-        </div>` : ""}
+        <details class="accdetails" ${s.forecast_api_key || s.forecast_lat ? "open" : ""}><summary>API, Standort & Koordinaten (optional)</summary>
+          <p class="sub" style="margin-bottom:6px">PVM nutzt die kostenlose Open-Meteo-Prognose – <b>kein Konto nötig</b>. Die Koordinaten deiner Home-Assistant-Installation werden automatisch verwendet (unter Einstellungen → System → Allgemein → Zonename/Standort einstellbar).</p>
+          <div class="row">
+            <span class="lbl grow">Breitengrad (nur bei anderem PV-Standort)<small>Leer lassen = Standort der HA-Installation.</small></span>
+            <input type="text" placeholder="z. B. 48.1374" value="${esc(s.forecast_lat || "")}" data-setting-input="forecast_lat" style="flex:1;min-width:120px" autocomplete="off">
+          </div>
+          <div class="row">
+            <span class="lbl grow">Längengrad (nur bei anderem PV-Standort)<small>Leer lassen = Standort der HA-Installation.</small></span>
+            <input type="text" placeholder="z. B. 11.5755" value="${esc(s.forecast_lon || "")}" data-setting-input="forecast_lon" style="flex:1;min-width:120px" autocomplete="off">
+          </div>
+          <div class="row">
+            <span class="lbl grow">Eigener API-Schlüssel (optional)<small>Wer einen eigenen Schlüssel bei <b>open-meteo.com</b> anlegt (kostenlos, ohne Konto: Seite öffnen → „Forecast API“ → Schlüssel kopieren), bekommt schnellere Abfragen mit höherer Priorität. Feldfrei lassen = anonyme Abfrage.</small></span>
+            <input type="text" placeholder="API-Schlüssel (optional)" value="${esc(s.forecast_api_key || "")}" data-setting-input="forecast_api_key" style="flex:1;min-width:180px" autocomplete="off">
+          </div>
+        </details>
+        <div class="row" style="justify-content:flex-end;gap:8px">
+          <button class="btn ghost" data-action="forecast-refresh" style="padding:6px 12px">${I.wifi} Prognose jetzt aktualisieren</button>
+        </div>
+        <p class="sub" style="margin-top:4px">Bei Wolken (PV-Einbruch in ~15 Min) erscheint der orangefarbene Punkt am Statistik-Reiter.</p>` : ""}
         <div class="row">
           <span class="lbl grow">Vorausschauendes Laden<small>Hat ein Auto eine aktive Frist (Ziel bis Uhrzeit), hält PVM die Wallbox über kurze Wolkenphasen an statt abzuschalten – die Sonne kommt laut Prognose gleich wieder. So geht keine Ladezeit verloren und es wird seltener geschaltet.</small></span>
           <span class="sw ${s.pre_charge !== false ? "on" : ""}" data-settings-toggle="pre_charge"><i></i></span>
@@ -3123,7 +3154,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         forecast_enabled: on ? "PV-Prognose an" : "PV-Prognose aus",
         pre_charge: on ? "Vorausschauendes Laden an" : "Vorausschauendes Laden aus",
       };
-      saveAndRefresh(labels[key] || (on ? "An" : "Aus"));
+      saveAndRefresh(labels[key] || (on ? "An" : "Aus"), { forecast: key === "forecast_enabled" && on });
       return;
     }
     // Nur die Modus-Auswahl in den Einstellungen (label[data-mode]) – die
@@ -3244,12 +3275,20 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       }
       case "toggle-auto":
       case "set-dev-mode": {
-        const d = deviceById(devId);
-        const id = d && entOf(d.id).auto;
-        if (!id) { toast("Automatik-Schalter nicht gefunden.", "bad"); return; }
-        const wantAuto = action === "toggle-auto" ? !isOn(id) : el.getAttribute("data-automode") !== "man";
-        callSvc("switch", wantAuto ? "turn_on" : "turn_off", { entity_id: id })
-          .then(() => toast(wantAuto ? "Automatik an – PVM steuert wieder" : "Manuell – du steuerst jetzt selbst", "ok"))
+        const wantAuto = action === "toggle-auto"
+          ? !isOn(entOf(devId).auto)
+          : el.getAttribute("data-automode") !== "man";
+        // Robust über den Manager: setzt device.enabled + Schalter-Entität
+        // (kein direkter switch-Aufruf – der schlug bei fehlender Entität
+        // fehl und die Karte zeigte weiter den alten Zustand).
+        wsTimeout("pvm/control", { device_id: devId, kind: "dev_mode", auto: wantAuto }, 10000)
+          .then((res) => {
+            toast((res && res.msg) || (wantAuto ? "Automatik an" : "Manuell"), res && res.ok === false ? "bad" : "ok");
+            if (res && res.ok !== false) {
+              updateDeviceLives();
+              liveNow();
+            }
+          })
           .catch(() => toast("Umschalten fehlgeschlagen", "bad"));
         break;
       }
@@ -3266,19 +3305,18 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       case "dev-cmd": {
         const d = deviceById(devId);
         if (!d) return;
-        const c = d.control || {};
         const cmd = el.getAttribute("data-cmd");
-        const press = (entityId, service) => {
-          if (!entityId) { toast("Steuerelement nicht konfiguriert.", "bad"); return; }
-          const domain = String(entityId).split(".")[0];
-          callSvc(domain, service, { entity_id: entityId })
-            .then(() => toast("Gesendet.", "ok"))
-            .catch(() => toast("Konnte nicht gesendet werden", "bad"));
-        };
-        if (cmd === "start") press(c.on_entity, "turn_on");
-        else if (cmd === "stop") press(c.off_entity, "turn_off");
-        else if (cmd === "on") press(c.switch_entity, "turn_on");
-        else if (cmd === "off") press(c.switch_entity, "turn_off");
+        // Über den Manager: kennt Taster- und Schalter-Geräte und antwortet
+        // immer mit einer verständlichen Meldung (auch bei Fehlern).
+        wsTimeout("pvm/control", { device_id: devId, kind: cmd === "start" || cmd === "on" ? (cmd === "start" ? "start" : "on") : (cmd === "stop" ? "stop" : "off") }, 10000)
+          .then((res) => {
+            toast((res && res.msg) || "Gesendet.", res && res.ok === false ? "bad" : "ok");
+            if (res && res.ok !== false) {
+              updateDeviceLives();
+              liveNow();
+            }
+          })
+          .catch(() => toast("Konnte nicht gesendet werden", "bad"));
         break;
       }
       case "move-dev": {
@@ -3439,8 +3477,89 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         });
         break;
       }
-      case "save-energy": {
-        saveAndRefresh("Energie-Sensoren gespeichert.");
+      case "setup-location": {
+        // Einrichtungs-Frage: Steht die PV am Standort der HA-Installation?
+        // Ja → Prognose sofort aktivieren (kostenlos über Open-Meteo, nutzt
+        // automatisch die HA-Koordinaten). Nein → Anleitung in Einstellungen.
+        const overlay = openModal(`
+          <h3>${I.cloud} Steht deine PV-Anlage hier?</h3>
+          <div class="msub">Am Standort deiner Home-Assistant-Installation? Dann nutzt PVM automatisch deren Koordinaten und berechnet die Prognose ab sofort kostenlos – ein API-Schlüssel ist dafür <b>nicht</b> nötig.</div>
+          <div class="mfoot">
+            <button class="btn ghost" data-no>Nein, sie steht woanders</button>
+            <button class="btn primary" data-yes>Ja – Prognose starten</button>
+          </div>`);
+        overlay.addEventListener("click", (ev) => {
+          if (ev.target.closest("[data-yes]")) {
+            closeModal();
+            const s = configSettings();
+            s.pv_at_hass_location = true;
+            s.forecast_enabled = true;
+            saveAndRefresh("Prognose aktiviert – nutzt den Standort deiner HA-Installation.", { forecast: true });
+          } else if (ev.target.closest("[data-no]")) {
+            closeModal();
+            toast("Kein Problem – unter Einstellungen → PV-Prognose kannst du Koordinaten oder einen API-Schlüssel hinterlegen.");
+            jumpTo("energy");
+          }
+        });
+        break;
+      }
+      case "energy-suggest": {
+        toast("PVM sucht nach passenden Sensoren …");
+        wsTimeout("pvm/energy_suggest", {}, 20000)
+          .then((res) => {
+            if (!res) { toast("Suche fehlgeschlagen", "bad"); return; }
+            const sugg = (res.suggestions) || {};
+            const warns = (res.warn) || [];
+            const auto = (res.auto) || {};
+            const e = configEnergy();
+            // Nur Slots, die noch frei sind, vorschlagen
+            const candidates = Object.keys(sugg).filter((k) => {
+              const slot = k + "_sensor";
+              return sugg[k] && !e[slot];
+            });
+            if (!candidates.length) {
+              toast("Keine neuen Sensoren gefunden – alle Plätze sind schon belegt oder es passt nichts.", "bad");
+              return;
+            }
+            const roleName = { pv: "PV-Leistung", grid: "Netz (kombiniert)", grid_import: "Netzbezug", grid_export: "Einspeisung", house: "Hausverbrauch" };
+            const free = candidates.map((k) => `<label class="suggrow" data-sugg="${k}" data-checked="1">
+              <input type="checkbox" checked> <b>${esc(roleName[k] || k)}</b>
+              <small>${esc(sugg[k])} – ${esc(friendlyOf(sugg[k]) || sugg[k])}</small>
+            </label>`).join("");
+            const warnHtml = warns.length
+              ? `<div class="msub" style="color:var(--warn,#e39a00);margin-top:10px">⚠️ ${warns.map(esc).join("<br>")}</div>`
+              : "";
+            const overlay = openModal(`
+              <h3>${I.radar} Sensoren automatisch finden</h3>
+              <div class="msub">PVM hat diese Sensoren gefunden. Bitte prüfe kurz, ob es wirklich die richtigen sind, und bestätige mit „Übernehmen“.</div>
+              <div style="display:flex;flex-direction:column;gap:8px;margin:10px 0;max-height:280px;overflow:auto">${free}</div>
+              ${warnHtml}
+              <div class="mfoot">
+                <button class="btn ghost" data-close>Abbrechen</button>
+                <button class="btn primary" data-ok>Übernehmen</button>
+              </div>`);
+            overlay.addEventListener("click", (ev) => {
+              if (ev.target.closest("[data-close]")) { closeModal(); return; }
+              const okBtn = ev.target.closest("[data-ok]");
+              if (okBtn) {
+                closeModal();
+                let applied = 0;
+                $$(overlay, ".suggrow[data-checked=\"1\"]").forEach((row) => {
+                  const k = row.getAttribute("data-sugg");
+                  const cb = $(row, "input[type=checkbox]");
+                  if (cb && cb.checked) {
+                    e[k + "_sensor"] = sugg[k];
+                    if (k === "grid") e.grid_mode = "combined";
+                    if (k === "grid_import" || k === "grid_export") e.grid_mode = "separate";
+                    applied += 1;
+                  }
+                });
+                if (applied) saveAndRefresh(applied + " Sensor" + (applied > 1 ? "en" : "") + " übernommen – bitte einmal prüfen.");
+                else toast("Nichts ausgewählt.", "bad");
+              }
+            });
+          })
+          .catch(() => toast("Suche fehlgeschlagen", "bad"));
         break;
       }
       case "self-test":
@@ -3469,6 +3588,19 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       case "stat-type": {
         statState.type = el.getAttribute("data-stat-type") === "line" ? "line" : "area";
         drawStatChart();
+        break;
+      }
+      case "forecast-refresh": {
+        toast("Prognose wird neu berechnet …");
+        wsTimeout("pvm/forecast_refresh", {}, 20000)
+          .then((res) => {
+            if (!res) { toast("Keine Prognose verfügbar (offline / keine Koordinaten).", "bad"); return; }
+            statState.forecast = res;
+            drawForecastPanel();
+            updateForecastBadge();
+            toast("Prognose aktualisiert.", "ok");
+          })
+          .catch(() => toast("Prognose konnte nicht geladen werden", "bad"));
         break;
       }
       case "stat-refresh": {
@@ -3506,24 +3638,23 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   function onRootChange(root, ev) {
     const man = ev.target.closest("[data-manual-temp],[data-manual-limit]");
     if (man) {
-      const target = man.getAttribute("data-target");
+      const devId = man.getAttribute("data-device");
       const unit = man.getAttribute("data-unit") || "";
+      const kind = man.hasAttribute("data-manual-temp") ? "temp_ziel" : "limit";
       const label = man.hasAttribute("data-manual-temp") ? "Temperatur" : "Leistung";
-      if (!target) { toast("Steuerelement nicht konfiguriert.", "bad"); return; }
-      const domain = String(target).split(".")[0];
+      if (!devId) { toast("Steuerelement nicht konfiguriert.", "bad"); return; }
       const value = parseFloat(man.value);
-      if (domain === "number" || domain === "input_number") {
-        callSvc(domain, "set_value", { entity_id: target, value })
-          .then(() => toast(label + " gesetzt: " + fmtNum(value, unit), "ok"))
-          .catch(() => toast("Konnte nicht gespeichert werden", "bad"));
-      } else if (domain === "select") {
-        // Manche Ziel-Temperatur-Regler sind als select umgesetzt
-        callSvc("select", "select_option", { entity_id: target, option: String(value) })
-          .then(() => toast(label + " gesetzt: " + fmtNum(value, unit), "ok"))
-          .catch(() => toast("Konnte nicht gespeichert werden", "bad"));
-      } else {
-        toast("Diesen Regler-Typ (" + domain + ") unterstützt PVM hier nicht.", "bad");
-      }
+      // Über den Manager: passt den Wert an die echten Entitäten-Grenzen an
+      // (nie out_of_range) und antwortet immer mit einer Meldung.
+      wsTimeout("pvm/control", { device_id: devId, kind, value }, 10000)
+        .then((res) => {
+          toast((res && res.msg) || (label + " gesetzt: " + fmtNum(value, unit)), res && res.ok === false ? "bad" : "ok");
+          if (res && res.ok !== false) {
+            updateDeviceLives();
+            liveNow();
+          }
+        })
+        .catch(() => toast("Konnte nicht gespeichert werden", "bad"));
       return;
     }
     const slider = ev.target.closest("[data-slider]");
@@ -3559,7 +3690,8 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       saveAndRefresh(
         configSettings()[key]
           ? "API-Schlüssel gespeichert – Prognose nutzt jetzt deinen Zugang."
-          : "API-Schlüssel entfernt – zurück zur anonymen Abfrage."
+          : "API-Schlüssel entfernt – zurück zur anonymen Abfrage.",
+        { forecast: true }
       );
     }
   }

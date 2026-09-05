@@ -2,6 +2,54 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.9.4] – 2026-09-05
+
+### Statistik repariert: „unknown Error“ behoben
+- **Falsches WebSocket-Kommando:** PVM fragte die HA-Historie über
+  `recorder/history_during_period` ab – dieses Kommando existiert nicht,
+  HA antwortete mit „unknown Error“ und das Diagramm blieb leer. Jetzt nutzt
+  PVM das korrekte `history/history_during_period` – die Diagramme füllen
+  sich mit echten Werten direkt aus dem Home-Assistant-Recorder (wie das
+  HA-Verlaufs-Diagramm, in ein eigenes Diagramm mit Modi und Reihenwahl).
+
+### Geräte-Steuerung: komplett über den Manager
+- **Neuer `pvm/control`-Weg:** Auto/Manuell, Start/Stopp, Ein/Aus und alle
+  Regler laufen jetzt über ein Backend-Kommando des Managers statt über
+  direkte Service-Aufrufe aus der Seite. Vorteile: die Steuerung funktioniert
+  auch, wenn die Schalter-Entität noch nicht registriert ist; die Antwort
+  enthält immer eine verständliche Meldung; Werte werden weiterhin an die
+  echten Entitäts-Grenzen angepasst (kein „out_of_range“).
+- **Karten reagieren sofort:** Der Auto/Manuell-Schalter und das Ausklapp-
+  menü aktualisieren sich direkt nach dem Umschalten (vorher blieb der
+  Zustand optisch stehen, bis zur nächsten Aktualisierung).
+- **Behoben: fehlender „change“-Listener** – Regler-Änderungen im
+  Ausklappmenü wurden nicht gespeichert, weil das Änderungs-Ereignis nie
+  an kam. Jetzt wird jeder Wert sofort übernommen.
+
+### PV-Prognose: einrichtungsgefragt & sofort aktiv
+- **Standort-Frage bei der Einrichtung:** „Steht deine PV-Anlage am Standort
+  deiner Home-Assistant-Installation?“ – bei „Ja“ schaltet PVM die Prognose
+  ein und rechnet sofort mit den HA-Koordinaten los (Open-Meteo, kostenlos,
+  **ohne API-Schlüssel**). Bei „Nein“ führt der Weg zu den Einstellungen.
+- **Koordinaten-Überschreibung optional:** Wer seine PV woanders stehen
+  hat, kann Breiten-/Längengrad in den Einstellungen hinterlegen.
+- **API-Schlüssel-Anleitung in der Seite:** Schritt-für-Schritt-Hinweis
+  (open-meteo.com → Forecast API → Schlüssel kopieren) plus Button
+  „Prognose jetzt aktualisieren“ – nach Eintrag des Schlüssels wird die
+  Prognose sofort neu berechnet statt erst im 15-Minuten-Takt.
+- Prognose bleibt standardmäßig aus – sie erscheint erst nach der
+  Einrichtungsfrage oder dem Einschalten in den Einstellungen.
+
+### Energie-Sensoren automatisch finden (mit Prüf-Hinweis)
+- **Neuer „Automatisch finden“-Button** in den Energie-Sensoren: PVM
+  durchsucht alle Entitäten, schlägt passende Messungen vor und zeigt sie
+  in einem Dialog zur Bestätigung – mit klarem Hinweis, dass du kurz
+  prüfen sollst, ob es die richtigen Sensoren sind.
+- **Plausibilitätsprüfung gleich mit:** Zählerstände (kWh) werden als
+  unpassend markiert („liefert einen Zählerstand statt einer Leistung“),
+  bevor sie die Anzeige kaputt machen können. Schon belegte Plätze werden
+  nie stillschweigend überschrieben.
+
 ## [1.9.3] – 2026-09-05
 
 ### Neues PVM-Logo (Markenauftritt)

@@ -207,6 +207,12 @@ Begrenzer**-Regler (falls vorhanden) und bei „Nur Ziel-Temperatur“-Wärme-
 pumpen die Ziel-Temperatur. Jeder Regler zeigt seinen Wert live und
 speichert sofort.
 
+Alle Steuerbefehle laufen über den PVM-Manager (`pvm/control`) – die
+Reaktion kommt immer mit einer verständlichen Meldung zurück, die
+Reglerwerte werden vor dem Senden an die echten Entitäts-Grenzen
+angepasst (kein „out_of_range“), und die Karte zeigt den neuen Zustand
+sofort (Auto/Manuell und Ausklappmenü aktualisieren sich direkt).
+
 ## Statistik & Prognose
 
 Der Reiter **📊 Statistik** zeigt deine Leistungen als farbige Charts
@@ -217,20 +223,35 @@ folgen deinem Design und deiner Wunschfarbe.
 
 Darunter steht die **PV-Prognose**: erwartete Leistung **jetzt, in 15
 Minuten, nächste 3 Stunden und für den Rest des Tages** – sie ist
-**standardmäßig ausgeschaltet** und muss einmal unter *Einstellungen*
-aktiviert werden. Berechnet wird sie anonym über Open-Meteo (keine
-Anmeldung nötig) mit lokalem Modell als Fallback. PVM nutzt diese
-Vorhersage, um kurze Wolkenphasen nicht zum Abschalten zu nutzen
-(„erst abwarten, die Sonne kommt gleich wieder“). Bevorsteht in den
-nächsten 15 Minuten ein Einbruch, zeigt der Statistik-Reiter einen
-**orangefarbenen Benachrichtigungspunkt**.
+**standardmäßig ausgeschaltet** und erscheint erst, wenn du sie in der
+Einrichtung bestätigst oder unter *Einstellungen* aktivierst. Berechnet wird
+sie anonym über Open-Meteo (keine Anmeldung nötig) mit lokalem Modell als
+Fallback. PVM nutzt diese Vorhersage, um kurze Wolkenphasen nicht zum
+Abschalten zu nutzen („erst abwarten, die Sonne kommt gleich wieder“).
+Bevorsteht in den nächsten 15 Minuten ein Einbruch, zeigt der
+Statistik-Reiter einen **orangefarbenen Benachrichtigungspunkt**.
 
 Unter **Einstellungen → PV-Prognose & smartes Laden** findest du die
 Schalter **PV-Prognose** (Standard aus) und **Vorausschauendes Laden**
-(Standard an) sowie das Feld **„Eigener API-Schlüssel (optional)“**: Wer
-einen Open-Meteo-Schlüssel besitzt, kann ihn dort zusätzlich hinterlegen –
-die Abfrage läuft dann mit höherer Priorität. Ohne Schlüssel bleibt es
-bei der anonymen Abfrage; ganz ohne Internet nimmt PVM das lokale Modell.
+(Standard an). Beim **Aktivieren wird die Prognose sofort berechnet**
+(auch per Button „Prognose jetzt aktualisieren“) – nicht erst im
+15-Minuten-Takt.
+
+### Standort & API-Schlüssel
+
+- **Standard:** PVM nutzt die **Koordinaten deiner Home-Assistant-
+  Installation** (unter *Einstellungen → System → Allgemein* einstellbar).
+  Bei der Einrichtung fragt PVM deshalb: „Steht deine PV-Anlage hier?“ –
+  bei **Ja** reicht das komplett aus.
+- **PV woanders?** Im Abschnitt *API, Standort & Koordinaten (optional)*
+  kannst du Breiten- und Längengrad deiner Anlage hinterlegen.
+- **API-Schlüssel (optional):** Die Prognose funktioniert **ohne
+  Registrierung**. Wer einen eigenen Open-Meteo-Schlüssel möchte: Auf
+  [open-meteo.com](https://open-meteo.com/en/docs) die *Forecast API*
+  öffnen, (kostenlos) registrieren, den Schlüssel kopieren und im Feld
+  „Eigener API-Schlüssel“ einfügen – die Abfragen laufen dann mit höherer
+  Priorität. Nach dem Eintrag berechnet PVM die Prognose sofort neu.
+
 Letzteres (Vorausschauendes Laden) bedeutet: Hat ein Auto eine **aktive
 Frist** (Ziel bis Uhrzeit), bleibt die Wallbox auch über eine kurze
 Wolkenphase an, statt abzuschalten – so geht untertags keine Ladezeit
@@ -249,6 +270,18 @@ mehreren Treffern fragt PVM nach. Übernehmen heißt: Klick auf „Übernehmen�
 der Vorschlag verschwindet sofort aus der Liste (und wird bestätigt), bei
 Geräten öffnet sich das **vorausgefüllte Formular** zum Bestätigen.
 Nichts wird ohne deine Bestätigung konfiguriert.
+
+### Energie-Sensoren automatisch vorschlagen
+
+Unter **Einstellungen → Energie-Sensoren** findest du den Button
+**„Automatisch finden“**: PVM schlägt für freie Plätze (PV, Netz, Haus)
+passende Sensoren vor und zeigt sie in einem Dialog zur Bestätigung – mit
+einem klaren Hinweis, **selbst kurz zu prüfen**, ob es die richtigen sind.
+Dabei prüft PVM die **Plausibilität**: Zählerstände (kWh) werden z. B. als
+unpassend markiert, bevor sie die Anzeige verfälschen. Schon belegte
+Messungen werden nie überschrieben; nicht benötigte Sensoren (z. B. kein
+Speicher vorhanden) bleiben frei und können jederzeit entfernt werden
+(Sensor-Karte → Sensor entfernen).
 
 ## Design & Darstellung
 

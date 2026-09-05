@@ -178,6 +178,36 @@ erscheinen dann eigene Kacheln und der Energiefluss zeigt Bezug und Einspeisung
 unabhängig voneinander. Du kannst jederzeit zurück zu „Ein Sensor
 (kombiniert)“ wechseln.
 
+## Die Statistik zeigt „unknown Error“ oder bleibt leer
+
+Das war bis Version 1.9.3 ein Bug: PVM fragte die Historie über ein
+falsches WebSocket-Kommando ab, sodass Home Assistant mit „unknown Error“
+antwortete. Seit **1.9.4** nutzt PVM das korrekte Kommando
+(`history/history_during_period`) und holt die Werte direkt aus dem
+HA-Recorder – genau wie das HA-Verlaufs-Diagramm. Bei einer älteren
+Version hilft: HACS aktualisieren und PVM neu laden. Bleibt das Diagramm
+trotzdem leer, prüfe, ob der Recorder läuft und die Sensoren Werte
+liefern (Einstellungen → Energie-Sensoren → Karte antippen → aktueller
+Messwert).
+
+## Steuern/Auto-Manuell funktioniert nicht (Fehler-Meldung)
+
+Seit **1.9.4** laufen alle Steuerbefehle über den PVM-Manager – auch wenn
+die zugehörige Schalter-Entität noch nicht registriert ist. Die Meldung
+im Toast sagt jetzt konkret, was schiefläuft (z. B. „Steuerelement nicht
+konfiguriert“ = im Geräte-Dialog fehlt die Entität). Falls der
+Auto/Manuell-Schalter optisch stehen bleibt: Version 1.9.4 installieren –
+die Karte aktualisiert sich jetzt direkt nach dem Umschalten.
+
+## Die PV-Prognose zeigt nichts
+
+Die Prognose ist **standardmäßig aus**. Beim Einrichten fragt PVM, ob die
+PV-Anlage am HA-Standort steht – bei „Ja“ aktiviert sie sich sofort.
+Nachträglich: Einstellungen → PV-Prognose einschalten → PVM berechnet
+direkt (Button „Prognose jetzt aktualisieren“). Einen API-Schlüssel
+brauchst du dafür nicht; die Anleitung für einen optionalen Schlüssel
+steht in der Einstellungs-Gruppe „API, Standort & Koordinaten“.
+
 ## 🤖 KI-Support
 
 Du brauchst Hilfe? Kopiere den Prompt unten in deine KI – sie liest zuerst das

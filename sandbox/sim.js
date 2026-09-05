@@ -174,7 +174,7 @@
       settings: {
         mode: "auto", reserve_w: 100, cycle_s: 30, min_on_s: 120, min_off_s: 60,
         ui_theme: "ha", accent: "auto", accent_custom: "", intro_done: false,
-        auto_pairing: false, manual_mode: false, forecast_enabled: true,
+        auto_pairing: false, manual_mode: false, forecast_enabled: false,
         forecast_api_key: "", pre_charge: true,
       },
       devices: separate ? [wallbox, auto, wp] : [wallbox, auto, wp],
@@ -366,12 +366,64 @@
     } else if (domain === "button" && service === "press") {
       log("🔘 gedrückt: " + id);
     }
+  }  // pvm/control – wie im echten Backend (Manager.device_control)
+  function applyPvmControl(msg) {
+    const dev = (world.config.devices || []).find((d) => d.id === msg.device_id);
+    if (!dev) return { ok: false, msg: "Gerät nicht gefunden." };
+    const kind = msg.kind || "";
+    if (kind === "dev_mode") {
+      dev.enabled = !!msg.auto;
+      const autoEnt = world.entities[deviceEntityId("auto", dev.id)];
+      if (autoEnt) autoEnt.state = msg.auto ? "on" : "off";
+      log("🔀 " + dev.name + " → " + (msg.auto ? "Automatik" : "Manuell"));
+      refreshUi();
+      return { ok: true, msg: msg.auto ? "Automatik an – PVM steuert wieder" : "Manuell – du steuerst jetzt selbst" };
+    }
+    const c = dev.control || {};
+    if (kind === "start" || kind === "stop" || kind === "on" || kind === "off") {
+      const entity = c.type === "buttons"
+        ? (kind === "start" ? c.on_entity : c.off_entity)
+        : c.switch_entity;
+      if (!entity) return { ok: false, msg: "Steuerelement nicht konfiguriert." };
+      const ent = world.entities[entity];
+      if (ent) {
+        if (ent.attributes && ent.attributes.domain_hint === "button") log("🔘 gedrückt: " + entity);
+        else ent.state = (kind === "start" || kind === "on") ? "on" : "off";
+      }
+      log("⚡ " + dev.name + " → " + kind);
+      refreshUi();
+      return { ok: true, msg: "Gesendet." };
+    }
+    if (kind === "temp_ziel" || kind === "limit") {
+      const entity = kind === "temp_ziel" ? c.temp_entity : c.number_entity;
+      if (!entity) return { ok: false, msg: "Steuerelement nicht konfiguriert." };
+      const ent = world.entities[entity];
+      if (ent) ent.state = String(msg.value);
+      const unit = ent && ent.attributes ? ent.attributes.unit_of_measurement || "" : "";
+      log("🎚️ " + dev.name + " → " + msg.value + " " + unit);
+      refreshUi();
+      return { ok: true, msg: (kind === "temp_ziel" ? "Temperatur gesetzt: " : "Leistung gesetzt: ") + msg.value + " " + unit };
+    }
+    return { ok: false, msg: "Unbekannter Befehl." };
+  }
+
+  function mockEnergySuggest() {
+    const e = world.config.energy || {};
+    const sugg = {};
+    if (!e.pv_sensor) sugg.pv = "sensor.solarnet_pv_leistung";
+    if (!e.grid_sensor && e.grid_mode !== "separate") sugg.grid = "sensor.solarnet_leistung_netz";
+    if (!e.grid_import_sensor && e.grid_mode === "separate") sugg.grid_import = "sensor.solarnet_leistung_verbrauch";
+    if (!e.grid_export_sensor && e.grid_mode === "separate") sugg.grid_export = "sensor.solarnet_leistung_netzeinspeisung";
+    if (!e.house_sensor) sugg.house = "sensor.haus_leistung";
+    const warns = ["Hausverbrauch: sensor.pv_zaehlerstand liefert einen Zählerstand (kWh) statt einer Leistung – das wäre für die Anzeige falsch."];
+    return { suggestions: sugg, warn: warns, auto: { ...sugg } };
   }
 
   async function handleWs(msg) {
     const t = msg.type || "";
     if (t === "call_service") {
       applyService(msg);
+
       return { result: null };
     }
     if (t === "subscribe_events") {
@@ -404,7 +456,16 @@
     if (t === "pvm/forecast") {
       return { result: mockForecast() };
     }
-    if (t === "recorder/history_during_period") {
+    if (t === "pvm/forecast_refresh") {
+      return { result: mockForecast() };
+    }
+    if (t === "pvm/control") {
+      return { result: applyPvmControl(msg) };
+    }
+    if (t === "pvm/energy_suggest") {
+      return { result: mockEnergySuggest() };
+    }
+    if (t === "history/history_during_period") {
       return { result: mockHistory(msg) };
     }
     if (t === "auth") return { result: true };

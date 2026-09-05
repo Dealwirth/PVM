@@ -1134,6 +1134,198 @@ class PvmManager:
         self._broadcast()
 
     # ------------------------------------------------------------------
+    # Steuerung aus dem Panel (pvm/control – der robuste Ein-Weg)
+    # ------------------------------------------------------------------
+    async def device_control(self, device_id: str, msg: dict[str, Any]) -> dict:
+        """Führt einen Steuerbefehl aus dem Panel aus (fehlertolerant).
+
+        Rückgabe: {"ok": bool, "msg": str} – die Seite zeigt ``msg`` an.
+        Wirft nie; alle Fehler werden als Ergebnis zurückgegeben, damit
+        die Seite eine verständliche Meldung zeigen kann statt zu hängen.
+        """
+        kind = str(msg.get("kind") or "")
+        device = find_device(self.config, device_id) if device_id else None
+        if device is None:
+            return {"ok": False, "msg": "Gerät nicht gefunden."}
+
+        # --- Auto / Manuell umschalten (Automatik-Schalter-Entität) -------
+        if kind == "dev_mode":
+            want_auto = bool(msg.get("auto"))
+            device["enabled"] = want_auto
+            self.schedule_save()
+            self._broadcast()
+            return {
+                "ok": True,
+                "msg": "Automatik an – PVM steuert wieder"
+                if want_auto else "Manuell – du steuerst jetzt selbst",
+            }
+
+        # --- An/Aus bzw. Start/Stopp (Taster oder Schalter) ---------------
+        if kind in ("on", "off", "start", "stop"):
+            control = device.get("control") or {}
+            if control.get("type") == CONTROL_BUTTONS:
+                entity = control.get("on_entity" if kind == "start" else "off_entity")
+                if not entity:
+                    return {"ok": False, "msg": "Dieses Gerät hat keinen passenden Taster."}
+                await self._press_entity(entity, kind == "start")
+            else:
+                entity = control.get("switch_entity")
+                if not entity:
+                    return {"ok": False, "msg": "Dieses Gerät hat keinen Schalter."}
+                await self._call_service(
+                    entity.split(".", 1)[0],
+                    "turn_on" if kind in ("on", "start") else "turn_off",
+                    entity,
+                )
+            device.setdefault("_manual", {})["cmd"] = kind
+            self.schedule_save()
+            return {"ok": True, "msg": "Gesendet."}
+
+        # --- Ziel-Temperatur / Leistungs-Limit (Nummern-Entität) ----------
+        if kind == "temp_ziel" or kind == "limit":
+            control = device.get("control") or {}
+            entity = (
+                control.get("temp_entity")
+                if kind == "temp_ziel" else control.get("number_entity")
+            )
+            if not entity:
+                return {"ok": False, "msg": "Steuerelement nicht konfiguriert."}
+            try:
+                value = float(msg.get("value"))
+            except (TypeError, ValueError):
+                return {"ok": False, "msg": "Ungültiger Wert."}
+            domain = entity.split(".", 1)[0]
+            if domain in ("number", "input_number"):
+                await self._send_number_value(entity, value)
+            elif domain == "select":
+                # Manche Ziel-Regler sind als select umgesetzt
+                await self._call_service(
+                    "select", "select_option", entity, option=str(value)
+                )
+            else:
+                return {"ok": False, "msg": "Entitätstyp wird nicht unterstützt."}
+            label = "Temperatur" if kind == "temp_ziel" else "Leistung"
+            return {"ok": True, "msg": f"{label} gesetzt: {self._fmt_wert(value, control)}"}
+
+        return {"ok": False, "msg": "Unbekannter Befehl."}
+
+    def _fmt_wert(self, value: float, control: dict) -> str:
+        """Kurze Werte-Formatierung für Toast-Meldungen."""
+        if control.get("type") == CONTROL_WP_TEMP or (control or {}).get("temp_entity"):
+            return f"{value:g} °C"
+        unit = control.get("number_unit", "W")
+        return f"{value:g} {unit}"
+
+    # ------------------------------------------------------------------
+    # Prognose sofort aktualisieren (pvm/forecast_refresh)
+    # ------------------------------------------------------------------
+    async def refresh_forecast_now(self) -> None:
+        """Erzwingt eine sofortige Prognose-Aktualisierung."""
+        settings = self.config.get("settings", {})
+        if not settings.get("forecast_enabled"):
+            self.forecast_data = {
+                "source": "off",
+                "ts": _time.time(),
+                "series": [],
+                "day_curve": [],
+                "day_kwh": None,
+                "recovery_min": None,
+                "note": "PV-Prognose ist in den Einstellungen ausgeschaltet.",
+            }
+            return
+        energy = self.config.get("energy", {})
+        if not (energy.get("pv_sensor") or energy.get("grid_export_sensor")):
+            self.forecast_data = {
+                "source": "off",
+                "ts": _time.time(),
+                "series": [],
+                "day_curve": [],
+                "day_kwh": None,
+                "recovery_min": None,
+                "note": "Ohne PV-Messung keine Prognose – verbinde zuerst einen Energie-Sensor.",
+            }
+            return
+        if self._forecast_lock:
+            return
+        self._last_forecast_refresh = 0.0  # Frist sofort ablaufen lassen
+        self._maybe_refresh_forecast()
+        # Kurz warten, bis der Hintergrund-Task das Ergebnis hat (max. 12 s)
+        for _ in range(60):
+            if not self._forecast_lock:
+                break
+            await asyncio.sleep(0.2)
+
+    # ------------------------------------------------------------------
+    # Energie-Sensoren automatisch vorschlagen (pvm/energy_suggest)
+    # ------------------------------------------------------------------
+    async def suggest_energy_now(self, notify: bool = True) -> dict[str, Any]:
+        """Erkennt passende Energie-Sensoren und prüft die Plausibilität.
+
+        Liefert:
+            {"suggestions": {pv: [...], grid: [...], ...},
+             "warn": ["Neuer Fund: sensor.x (…) – bitte prüfen", ...],
+             "auto": {key: entity_id}   # nur gesetzt, wenn eindeutig & plausibel
+            }
+        Setzt **nichts** automatisch in die Konfiguration – die Seite zeigt
+        die Funde an; übernehmen kann der Nutzer mit einem Klick. Ist ein
+        Fund eindeutig (bester Treffer) und keine Messung verbunden, wird er
+        als "auto" vorgeschlagen (mit Hinweis zum Prüfen).
+        """
+        try:
+            entities = self.collect_entities()
+            from . import detector as det
+
+            sugg = det.suggest_energy(entities)
+            energy = self.config.get("energy", {}) or {}
+            warns: list[str] = []
+            auto: dict[str, str] = {}
+            roles = {
+                "pv": ("PV", "pv_sensor", "PV-Leistung"),
+                "grid": ("Netz kombiniert", "grid_sensor", "Netz"),
+                "grid_import": ("Netzbezug", "grid_import_sensor", "Netzbezug"),
+                "grid_export": ("Einspeisung", "grid_export_sensor", "Einspeisung"),
+                "house": ("Hausverbrauch", "house_sensor", "Hausverbrauch"),
+            }
+            for key, (_label, cfg_key, name) in roles.items():
+                best = sugg.get(key)
+                if not best:
+                    continue
+                if energy.get(cfg_key):
+                    continue  # bereits verbunden – nichts vorschlagen
+                # Plausibilität: Echtleistung > 0 (kein Zählerstand in kWh)
+                warn_text = self._plausibility_note(best)
+                if warn_text:
+                    warns.append(f"{name}: {warn_text}")
+                else:
+                    auto[key] = best
+            return {"suggestions": sugg, "warn": warns, "auto": auto}
+        except Exception:  # noqa: BLE001 - nie crashen
+            _LOGGER.exception("PVM: Energie-Vorschläge fehlgeschlagen")
+            return {"suggestions": {}, "warn": [], "auto": {}}
+
+    def _plausibility_note(self, entity_id: str) -> str | None:
+        """Grobe Plausibilitätsprüfung einer Leistungs-Entität.
+
+        Liefert einen Warnhinweis („… scheint ein Zählerstand zu sein“)
+        bzw. None, wenn alles passt.
+        """
+        state = self.hass.states.get(entity_id)
+        if state is None:
+            return None
+        unit = str(state.attributes.get("unit_of_measurement", "") or "")
+        if unit in ("kWh", "Wh", "MWh"):
+            return (
+                f"{entity_id} liefert einen Zählerstand ({unit}) statt einer "
+                "Leistung – das wäre für die Anzeige falsch."
+            )
+        if unit not in ("W", "kW", "mW"):
+            return (
+                f"{entity_id} hat die Einheit „{unit}“ – PVM erwartet eine "
+                "Leistung (W/kW). Bitte im Dialog prüfen."
+            )
+        return None
+
+    # ------------------------------------------------------------------
     # Sensoren lesen
     # ------------------------------------------------------------------
     def read_number(
@@ -1509,8 +1701,18 @@ class PvmManager:
             settings = self.config.get("settings", {})
             energy = self.config.get("energy", {})
             pv, _v = self.read_power(energy.get("pv_sensor"))
-            lat = float(getattr(self.hass.config, "latitude", 0.0) or 0.0)
-            lon = float(getattr(self.hass.config, "longitude", 0.0) or 0.0)
+            # Koordinaten: Überschreibung aus den Einstellungen, sonst Standort
+            # der HA-Installation (bei der Einrichtung bestätigt oder Standard).
+            ha_lat = float(getattr(self.hass.config, "latitude", 0.0) or 0.0)
+            ha_lon = float(getattr(self.hass.config, "longitude", 0.0) or 0.0)
+            try:
+                lat = float(settings.get("forecast_lat") or ha_lat)
+            except (TypeError, ValueError):
+                lat = ha_lat
+            try:
+                lon = float(settings.get("forecast_lon") or ha_lon)
+            except (TypeError, ValueError):
+                lon = ha_lon
             now = _time.time()
             data: dict[str, Any] = {
                 "source": "off",

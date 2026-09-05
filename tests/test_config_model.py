@@ -325,3 +325,25 @@ def test_forecast_settings_default_off_and_api_key():
     )
     assert cfg["settings"]["forecast_enabled"] is True
     assert cfg["settings"]["forecast_api_key"] == "abc123"
+
+
+def test_forecast_location_settings_default_and_override():
+    # Standort-Frage bei der Einrichtung: Standard aus, Koordinaten leer.
+    config = cm.normalize_config(None)
+    assert config["settings"]["pv_at_hass_location"] is False
+    assert config["settings"]["forecast_lat"] == ""
+    assert config["settings"]["forecast_lon"] == ""
+    # Bestätigt + gültige Koordinaten-Überschreibung
+    cfg = cm.normalize_config(
+        {"settings": {
+            "pv_at_hass_location": True,
+            "forecast_lat": " 48.1374 ",
+            "forecast_lon": "11.5755",
+        }}
+    )
+    assert cfg["settings"]["pv_at_hass_location"] is True
+    assert cfg["settings"]["forecast_lat"] == "48.1374"
+    assert cfg["settings"]["forecast_lon"] == "11.5755"
+    # Ungültige Einträge werden verworfen (kein Crash)
+    bad = cm.normalize_config({"settings": {"forecast_lat": "keine-zahl"}})
+    assert bad["settings"]["forecast_lat"] == ""

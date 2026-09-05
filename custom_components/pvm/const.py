@@ -9,7 +9,7 @@ DOMAIN = "pvm"
 # Name in der HA-Seitenleiste (kompakt) und voller Produktname (Doku/Logs)
 NAME = "PV Manager"
 SIDEBAR_NAME = "PVM"
-VERSION = "1.9.3"
+VERSION = "1.9.4"
 
 # Von der Integration bereitgestellte Plattformen.
 PLATFORMS = ["sensor", "number", "switch", "button", "select", "time"]
@@ -256,6 +256,12 @@ DEFAULT_CONFIG = {
         # mit eigenem API-Schlüssel – dann höher aufgelöst)
         "forecast_enabled": FORECAST_ENABLED_DEFAULT,
         "forecast_api_key": "",
+        # Bei der Einrichtung bestätigt: Die PV-Anlage steht am Standort der
+        # Home-Assistant-Installation → Prognose nutzt die HA-Koordinaten.
+        "pv_at_hass_location": False,
+        # Optionale Koordinaten-Überschreibung (falls die PV woanders steht)
+        "forecast_lat": "",
+        "forecast_lon": "",
         "pre_charge": True,
     },
     "devices": [],

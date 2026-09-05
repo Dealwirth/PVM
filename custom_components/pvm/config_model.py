@@ -378,6 +378,15 @@ def normalize_config(data: dict | None) -> dict:
     # Optionale API (z. B. eigener Open-Meteo-/Solcast-/Forecast.solar-Schlüssel)
     # – nur als zusätzliche Quelle; ohne Schlüssel läuft die anonyme Abfrage.
     settings["forecast_api_key"] = str(settings.get("forecast_api_key") or "").strip()
+    settings["pv_at_hass_location"] = bool(settings.get("pv_at_hass_location", False))
+    # Koordinaten-Überschreibung (leer = Standort der HA-Installation)
+    for key in ("forecast_lat", "forecast_lon"):
+        raw = str(settings.get(key) or "").strip()
+        try:
+            float(raw)
+            settings[key] = raw
+        except (TypeError, ValueError):
+            settings[key] = ""
     settings["pre_charge"] = bool(settings.get("pre_charge", True))
     # Alte WP-Kalibrierungs-Einstellungen entfernen (Leistungsmessung gelöscht)
     settings.pop("wp_test_target_c", None)

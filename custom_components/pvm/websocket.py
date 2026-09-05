@@ -129,6 +129,74 @@ async def ws_forecast(
     )
 
 
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/forecast_refresh"})
+@websocket_api.async_response
+async def ws_forecast_refresh(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Erzwingt sofort eine Prognose-Aktualisierung (z. B. nach
+    Eintrag eines API-Schlüssels in den Einstellungen)."""
+    manager = _get_manager(hass)
+    if manager is None:
+        connection.send_error(msg["id"], "not_loaded")
+        return
+    try:
+        await manager.refresh_forecast_now()
+        connection.send_result(
+            msg["id"], getattr(manager, "forecast_data", None) or {}
+        )
+    except Exception as err:  # noqa: BLE001 - immer antworten, nie hängen
+        _LOGGER.warning("PVM: Prognose-Refresh fehlgeschlagen: %s", err)
+        connection.send_error(msg["id"], "forecast_failed", str(err))
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/control"})
+@websocket_api.async_response
+async def ws_control(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Steuert ein Gerät aus dem Panel (einziger, konsequent robuste Weg).
+
+    ``kind`` ist einer von: dev_mode (auto/manual), on, off, start, stop,
+    temp_ziel, limit. Gibt das Fehlerergebnis strukturiert zurück, damit
+    die Seite eine verständliche Meldung zeigen kann – nie still hängen.
+    """
+    manager = _get_manager(hass)
+    if manager is None:
+        connection.send_error(msg["id"], "not_loaded")
+        return
+    try:
+        result = await manager.device_control(msg.get("device_id"), msg)
+        connection.send_result(msg["id"], result or {"ok": True})
+    except Exception as err:  # noqa: BLE001 - immer antworten, nie hängen
+        _LOGGER.warning("PVM: Steuerbefehl fehlgeschlagen: %s", err)
+        connection.send_error(msg["id"], "control_failed", str(err))
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/energy_suggest"})
+@websocket_api.async_response
+async def ws_energy_suggest(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Schlägt Energie-Sensoren automatisch vor (Erkennung + Plausibilität)."""
+    manager = _get_manager(hass)
+    if manager is None:
+        connection.send_error(msg["id"], "not_loaded")
+        return
+    try:
+        result = await manager.suggest_energy_now(notify=False)
+        connection.send_result(msg["id"], result or {})
+    except Exception as err:  # noqa: BLE001 - immer antworten, nie hängen
+        _LOGGER.warning("PVM: Energie-Vorschläge fehlgeschlagen: %s", err)
+        connection.send_error(msg["id"], "suggest_failed", str(err))
+
+
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/reload"})
 @websocket_api.async_response
 async def ws_reload(
@@ -166,5 +234,8 @@ async def async_register_websocket(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_scan)
     websocket_api.async_register_command(hass, ws_list_entities)
     websocket_api.async_register_command(hass, ws_forecast)
+    websocket_api.async_register_command(hass, ws_forecast_refresh)
+    websocket_api.async_register_command(hass, ws_control)
+    websocket_api.async_register_command(hass, ws_energy_suggest)
     websocket_api.async_register_command(hass, ws_reload)
     _LOGGER.debug("PVM-WebSocket-Kommandos registriert")
