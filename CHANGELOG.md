@@ -2,6 +2,22 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.9.6] – 2026-09-05
+
+### README – Header wie bestellt
+- **PVM-in-HACS-Button:** Seitenbreiter, ~1 cm hoher Banner in
+  Home-Assistant-Blau (#03a9f4) – von einer Seite zur anderen, nicht zu
+  übersehen.
+- **Logo oben rechts:** neben der Überschrift statt mittig; Größe bleibt
+  unverändert (84 px).
+
+### Verifikation
+- Komplette Sandbox-Durchklick erneut: Einführung → Übersicht,
+  Geräte, Auto/Manuell-Umschaltung (Menü klappt sofort auf), Regler
+  speichern, Statistik-Chart (11 SVG-Pfade), Gefunden-Gruppen,
+  Einstellungen – ohne Fehler.
+- 125 Tests grün, ruff/compileall/node --check sauber.
+
 ## [1.9.5] – 2026-09-05
 
 ### Diagramm & Cache – „es geht immer noch nicht“ dauerhaft behoben
