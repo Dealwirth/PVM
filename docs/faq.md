@@ -203,12 +203,33 @@ schaltest – du kannst die Regler/Knöpfe sofort nutzen, ohne weiteren
 Klick. Bleibt eine Karte trotzdem stehen: ganze HA-Seite neu laden
 (ältere Browser-Caches zeigen sonst die alte Version).
 
-## Die PV-Prognose zeigt nichts
+## Die PV-Prognose zeigt nichts / „Lädt es noch oder geht es kostenlos nicht?“
 
-Die Prognose ist **standardmäßig aus** und **zwingend API-gebunden**:
-PVM fragt ausschließlich den Open-Meteo-Kunden-Endpunkt
-(`customer-api.open-meteo.com`) ab – **ohne eigenen API-Schlüssel bleibt
-die Kurve leer** (bewusst, der anonyme Endpunkt ist unzuverlässig). So
+Solange oben rechts ein **Spinner mit „PV-Prognose wird berechnet …“** läuft,
+lädt PVM gerade (erste Abfrage kann 10–30 Sekunden dauern). Wenn danach eine
+Meldung erscheint („keine Prognose-Daten“ / Anleitung), ist die Ursache eine
+der folgenden:
+
+- **„API-Schlüssel fehlt“** → es lädt **nicht**, es fehlt der Schlüssel
+  (siehe unten).
+- **„Schlüssel ungültig (401)“ / Limit (429)“** → der eingetragene Schlüssel
+  stimmt nicht bzw. das Tageslimit ist erreicht.
+- **„Keine Koordinaten“** → Standort der HA-Installation prüfen oder
+  Breiten-/Längengrad unter *Einstellungen → PV-Prognose* eintragen.
+
+**Ist die Adresse `api.open-meteo.com/v1/forecast?…` der API-Schlüssel?**
+Nein. Das ist eine **Webadresse (URL)** – sie gehört **nicht** ins
+Schlüssel-Feld. Der Schlüssel ist ein kurzer Code (z. B. `aB3xK9…`), den du
+nur nach Abschluss eines Open-Meteo-Tarifs erhältst; PVM ergänzt die Adresse
+selbst. Fügst du eine URL ein, bricht PVM das Speichern ab und erklärt das.
+
+**Geht es nicht kostenlos?** In PVM nicht: Die Prognose ist **bewusst nur
+mit Schlüssel** nutzbar (PVM fragt ausschließlich den Kunden-Endpunkt
+`customer-api.open-meteo.com` ab – der anonyme Endpunkt war unzuverlässig).
+Ohne Schlüssel bleibt die Kurve leer – das ist kein Fehler, sondern
+beabsichtigt.
+
+So legst du einen Schlüssel an: ① [open-meteo.com/en/pricing](https://open-meteo.com/en/pricing)
 legst du einen Schlüssel an: ① [open-meteo.com/en/pricing](https://open-meteo.com/en/pricing)
 öffnen und einen Tarif wählen (z. B. „API Standard“), ② direkt nach dem
 Checkout erhältst du **sofort deinen API-Schlüssel**, ③ unter

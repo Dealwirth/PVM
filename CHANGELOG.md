@@ -2,6 +2,54 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.9.8] – 2026-09-05
+
+### Feedback & Bedienung (Speichern/Laden nie mehr stumm)
+- **Aktions-Leiste:** Beim Speichern, Suchen, Laden des Verlaufs und der
+  PV-Prognose läuft jetzt oben ein dünner Ladebalken mit kurzer Meldung;
+  am Ende bestätigt ein grünes „✓“ bzw. ein rotes „✕“ – man sieht immer,
+  ob gerade etwas passiert und ob es geklappt hat.
+
+### Statistik – schneller, flüssiger, mit Live-Feedback
+- **Deutlich schneller:** Statt bis zu tausenden Stützpunkten zeichnet das
+  Diagramm nun ~60–180 Punkte (24 h ≈ 10-Minuten-Raster, 7 Tage ≈ stündlich) –
+  das Laden und Zeichnen ist spürbar schneller.
+- **Skaliert stufenlos:** Das Diagramm misst seine Breite selbst und zeichnet
+  sich bei Fenstergrößen-Änderungen automatisch neu – auch die Uhrzeit-
+  Beschriftungen passen sich der Breite an (nie mehr zu klein oder abgeschnitten).
+- **Ab-/Anwählen & Fläche/Linie:** Reihen-Chips, Modi und Diagramm-Typ werden
+  jetzt direkt im Diagramm umgesetzt (kein kompletter Seiten-Neuaufbau mehr) –
+  reagieren sofort und ohne Ruckeln. Aktive Knöpfe (24 h/7 Tage, Fläche/Linie)
+  sind jetzt markiert.
+
+### Einstellungen – aufgeräumt
+- **Nur ein Reiter offen:** Öffnet man eine Einstellungs-Gruppe, klappt die
+  vorherige automatisch zu – die Seite bleibt übersichtlich.
+- **Vorausschauendes Laden** ist nur noch möglich, wenn die PV-Prognose aktiv
+  ist (eingeschaltet + Schlüssel hinterlegt). Ohne Prognose wird der Schalter
+  gesperrt und der Grund angezeigt.
+
+### PV-Prognose – klares Feedback statt Ratlosigkeit
+- **Ladezustand sichtbar:** Während der Berechnung erscheint ein Spinner mit
+  Hinweis („kann 10–30 s dauern“) – man sieht sofort, ob es noch lädt.
+- **Kein Schlüssel = kein Daten, kein Fehler:** Ohne Schlüssel erscheint die
+  Schritt-für-Schritt-Anleitung samt Link – inklusive ausdrücklichem Hinweis,
+  dass die Adresse `api.open-meteo.com/…` KEIN Schlüssel ist (dort gehört nur
+  der kurze Code hinein) und dass es ohne Schlüssel bewusst keine Prognose gibt.
+- **Schlüssel-Fehler sichtbar:** 401/403/429-Antworten von Open-Meteo (falscher
+  Schlüssel / Limit) werden als verständliche Meldung angezeigt statt still
+  ins lokale Modell zu fallen.
+- **Eingabe-Schutz:** Wird versehentlich eine URL in das Schlüssel-Feld
+  eingefügt, bricht PVM das Speichern ab und erklärt den Unterschied.
+
+### Sonstiges
+- README: Logo steht jetzt **innerhalb der Überschrift** – dadurch liegt der
+  GitHub-Strich unter der Überschrift UNTER dem Logo und schneidet es nicht
+  mehr an.
+- Verifiziert in der Sandbox: Einführung → Übersicht, Statistik (Zeit-Labels,
+  Reihen abwählen, Modi, Typ), Akkordeon nur-eins-offen, Prognose-Schutz,
+  Speichern-Feedback – ohne Konsolenfehler.
+
 ## [1.9.7] – 2026-09-05
 
 ### README – Button jetzt wirklich sichtbar (GitHub-kompatibel)

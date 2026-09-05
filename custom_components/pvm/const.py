@@ -9,7 +9,7 @@ DOMAIN = "pvm"
 # Name in der HA-Seitenleiste (kompakt) und voller Produktname (Doku/Logs)
 NAME = "PV Manager"
 SIDEBAR_NAME = "PVM"
-VERSION = "1.9.7"
+VERSION = "1.9.8"
 
 # Von der Integration bereitgestellte Plattformen.
 PLATFORMS = ["sensor", "number", "switch", "button", "select", "time"]

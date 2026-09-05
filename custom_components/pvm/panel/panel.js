@@ -479,6 +479,12 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
 .spin { width:34px;height:34px;border-radius:50%; border:3px solid var(--card2); border-top-color: var(--acc);
   animation:spin .8s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg) } }
+.stspin { display:inline-block; width:15px;height:15px;border-radius:50%;border:2px solid var(--card2); border-top-color:var(--acc);
+  animation:spin .7s linear infinite; margin-right:7px; vertical-align:-3px; }
+.stattools .btn.on, .stattools button.on { background:var(--acc); color:#fff; border-color:var(--acc); }
+.stattools .btn.on:hover { filter:brightness(1.08); }
+.stmsg .spinner { display:inline-block; width:15px;height:15px;border-radius:50%;border:2px solid var(--card2); border-top-color:var(--acc); animation:spin .7s linear infinite; margin-right:7px; vertical-align:-3px; }
+.stmsg.warnbox { border-color: var(--warn); }
 
 /* ---- Sensor-Status in den Energie-Einstellungen (Haken + Detail) ---- */
 .energycard { border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin-top:8px;
@@ -738,8 +744,73 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
     }, kind === "bad" ? 5200 : 3000);
   }
 
+  /* ------------------------------------------------------------------ *
+   * Aktions-Feedback: dünner Ladebalken + kurze Meldung oben rechts.
+   * Wird beim Speichern und bei langen Ladevorgängen gezeigt, damit man
+   * immer sieht: „Es passiert gerade etwas“ – und am Ende ✓ bzw. ✕.
+   * Lebt außerhalb des Shadow-Roots (überlebt ein Neu-Rendern der Seite).
+   * ------------------------------------------------------------------ */
+  let busySeq = 0;
+  function ensureBusyDom() {
+    if (document.getElementById("pvm-busy")) return document.getElementById("pvm-busy");
+    if (!document.getElementById("pvm-busy-style")) {
+      const st = document.createElement("style");
+      st.id = "pvm-busy-style";
+      st.textContent = `#pvm-busy{position:fixed;top:0;left:0;right:0;z-index:2147483000;pointer-events:none;font-family:Roboto,-apple-system,"Segoe UI",Arial,sans-serif}
+#pvm-busy .pb{position:fixed;top:0;left:0;height:3px;width:100%;overflow:hidden}
+#pvm-busy .pb i{position:absolute;top:0;left:-45%;height:100%;width:45%;border-radius:3px;background:linear-gradient(90deg,transparent,#03a9f4,#4fc3f7,transparent);animation:pvmslide 1.05s linear infinite}
+#pvm-busy.done .pb i,#pvm-busy.err .pb i{animation:none;left:0;width:100%;transition:width .35s ease}
+#pvm-busy.done .pb i{background:#2dd4a7}
+#pvm-busy.err .pb i{background:#ff5d6c}
+@keyframes pvmslide{0%{left:-45%}100%{left:120%}}
+#pvm-busy .pc{position:fixed;top:10px;right:14px;display:flex;align-items:center;gap:8px;background:rgba(15,18,24,.92);color:#fff;padding:7px 14px;border-radius:999px;font-size:12.5px;box-shadow:0 6px 18px rgba(0,0,0,.28);opacity:0;transform:translateY(-8px);transition:opacity .18s,transform .18s;max-width:min(90vw,480px)}
+#pvm-busy.on .pc{opacity:1;transform:none}
+#pvm-busy .ps{width:13px;height:13px;flex:0 0 13px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:#4fc3f7;animation:pvmspin .7s linear infinite}
+#pvm-busy.done .ps,#pvm-busy.err .ps{animation:none;border-width:0;background-size:cover}
+#pvm-busy.done .ps{background:#2dd4a7}
+#pvm-busy.err .ps{background:#ff5d6c}
+@keyframes pvmspin{to{transform:rotate(360deg)}}
+.pl{padding-right:2px}`;
+      (document.head || document.documentElement).appendChild(st);
+    }
+    const el = document.createElement("div");
+    el.id = "pvm-busy";
+    el.innerHTML = `<div class="pb"><i></i></div><div class="pc"><span class="ps"></span><span class="pl"></span></div>`;
+    document.body.appendChild(el);
+    return el;
+  }
+  /** Zeigt die Leiste an. Rückgabe ist die Abschluss-Funktion:
+   *  finish(ok, text) → ✓ grün bzw. ✕ rot, danach blendet sie aus. */
+  function topBusy(label) {
+    try {
+      const el = ensureBusyDom();
+      const pl = el.querySelector(".pl");
+      el.classList.remove("done", "err", "on");
+      el.classList.add("on");
+      pl.textContent = label || "…";
+      const seq = ++busySeq;
+      return function finishBusy(ok, doneText) {
+        if (seq !== busySeq) return;
+        const good = ok !== false;
+        el.classList.toggle("done", good);
+        el.classList.toggle("err", !good);
+        pl.textContent = doneText || (good ? "Fertig ✓" : "Fehlgeschlagen ✕");
+        setTimeout(() => { if (seq === busySeq) el.classList.remove("on"); }, good ? 1100 : 3200);
+      };
+    } catch (err) {
+      return function () {};
+    }
+  }
+
   function configEnergy() { return (state.config && state.config.energy) || {}; }
   function configSettings() { return (state.config && state.config.settings) || {}; }
+  /** Ist die PV-Prognose so eingerichtet, dass sie Daten liefern kann
+   *  (eingeschaltet + Schlüssel hinterlegt)? Nur dann macht das
+   *  vorausschauende Laden Sinn. */
+  function forecastConfigured() {
+    const s = configSettings();
+    return s.forecast_enabled === true && !!(String(s.forecast_api_key || "").trim());
+  }
   function devicesOf() { return (state.config && state.config.devices) || []; }
   function deviceById(id) { return devicesOf().find((d) => d.id === id); }
   function entOf(deviceId) {
@@ -867,15 +938,20 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
    *  die neuen Geräte ihre Schalter/Sensoren sofort haben. */
   async function saveAndRefresh(msg, opts) {
     opts = opts || {};
+    const doneSave = topBusy("Speichere …");
     try {
       await saveConfig();
       toast(msg || "Gespeichert.", "ok");
+      doneSave(true, "Gespeichert ✓");
     } catch (err) {
+      doneSave(false, "Speichern fehlgeschlagen");
       toast("Speichern fehlgeschlagen: " + errText(err), "bad");
       return;
     }
     if (opts.reload) {
+      const doneRel = topBusy("Neue Bedienelemente werden eingerichtet …");
       await reloadEntities();
+      doneRel(!state.reloadError, state.reloadError ? "Einrichtung unvollständig – Seite neu laden" : "Gerät eingerichtet ✓");
       if (state.reloadError) {
         toast("Gerät gespeichert – neue Bedienelemente folgen gleich. Falls nichts erscheint: Seite neu laden. (" + state.reloadError + ")", "bad");
         state.reloadError = null;
@@ -884,11 +960,13 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
     if (opts.forecast) {
       // Prognose nach Einschalten/Schlüssel-Eintrag sofort berechnen,
       // damit die Statistik-Seite nicht 15 Minuten leer bleibt.
+      const doneFc = topBusy("PV-Prognose wird berechnet …");
       wsTimeout("pvm/forecast_refresh", {}, 15000).then((res) => {
+        doneFc(true, (res && res.source && res.source !== "off") ? "PV-Prognose bereit ✓" : "Prognose ohne Daten – Hinweis unten");
         statState.forecast = res || null;
         drawForecastPanel();
         updateForecastBadge();
-      }).catch(() => {});
+      }).catch(() => { doneFc(false, "PV-Prognose fehlgeschlagen"); });
     }
     await refreshFromServer();
     settleAfterReload();
@@ -972,6 +1050,20 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
     }
   }
 
+  /* Zeichnet die Statistik bei Fenstergrößen-Änderungen neu – dadurch
+   * skaliert das Diagramm samt Uhrzeiten stufenlos und ohne Verzögerung. */
+  function armStatResize() {
+    if (state._resizeArmed) return;
+    state._resizeArmed = true;
+    let timer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (state.view === "stats" && statState.data) drawStatChart();
+      }, 120);
+    }, { passive: true });
+  }
+
   /* ------------------------------------------------------------------ *
    * Haupt-Element
    * ------------------------------------------------------------------ */
@@ -1048,6 +1140,7 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
       applyTheme();
       subscribeLiveStates();
       startLiveLoop();
+      armStatResize();
       this._nav("start");
     }
 
@@ -2057,14 +2150,14 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
       <p class="sub">Welche Leistung lief wann? Wähle einen Blick – jede Reihe lässt sich unten einzeln an- und abwählen (ausgegraut = ausgeblendet).</p>
       <div class="stattools">
         <span class="chiprow" style="margin:0">${STAT_MODES.map((m) => `<button class="serieschip ${statState.mode === m.id ? "on" : ""}" data-action="stat-mode" data-stat-mode="${m.id}">${m.label}</button>`).join("")}</span>
-        <button class="btn ghost" data-action="stat-range" data-stat-range="24" style="padding:5px 10px">24 h</button>
-        <button class="btn ghost" data-action="stat-range" data-stat-range="168" style="padding:5px 10px">7 Tage</button>
-        <button class="btn ghost" data-action="stat-type" data-stat-type="area" style="padding:5px 10px">Fläche</button>
-        <button class="btn ghost" data-action="stat-type" data-stat-type="line" style="padding:5px 10px">Linie</button>
+        <button class="btn ghost ${statState.rangeH === 24 ? "on" : ""}" data-action="stat-range" data-stat-range="24" style="padding:5px 10px">24 h</button>
+        <button class="btn ghost ${statState.rangeH === 168 ? "on" : ""}" data-action="stat-range" data-stat-range="168" style="padding:5px 10px">7 Tage</button>
+        <button class="btn ghost ${statState.type === "area" ? "on" : ""}" data-action="stat-type" data-stat-type="area" style="padding:5px 10px">Fläche</button>
+        <button class="btn ghost ${statState.type === "line" ? "on" : ""}" data-action="stat-type" data-stat-type="line" style="padding:5px 10px">Linie</button>
         <button class="btn ghost" data-action="stat-refresh" style="padding:5px 10px">${I.wifi} Aktualisieren</button>
       </div>
       ${has ? `
-        <div class="chartbox" data-el="stat-chart"><span style="color:var(--mut)">Lade Verlauf …</span></div>
+        <div class="chartbox" data-el="stat-chart"><span class="stspin"></span><span style="color:var(--mut)">Lade Verlauf aus Home Assistant …</span></div>
         <div class="chiprow" data-el="stat-series"></div>
       ` : `<div class="empty" style="border:1px dashed var(--line);border-radius:16px;padding:22px">Verbinde zuerst Energie-Sensoren (PV, Netz) – dann erscheint hier dein Verlauf.</div>`}
       <div class="flowbox" style="margin-top:14px">
@@ -2084,6 +2177,8 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
   async function loadStats() {
     if (statState.loading) return;
     statState.loading = true;
+    const doneStat = topBusy("Lade Verlauf …");
+    let statOk = true;
     const src = statSources();
     const chartEl = statChartBox();
     const setMsg = (html, cls) => {
@@ -2128,7 +2223,9 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
         ? { [entityIds[0]]: raw }
         : (raw || {});
       const series = {};
-      const per = Math.max(1, Math.round(statState.rangeH * 3600 / 120)); // ~120 Stützpunkte
+      // Nur ~150 Stützpunkte zeichnen (24 h ≈ alle 10 min, 7 Tage ≈ stündlich)
+      // – weniger Daten = spürbar schnelleres Laden und Zeichnen.
+      const per = Math.max(60, Math.min(180, Math.round(statState.rangeH * 6)));
       const startTs = start.getTime();
       const endTs = end.getTime();
       const bucketT = (i) => startTs + ((i + 0.5) * (endTs - startTs)) / per;
@@ -2176,6 +2273,7 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
       }
       drawStatChart();
     } catch (err) {
+      statOk = false;
       const msg = errText(err);
       const hint = /unknown|not_loaded/i.test(msg)
         ? `<br><small>Der Verlauf (Recorder) ist in dieser HA-Version gerade nicht erreichbar – die Live-Werte der Übersicht funktionieren trotzdem weiter.</small>`
@@ -2183,6 +2281,7 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
       setMsg(`Der Verlauf konnte nicht aus Home Assistant geladen werden.<br><small>${esc(msg)}</small>${hint}`);
     } finally {
       statState.loading = false;
+      doneStat(statOk, statOk ? "Verlauf geladen ✓" : "Verlauf konnte nicht geladen werden");
     }
     loadForecastPanel();
   }
@@ -2200,8 +2299,14 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
     if (!box) return;
     const { series, startTs, endTs, per } = statState.data;
     const active = statActiveSeries();
-    const W = 760, H = 250, padL = 46, padB = 26, padT = 12, padR = 14;
-    const iw = W - padL - padR, ih = H - padT - padB;
+    // Die Zeichenbreite wird aus dem Behälter gemessen – dadurch skaliert
+    // das Diagramm stufenlos und ohne Verzögerung mit der Fensterbreite
+    // (auch die Uhrzeiten bleiben dabei immer gut lesbar).
+    const avail = Math.max(340, Math.round(box.clientWidth - 22));
+    const H = Math.max(200, Math.round(Math.min(340, avail * 0.36)));
+    const padL = Math.max(42, Math.round(avail * 0.07));
+    const padR = 18, padT = 14, padB = 36;
+    const iw = avail - padL - padR, ih = H - padT - padB;
     let max = 100;
     active.forEach((k) => {
       const s = series[k];
@@ -2209,7 +2314,7 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
       s.points.forEach((v) => { if (v != null) max = Math.max(max, Math.abs(v)); });
     });
     max = niceCeil(max);
-    const x = (i) => padL + (i / (per - 1)) * iw;
+    const x = (i) => padL + (i / Math.max(1, per - 1)) * iw;
     const y = (v) => padT + ih - (v / max) * ih;
     const lines = active.map((k) => {
       const s = series[k];
@@ -2234,18 +2339,22 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
     for (let g = 0; g <= steps; g++) {
       const v = (max / steps) * g;
       const gy = y(v);
-      gridLines.push(`<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 4"/>`);
-      gridLines.push(`<text x="${padL - 7}" y="${gy + 4}" text-anchor="end" class="legline">${fmtW(v)}</text>`);
+      gridLines.push(`<line x1="${padL}" y1="${gy}" x2="${avail - padR}" y2="${gy}" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 4"/>`);
+      gridLines.push(`<text x="${padL - 8}" y="${gy + 4}" text-anchor="end" class="legline">${fmtW(v)}</text>`);
     }
-    const tl = per; // Zeitachse: einige Stundenlabels
-    const hourStep = Math.max(1, Math.round(tl / 6));
+    // Zeitachse: Anzahl der Uhrzeit-Beschriftungen hängt von der Breite ab
+    // (~86 px Abstand) – bei schmalen Fenstern weniger, bei breiten mehr.
+    const targetLabels = Math.max(3, Math.min(9, Math.floor(iw / 86)));
+    const hourStep = Math.max(1, Math.round(per / targetLabels));
     const timeLines = [];
     for (let i = 0; i < per; i += hourStep) {
       const d = new Date(startTs + (i / per) * (endTs - startTs));
-      const label = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
-      timeLines.push(`<text x="${x(i)}" y="${H - 8}" text-anchor="middle" class="legline">${label}</text>`);
+      const hh = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+      const wd = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][d.getDay()];
+      const label = statState.rangeH > 48 ? wd + " " + hh : hh;
+      timeLines.push(`<text x="${x(i)}" y="${H - 9}" text-anchor="middle" class="legline">${label}</text>`);
     }
-    box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    box.innerHTML = `<svg viewBox="0 0 ${avail} ${H}" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto">
       ${gridLines.join("")}${lines}${timeLines.join("")}</svg>`;
     if (chipsEl) {
       // Alle vorhandenen Reihen zeigen – abgewählte bleiben sichtbar, aber
@@ -2280,6 +2389,8 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
       <div class="fcall" style="${wide ? "margin:10px 0" : ""}">
         <div class="fchint warn" style="margin-top:4px">
           <b>${esc(intro || "Für die PV-Prognose ist ein Open-Meteo-API-Schlüssel nötig.")}</b>
+          <p style="margin:6px 0 2px"><b>Wichtig:</b> Die Adresse <code>api.open-meteo.com/v1/forecast?…</code> ist <b>kein Schlüssel</b> – dort gehört nur der kurze Code aus deinem Tarif hinein (z. B. <code>aB3xK9…</code>). PVM ergänzt die Adresse selbst.</p>
+          <p style="margin:4px 0 2px"><b>Kostenlos ohne Schlüssel?</b> Nein – PVM fragt die Prognose bewusst <b>nur mit Schlüssel</b> ab. Ohne Schlüssel erscheint hier keine Kurve; das ist kein Fehler und kein Ladeproblem, sondern beabsichtigt.</p>
           <ol class="fgsteps" style="margin:6px 0 2px">
             <li>Öffne <a href="https://open-meteo.com/en/pricing" target="_blank" rel="noopener">open-meteo.com/en/pricing</a> und wähle einen Tarif (z. B. <b>„API Standard“</b>).</li>
             <li>Direkt nach dem Checkout erhältst du <b>sofort deinen API-Schlüssel</b>.</li>
@@ -2294,22 +2405,35 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
     const el = root && $(root, "[data-el=stat-forecast]");
     if (!el) return;
     const s = configSettings();
-    if (s.forecast_enabled === false) {
-      el.innerHTML = `<div class="empty" style="padding:14px;color:var(--mut)">PV-Prognose ist in den Einstellungen ausgeschaltet.</div>`;
+    if (s.forecast_enabled !== true) {
+      statState.forecast = null;
+      el.innerHTML = `<div class="empty" style="padding:14px;color:var(--mut)">PV-Prognose ist in den Einstellungen ausgeschaltet.<br><small>Schalte sie dort ein und hinterlege den API-Schlüssel – dann berechnet PVM hier die erwartete PV-Leistung.</small></div>`;
       return;
     }
     // API-gebunden: ohne hinterlegten Schlüssel keine Abfrage – stattdessen
-    // die kurze Anleitung mit Direktlink anzeigen.
+    // die kurze Anleitung mit Direktlink anzeigen (nie endlos „laden“ lassen).
     if (!String(s.forecast_api_key || "").trim()) {
       el.innerHTML = forecastGuideBlock("PV-Prognose ist an – dafür fehlt noch dein API-Schlüssel.");
       return;
     }
+    if (statState.forecastLoading) {
+      // Läuft bereits – Lade-Zustand zeigen, damit klar ist: „Es lädt noch.“
+      el.innerHTML = `<div class="stmsg"><span class="spinner"></span>PV-Prognose wird berechnet …<br><small>Die erste Abfrage an Open-Meteo kann 10–30 Sekunden dauern – die Seite bleibt dabei bedienbar.</small></div>`;
+      return;
+    }
+    statState.forecastLoading = true;
+    el.innerHTML = `<div class="stmsg"><span class="spinner"></span>PV-Prognose wird berechnet …<br><small>Die erste Abfrage an Open-Meteo kann 10–30 Sekunden dauern – die Seite bleibt dabei bedienbar.</small></div>`;
     try {
-      const fc = await wsTimeout("pvm/forecast", {}, 15000).catch(() => null);
+      const fc = await wsTimeout("pvm/forecast", {}, 20000);
       statState.forecast = fc;
       drawForecastPanel();
       updateForecastBadge();
-    } catch (err) { /* Prognose optional */ }
+    } catch (err) {
+      statState.forecast = { source: "off", series: [], day_curve: [], day_kwh: null, note: "Prognose-Abfrage fehlgeschlagen: " + errText(err) };
+      drawForecastPanel();
+    } finally {
+      statState.forecastLoading = false;
+    }
   }
 
   /** Benachrichtigungs-Punkt am Statistik-Reiter, wenn eine Wolkenphase
@@ -2346,7 +2470,16 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
     }
     const fc = statState.forecast || {};
     const series = fc.series || [];
-    const dayCurve = fc.day_curve || [];
+    const note = fc.note || "";
+    // Keine Daten (noch nicht bereit / offline / Schlüssel nicht erreichbar):
+    // Statt stiller Striche eine verständliche Meldung mit Grund zeigen.
+    if (fc.source === "off" || !series.length) {
+      el.innerHTML = `<div class="stmsg warnbox">
+        <b>Noch keine Prognose-Daten.</b><br>
+        <small>${esc(note || "Die Prognose konnte noch nicht berechnet werden. Prüfe Schlüssel und Koordinaten unter Einstellungen → PV-Prognose, dann „Prognose jetzt aktualisieren“.")}</small>
+      </div>`;
+      return;
+    }
     const nowVal = series.length ? series[0].pv_w : null;
     const in15 = series.length > 1 ? series[1].pv_w : null;
     const next3hW = series.filter((p) => p.pv_w != null);
@@ -2366,7 +2499,7 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
             ? `<span class="cloud-badge ok">${I.sunny} lokales Modell</span>`
             : `<span class="cloud-badge warn">${I.cloud} keine Prognose</span>`}
         ${cloudy ? `<span class="cloud-badge warn">${I.cloud} Wolke in Sicht – kurze Phase</span>` : ""}
-        <span class="legline" style="flex:1;text-align:right">${esc(fc.note || "")}</span>
+        <span class="legline" style="flex:1;text-align:right">${esc(note)}</span>
       </div>`;
     // Mini-Kurve der nächsten 3 h
     const w = series.map((p) => p.pv_w).filter((v) => v != null);
@@ -2387,14 +2520,26 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
     </svg>`;
   }
 
-  function refreshStatsView() {
+  /** Markiert die aktiven Knöpfe (Modus/24h·7Tage/Fläche·Linie) nach. */
+  function syncStatToolbar() {
     const root = state.root;
-    const section = root && $(root, "#view .view");
-    if (!section || state.view !== "stats") return;
-    section.innerHTML = htmlStats();
-    drawStatChart();
-    loadForecastPanel();
+    if (!root) return;
+    $$(root, "[data-action=stat-mode]").forEach((b) =>
+      b.classList.toggle("on", b.getAttribute("data-stat-mode") === statState.mode));
+    $$(root, "[data-action=stat-range]").forEach((b) =>
+      b.classList.toggle("on", Number(b.getAttribute("data-stat-range")) === statState.rangeH));
+    $$(root, "[data-action=stat-type]").forEach((b) =>
+      b.classList.toggle("on", b.getAttribute("data-stat-type") === statState.type));
   }
+
+  /** Zeichnet die Statistik direkt neu – ohne die ganze Seite neu aufzubauen.
+   *  So wirken Reihen ab-/anwählen, Modi und Fläche/Linie sofort und flüssig. */
+  function redrawStat() {
+    syncStatToolbar();
+    if (statState.data) drawStatChart();
+    else loadStats();
+  }
+
 
   /* ------------------------------------------------------------------ *
    * Einstellungen
@@ -2501,8 +2646,8 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
             <input type="text" placeholder="z. B. 11.5755" value="${esc(s.forecast_lon || "")}" data-setting-input="forecast_lon" style="flex:1;min-width:120px" autocomplete="off">
           </div>
           <div class="row">
-            <span class="lbl grow">API-Schlüssel (erforderlich)<small>Dein Open-Meteo-Schlüssel aus dem Tarif (Parameter „apikey“, Endpunkt customer-api.open-meteo.com). Ohne Schlüssel startet PVM keine Abfrage.</small></span>
-            <input type="text" placeholder="z. B. abC123… (Schlüssel aus deinem Open-Meteo-Tarif)" value="${esc(s.forecast_api_key || "")}" data-setting-input="forecast_api_key" style="flex:1;min-width:220px" autocomplete="off">
+            <span class="lbl grow">API-Schlüssel (erforderlich)<small><b>Nur den Schlüssel einfügen – keine Webadresse/URL.</b> Der Schlüssel ist ein kurzer Code (z. B. <code>aB3xK…</code>) aus deinem Open-Meteo-Tarif. Die Adresse <code>api.open-meteo.com/…</code> ist KEIN Schlüssel und gehört hier nicht hinein. Ohne Schlüssel startet PVM keine Abfrage (kostenlose Abfrage ohne Schlüssel gibt es bei PVM bewusst nicht – sie war unzuverlässig).</small></span>
+            <input type="text" placeholder="Nur den Schlüssel einfügen (z. B. aB3xK9… – keine URL)" value="${esc(s.forecast_api_key || "")}" data-setting-input="forecast_api_key" style="flex:1;min-width:220px" autocomplete="off">
           </div>
         </details>
         <div class="row" style="justify-content:flex-end;gap:8px">
@@ -2510,9 +2655,12 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
         </div>
         <p class="sub" style="margin-top:4px">Bei Wolken (PV-Einbruch in ~15 Min) erscheint der orangefarbene Punkt am Statistik-Reiter.</p>` : ""}
         <div class="row">
-          <span class="lbl grow">Vorausschauendes Laden<small>Hat ein Auto eine aktive Frist (Ziel bis Uhrzeit), hält PVM die Wallbox über kurze Wolkenphasen an statt abzuschalten – die Sonne kommt laut Prognose gleich wieder. So geht keine Ladezeit verloren und es wird seltener geschaltet.</small></span>
-          <span class="sw ${s.pre_charge !== false ? "on" : ""}" data-settings-toggle="pre_charge"><i></i></span>
+          <span class="lbl grow">Vorausschauendes Laden<small>Hat ein Auto eine aktive Frist (Ziel bis Uhrzeit), hält PVM die Wallbox über kurze Wolkenphasen an statt abzuschalten – die Sonne kommt laut Prognose gleich wieder. So geht keine Ladezeit verloren und es wird seltener geschaltet.<br><b>Voraussetzung:</b> PV-Prognose an + Schlüssel hinterlegt (oben).</small></span>
+          <span class="sw ${s.pre_charge !== false ? "on" : ""}" data-settings-toggle="pre_charge" ${forecastConfigured() ? "" : "style=opacity:.75"}><i></i></span>
         </div>
+        ${forecastConfigured()
+          ? `<div class="fcall"><span class="cloud-badge ok">${I.check} Prognose aktiv – vorausschauendes Laden möglich</span></div>`
+          : `<div class="fcall"><span class="cloud-badge warn">⚠ Erst PV-Prognose einschalten und API-Schlüssel eintragen – dann ist vorausschauendes Laden verfügbar.</span></div>`}
       `)}
       ${accordion("design", I.eye, "Design & Darstellung", `
         <span class="lbl">Dein Look<small>„Home Assistant“ folgt deinem HA-Theme inkl. hell/dunkel; die anderen Designs sind feste Stimmungen.</small></span>
@@ -3275,23 +3423,41 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
     }
     const accBtn = ev.target.closest(".acc > button.h");
     if (accBtn) {
-      const id = accBtn.parentElement.getAttribute("data-acc");
-      const open = accBtn.parentElement.classList.toggle("open");
-      if (id) state.accOpen[id] = open;
+      const acc = accBtn.parentElement;
+      const id = acc.getAttribute("data-acc");
+      const willOpen = !acc.classList.contains("open");
+      // In den Einstellungen ist immer nur EIN Akkordeon offen – ein neues
+      // Aufklappen klappt das vorherige zu (nie wirkt die Seite überladen).
+      const group = (acc.closest("#view .view") || root);
+      $$(group, ".acc.open").forEach((other) => {
+        if (other === acc) return;
+        other.classList.remove("open");
+        const oid = other.getAttribute("data-acc");
+        if (oid) state.accOpen[oid] = false;
+      });
+      acc.classList.toggle("open", willOpen);
+      if (id) state.accOpen[id] = willOpen;
       return;
     }
     const settingsToggle = ev.target.closest("[data-settings-toggle]");
     if (settingsToggle) {
       const key = settingsToggle.getAttribute("data-settings-toggle");
-      const on = settingsToggle.classList.toggle("on");
-      configSettings()[key] = on;
+      const on = settingsToggle.classList.contains("on");
+      // Vorausschauendes Laden braucht eine aktive PV-Prognose – ohne sie
+      // macht der Schalter keinen Sinn (Guard + verständliche Meldung).
+      if (key === "pre_charge" && !on && !forecastConfigured()) {
+        toast("Vorausschauendes Laden braucht die PV-Prognose: oben erst „PV-Prognose“ einschalten und den API-Schlüssel eintragen.", "bad");
+        return;
+      }
+      settingsToggle.classList.toggle("on", !on);
+      configSettings()[key] = !on;
       const labels = {
-        manual_mode: on ? "Manuell – PVM steuert nichts mehr" : "Automatik – PVM verteilt wieder Überschuss",
-        auto_pairing: on ? "Automatische Auto-Erkennung an" : "Automatische Auto-Erkennung aus",
-        forecast_enabled: on ? "PV-Prognose an" : "PV-Prognose aus",
-        pre_charge: on ? "Vorausschauendes Laden an" : "Vorausschauendes Laden aus",
+        manual_mode: !on ? "Manuell – PVM steuert nichts mehr" : "Automatik – PVM verteilt wieder Überschuss",
+        auto_pairing: !on ? "Automatische Auto-Erkennung an" : "Automatische Auto-Erkennung aus",
+        forecast_enabled: !on ? "PV-Prognose an" : "PV-Prognose aus",
+        pre_charge: !on ? "Vorausschauendes Laden an" : "Vorausschauendes Laden aus",
       };
-      saveAndRefresh(labels[key] || (on ? "An" : "Aus"), { forecast: key === "forecast_enabled" && on });
+      saveAndRefresh(labels[key] || (!on ? "An" : "Aus"), { forecast: key === "forecast_enabled" && !on });
       return;
     }
     // Nur die Modus-Auswahl in den Einstellungen (label[data-mode]) – die
@@ -3483,15 +3649,16 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
         if (el.dataset.scanning === "1") return; // kein Doppel-Start
         el.dataset.scanning = "1";
         el.disabled = true;
-        toast("Suche läuft – bei vielen Geräten kann das etwas dauern …");
+        const doneScan = topBusy("Geräte werden gesucht …");
         wsTimeout("pvm/scan", {}, 60000)
           .then((res) => {
             state.scan = res || {};
             const n = ((state.scan.sets) || []).length;
+            doneScan(true, "Suche abgeschlossen ✓");
             toast("Suche abgeschlossen" + (n ? " – " + n + " Vorschläge gefunden." : " – nichts Neues gefunden."), "ok");
             if (state.view === "found") state.panel._nav("found");
           })
-          .catch((err) => toast("Suche fehlgeschlagen: " + errText(err), "bad"))
+          .catch((err) => { doneScan(false, "Suche fehlgeschlagen"); toast("Suche fehlgeschlagen: " + errText(err), "bad"); })
           .finally(() => { delete el.dataset.scanning; el.disabled = false; });
         break;
       }
@@ -3724,36 +3891,48 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
         const m = el.getAttribute("data-stat-mode");
         statState.mode = m;
         Object.assign(statState.on, statModeSets(m));
-        refreshStatsView();
+        redrawStat();
         break;
       }
       case "stat-series": {
         const k = el.getAttribute("data-stat-series");
         if (statState.on[k] != null) statState.on[k] = !statState.on[k];
-        refreshStatsView();
+        redrawStat();
         break;
       }
       case "stat-range": {
         statState.rangeH = Number(el.getAttribute("data-stat-range")) || 24;
         loadStats();
+        syncStatToolbar();
         break;
       }
       case "stat-type": {
         statState.type = el.getAttribute("data-stat-type") === "line" ? "line" : "area";
-        drawStatChart();
+        redrawStat();
         break;
       }
       case "forecast-refresh": {
-        toast("Prognose wird neu berechnet …");
-        wsTimeout("pvm/forecast_refresh", {}, 20000)
+        const sFc = configSettings();
+        if (!String(sFc.forecast_api_key || "").trim()) {
+          toast("Zuerst den API-Schlüssel eintragen (Einstellungen → PV-Prognose).", "bad");
+          break;
+        }
+        const doneFc = topBusy("PV-Prognose wird berechnet …");
+        const fcEl = $(root, "[data-el=stat-forecast]");
+        if (fcEl) fcEl.innerHTML = `<div class="stmsg"><span class="spinner"></span>PV-Prognose wird berechnet …<br><small>Das kann 10–30 Sekunden dauern – die Seite bleibt bedienbar.</small></div>`;
+        wsTimeout("pvm/forecast_refresh", {}, 25000)
           .then((res) => {
-            if (!res) { toast("Keine Prognose verfügbar (offline / keine Koordinaten).", "bad"); return; }
-            statState.forecast = res;
+            statState.forecast = res || null;
+            if (!res || res.source === "off") {
+              doneFc(false, "Prognose ohne Daten – Hinweis unten");
+            } else {
+              doneFc(true, "PV-Prognose bereit ✓");
+              toast("Prognose aktualisiert.", "ok");
+            }
             drawForecastPanel();
             updateForecastBadge();
-            toast("Prognose aktualisiert.", "ok");
           })
-          .catch(() => toast("Prognose konnte nicht geladen werden", "bad"));
+          .catch(() => { doneFc(false, "PV-Prognose fehlgeschlagen"); toast("Prognose konnte nicht geladen werden", "bad"); });
         break;
       }
       case "stat-refresh": {
@@ -3862,12 +4041,23 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
     const apiInp = ev.target.closest("[data-setting-input]");
     if (apiInp) {
       const key = apiInp.getAttribute("data-setting-input");
-      configSettings()[key] = String(apiInp.value || "").trim();
+      const raw = String(apiInp.value || "").trim();
+      if (key === "forecast_api_key") {
+        // Häufiger Fehler: Nutzer fügt die ganze Webadresse statt des Codes ein.
+        if (/^https?:\/\//i.test(raw)) {
+          toast("Das ist eine Webadresse (URL) – hier gehört nur der Schlüssel hinein (z. B. aB3xK9…).", "bad");
+          apiInp.value = configSettings().forecast_api_key || "";
+          return;
+        }
+
+      }
+      configSettings()[key] = raw;
       saveAndRefresh(
-        configSettings()[key]
+        key === "forecast_api_key" && raw
           ? "API-Schlüssel gespeichert – Prognose nutzt jetzt deinen Zugang."
-          : "API-Schlüssel entfernt – zurück zur anonymen Abfrage.",
-        { forecast: true }
+          : key === "forecast_api_key" ? "API-Schlüssel entfernt – ohne Schlüssel keine Prognose."
+          : "Einstellung gespeichert.",
+        (key === "forecast_api_key" || key === "forecast_lat" || key === "forecast_lon") ? { forecast: true } : {}
       );
     }
   }
@@ -3893,10 +4083,10 @@ details.founditem .factions { display:flex; justify-content:flex-end; margin-top
     }
   }
   function saveViaConfig() {
-    toast("Speichere …");
+    const doneCfg = topBusy("Speichere …");
     saveConfig()
-      .then(() => toast("Einstellungen gespeichert.", "ok"))
-      .catch(() => toast("Speichern fehlgeschlagen", "bad"));
+      .then(() => { doneCfg(true, "Einstellungen gespeichert ✓"); toast("Einstellungen gespeichert.", "ok"); })
+      .catch(() => { doneCfg(false, "Speichern fehlgeschlagen"); toast("Speichern fehlgeschlagen", "bad"); });
   }
 
   function setMode(mode) {

@@ -1814,7 +1814,13 @@ class PvmManager:
                     )
                 except Exception:  # noqa: BLE001
                     meteo = None
-            if meteo:
+            if meteo and meteo.get("error"):
+                data["note"] = (
+                    "Prognose fehlgeschlagen: " + meteo["error"]
+                    + ". Bitte Schlüssel bzw. Koordinaten prüfen "
+                    + "(Einstellungen → PV-Prognose)."
+                )
+            elif meteo:
                 rad_now = fc.radiation_now(meteo, now)
                 factor = fc._scale_to_now(rad_now, pv) or self._pv_derate
                 if factor is None:

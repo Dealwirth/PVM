@@ -228,6 +228,12 @@ HA-Versionen automatisch auf das klassische `recorder/…`-Kommando zurück.
 Ist die Aufzeichnung aus, erscheint eine verständliche Hinweismeldung
 statt eines leeren Bildes.
 
+**Schnell & flüssig:** Das Diagramm skaliert mit deiner Fensterbreite (auch
+Uhrzeit-Beschriftungen passen sich automatisch an), Reihen lassen sich per
+Klick **sofort** an-/abwählen, und Modi bzw. Fläche/Linie werden direkt im
+Diagramm umgesetzt – ohne langes Neu-Laden. Während des Ladens läuft oben
+auf der Seite ein Ladebalken.
+
 Darunter steht die **PV-Prognose**: erwartete Leistung **jetzt, in 15
 Minuten, nächste 3 Stunden und für den Rest des Tages** – sie ist
 **standardmäßig ausgeschaltet** und erscheint erst, wenn du sie unter
@@ -260,6 +266,17 @@ Schalter **PV-Prognose** (Standard aus) und **Vorausschauendes Laden**
   „API-Schlüssel“ einfügen und „Prognose jetzt aktualisieren“ drücken.
   Ohne Schlüssel startet PVM keine Abfrage – die Kurve bleibt leer, die
   Steuerung funktioniert davon unabhängig immer.
+
+> **Wichtig:** In das Feld „API-Schlüssel“ gehört **nur der kurze Code**
+> aus deinem Tarif (z. B. `aB3xK9…`) – **keine URL**. Die Adresse
+> `api.open-meteo.com/…` ist kein Schlüssel. PVM warnt und bricht ab, falls
+> du versehentlich eine URL einfügst.
+
+**Feedback während der Berechnung:** Solange die Prognose rechnet, zeigt
+PVM einen Spinner mit „PV-Prognose wird berechnet …“ (erste Abfrage kann
+10–30 s dauern). Antwortet Open-Meteo mit 401/403/429 (Schlüssel ungültig,
+Limit erreicht), erscheint eine verständliche Meldung statt still leerer
+Kurven.
 
 Letzteres (Vorausschauendes Laden) bedeutet: Hat ein Auto eine **aktive
 Frist** (Ziel bis Uhrzeit), bleibt die Wallbox auch über eine kurze

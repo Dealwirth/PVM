@@ -97,6 +97,17 @@ async def fetch_open_meteo(
             OPEN_METEO_API_URL if key else OPEN_METEO_URL, params=params, timeout=timeout
         ) as resp:
             if resp.status != 200:
+                # Wichtiges Feedback fürs Panel: Ist der eigene Schlüssel
+                # falsch (401) oder das Limit erreicht (429), darf PVM nicht
+                # still ins lokale Modell fallen – der Nutzer sieht sonst
+                # nicht, dass der Schlüssel das Problem ist.
+                if key:
+                    hint = {
+                        401: "API-Schlüssel ungültig (HTTP 401)",
+                        403: "Zugriff verweigert (HTTP 403)",
+                        429: "Anfragen-Limit erreicht (HTTP 429)",
+                    }.get(resp.status, f"Open-Meteo-Fehler (HTTP {resp.status})")
+                    return {"error": hint}
                 return None
             data = await resp.json()
         times_raw = (data.get("minutely_15") or {}).get("time") or []

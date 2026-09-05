@@ -1,10 +1,11 @@
-<img align="right" src="icon.png" alt="PVM-Logo" width="80" height="80">
+# <img align="right" src="icon.png" alt="PVM-Logo" width="80" height="80">☀️ PVM – PV Manager
 
-# ☀️ PVM – PV Manager
+<!-- Logo steht innerhalb der Überschrift – dadurch liegt der GitHub-Strich unter
+     der Überschrift UNTER dem Logo und schneidet es nicht mehr an. -->
 
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.2.0+-blue.svg)](https://www.home-assistant.io)
-[![GitHub Release](https://img.shields.io/badge/version-1.9.7-blue.svg)](https://github.com/Dealwirth/PVM/releases)
+[![GitHub Release](https://img.shields.io/badge/version-1.9.8-blue.svg)](https://github.com/Dealwirth/PVM/releases)
 [![License](https://img.shields.io/github/license/Dealwirth/PVM)](LICENSE)
 
 **PVM** ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deinen
