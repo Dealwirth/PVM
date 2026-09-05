@@ -1,11 +1,10 @@
-<div style="display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:6px">
-  <h1 style="margin:0">☀️ PVM – PV Manager</h1>
-  <img src="icon.png" alt="PVM-Logo" width="84" height="84" style="border-radius:14px;box-shadow:0 3px 10px rgba(0,0,0,.18)">
-</div>
+<img align="right" src="icon.png" alt="PVM-Logo" width="80" height="80">
+
+# ☀️ PVM – PV Manager
 
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.2.0+-blue.svg)](https://www.home-assistant.io)
-[![GitHub Release](https://img.shields.io/badge/version-1.9.6-blue.svg)](https://github.com/Dealwirth/PVM/releases)
+[![GitHub Release](https://img.shields.io/badge/version-1.9.7-blue.svg)](https://github.com/Dealwirth/PVM/releases)
 [![License](https://img.shields.io/github/license/Dealwirth/PVM)](LICENSE)
 
 **PVM** ist dein intelligenter Energiemanager für Home Assistant. Er verteilt deinen
@@ -13,15 +12,9 @@ PV-Überschuss automatisch an Wallboxen, Wärmepumpe, Waschmaschine & Co. – ü
 eigene, klar gestaltete **PVM-Seite** in der Seitenleiste (mit eigenem Logo). Kein YAML, kein
 Setup-Wizard: Installieren, öffnen, Geräte per Klick übernehmen – fertig.
 
-<div style="margin:26px 0 8px">
-<a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Dealwirth&repository=PVM&category=integration"
-   style="display:block;width:100%;box-sizing:border-box;padding:9px 16px;border-radius:12px;background:#03a9f4;color:#ffffff;text-decoration:none;font-weight:800;font-size:20px;letter-spacing:.4px;text-align:center;border:1px solid #039be5;box-shadow:0 4px 14px rgba(3,169,244,.45);transition:filter .12s ease, box-shadow .12s ease;"
-   onmouseover="this.style.filter='brightness(1.08)';this.style.boxShadow='0 6px 20px rgba(3,169,244,.55)'"
-   onmouseout="this.style.filter='';this.style.boxShadow=''">
-  PVM in HACS
-</a>
-<em style="font-size:14px;display:block;margin-top:8px">Ein Klick – HACS öffnet sich und installiert PVM.</em>
-</div>
+[![PVM in HACS installieren](hacs_button.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Dealwirth&repository=PVM&category=integration)
+
+*Ein Klick – HACS öffnet sich und installiert PVM.*
 
 ---
 

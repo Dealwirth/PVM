@@ -2,6 +2,23 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.9.7] – 2026-09-05
+
+### README – Button jetzt wirklich sichtbar (GitHub-kompatibel)
+
+- **Ursache gefunden:** GitHub entfernt beim Anzeigen von README-Dateien
+  **alle inline-`style`-Angaben**. Der bisherige Button (blaue Fläche über
+  `background:#03a9f4`) wurde dadurch zu einem unscheinbaren Textlink
+  „PVM in HACS“ – genau das, was du in GitHub nicht sehen konntest.
+- **Lösung:** Der Button ist jetzt eine **echte Grafik** (`hacs_button.svg`),
+  die als Link hinterlegt ist – so übersteht er GitHub & jede README-Ansicht:
+  breiter, blauer Banner „PVM in HACS“, reicht von einer Seite zur anderen.
+- **Logo oben rechts:** funktioniert jetzt über `align="right"` (das GitHub
+  erlaubt) statt über Flexbox/`style` – sitzt damit wirklich neben der
+  Überschrift oben rechts.
+- Verifiziert mit dem offiziellen GitHub-Markdown-Renderer: Logo bündig
+  oben rechts, Banner randlos über die volle Breite, Klickziel = HACS-Link.
+
 ## [1.9.6] – 2026-09-05
 
 ### README – Header wie bestellt
