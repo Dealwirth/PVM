@@ -21,7 +21,7 @@ import os
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN, NAME, SIDEBAR_NAME
+from .const import DOMAIN, NAME, SIDEBAR_NAME, VERSION
 from .manager import PvmManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,13 +64,18 @@ async def async_register_panel(hass: HomeAssistant, manager: PvmManager) -> None
             sidebar_title=SIDEBAR_NAME,
             sidebar_icon="mdi:solar-power-variant",
             frontend_url_path=PANEL_URL,
+            # ?v=VERSION zwingt die HA-Oberfläche, nach einem Update die NEUE
+            # panel.js zu laden – ohne diesen Cache-Buster zeigte der Browser
+            # nach HACS-Updates wochenlang die alte (fehlerhafte) Seite.
             config={
                 "_panel_custom": {
                     "name": PANEL_ELEMENT,
                     "embed_iframe": True,
                     "trust_external": False,
-                    "module_url": f"{PANEL_STATIC_PATH}/{PANEL_FILE}",
-                    "js_url": f"{PANEL_STATIC_PATH}/{PANEL_FILE}",
+                    "module_url": (
+                        f"{PANEL_STATIC_PATH}/{PANEL_FILE}?v={VERSION}"
+                    ),
+                    "js_url": f"{PANEL_STATIC_PATH}/{PANEL_FILE}?v={VERSION}",
                 }
             },
             require_admin=False,

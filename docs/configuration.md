@@ -221,15 +221,22 @@ Wallboxen, Netz) und Zeiträume (24 h / 7 Tage). **Jede Reihe lässt sich
 einzeln an- und abwählen** über die Punkte unter dem Diagramm; die Farben
 folgen deinem Design und deiner Wunschfarbe.
 
+Die Kurven kommen **direkt aus der Home-Assistant-Historie (Recorder)** –
+genau wie das HA-eigene Verlaufs-Diagramm. PVM fragt den Verlauf über das
+moderne `history/history_during_period`-Kommando ab und fällt bei älteren
+HA-Versionen automatisch auf das klassische `recorder/…`-Kommando zurück.
+Ist die Aufzeichnung aus, erscheint eine verständliche Hinweismeldung
+statt eines leeren Bildes.
+
 Darunter steht die **PV-Prognose**: erwartete Leistung **jetzt, in 15
 Minuten, nächste 3 Stunden und für den Rest des Tages** – sie ist
-**standardmäßig ausgeschaltet** und erscheint erst, wenn du sie in der
-Einrichtung bestätigst oder unter *Einstellungen* aktivierst. Berechnet wird
-sie anonym über Open-Meteo (keine Anmeldung nötig) mit lokalem Modell als
-Fallback. PVM nutzt diese Vorhersage, um kurze Wolkenphasen nicht zum
-Abschalten zu nutzen („erst abwarten, die Sonne kommt gleich wieder“).
-Bevorsteht in den nächsten 15 Minuten ein Einbruch, zeigt der
-Statistik-Reiter einen **orangefarbenen Benachrichtigungspunkt**.
+**standardmäßig ausgeschaltet** und erscheint erst, wenn du sie unter
+*Einstellungen* aktivierst. Die Prognose ist **API-gebunden**: ohne
+eigenen Open-Meteo-API-Schlüssel bleibt sie aus (Anleitung + Link stehen
+direkt in den Einstellungen). PVM nutzt diese Vorhersage, um kurze
+Wolkenphasen nicht zum Abschalten zu nutzen („erst abwarten, die Sonne
+kommt gleich wieder“). Bevorsteht in den nächsten 15 Minuten ein Einbruch,
+zeigt der Statistik-Reiter einen **orangefarbenen Benachrichtigungspunkt**.
 
 Unter **Einstellungen → PV-Prognose & smartes Laden** findest du die
 Schalter **PV-Prognose** (Standard aus) und **Vorausschauendes Laden**
@@ -237,20 +244,22 @@ Schalter **PV-Prognose** (Standard aus) und **Vorausschauendes Laden**
 (auch per Button „Prognose jetzt aktualisieren“) – nicht erst im
 15-Minuten-Takt.
 
-### Standort & API-Schlüssel
+### Standort & API-Schlüssel (Pflichtfeld für die Prognose)
 
 - **Standard:** PVM nutzt die **Koordinaten deiner Home-Assistant-
   Installation** (unter *Einstellungen → System → Allgemein* einstellbar).
-  Bei der Einrichtung fragt PVM deshalb: „Steht deine PV-Anlage hier?“ –
-  bei **Ja** reicht das komplett aus.
-- **PV woanders?** Im Abschnitt *API, Standort & Koordinaten (optional)*
+  Bei der Einrichtung fragt PVM deshalb: „Steht deine PV-Anlage hier?“
+- **PV woanders?** Im Abschnitt *API-Schlüssel, Standort & Koordinaten*
   kannst du Breiten- und Längengrad deiner Anlage hinterlegen.
-- **API-Schlüssel (optional):** Die Prognose funktioniert **ohne
-  Registrierung**. Wer einen eigenen Open-Meteo-Schlüssel möchte: Auf
-  [open-meteo.com](https://open-meteo.com/en/docs) die *Forecast API*
-  öffnen, (kostenlos) registrieren, den Schlüssel kopieren und im Feld
-  „Eigener API-Schlüssel“ einfügen – die Abfragen laufen dann mit höherer
-  Priorität. Nach dem Eintrag berechnet PVM die Prognose sofort neu.
+- **API-Schlüssel (erforderlich):** PVM fragt die Prognose ausschließlich
+  über den Open-Meteo-Kunden-Endpunkt
+  (`customer-api.open-meteo.com`) ab – dafür brauchst du einen eigenen
+  Schlüssel: ① [open-meteo.com/en/pricing](https://open-meteo.com/en/pricing)
+  öffnen und einen Tarif wählen (z. B. „API Standard“), ② direkt nach dem
+  Checkout erhältst du **sofort deinen API-Schlüssel**, ③ Schlüssel im Feld
+  „API-Schlüssel“ einfügen und „Prognose jetzt aktualisieren“ drücken.
+  Ohne Schlüssel startet PVM keine Abfrage – die Kurve bleibt leer, die
+  Steuerung funktioniert davon unabhängig immer.
 
 Letzteres (Vorausschauendes Laden) bedeutet: Hat ein Auto eine **aktive
 Frist** (Ziel bis Uhrzeit), bleibt die Wallbox auch über eine kurze

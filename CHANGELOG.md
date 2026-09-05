@@ -2,6 +2,39 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.9.5] – 2026-09-05
+
+### Diagramm & Cache – „es geht immer noch nicht“ dauerhaft behoben
+- **Cache-Buster:** Die PVM-Seite wird jetzt mit Versions-Parameter
+  (`panel.js?v=1.9.5`) ausgeliefert. Nach einem HACS-Update lädt der
+  Browser garantiert die **neue** Version – zuvor zeigten alte Caches
+  wochenlang die fehlerhafte Seite.
+- **Historie mit Fallback-Kaskade:** Der Verlauf wird direkt aus dem
+  HA-Recorder geladen (wie HA selbst) – erst `history/history_during_period`,
+  dann automatisch `recorder/…`. Auf jeder HA-Version funktioniert so eines
+  der beiden Kommandos; klappt keines, erscheint eine verständliche
+  Hinweismeldung statt „unknown Error“ oder leerer Fläche.
+
+### PV-Prognose jetzt zwingend API-gebunden
+- PVM fragt nur noch den Open-Meteo-**Kunden-Endpunkt**
+  (`customer-api.open-meteo.com`) ab – **ohne eigenen API-Schlüssel wird
+  nicht mehr abgefragt** (der anonyme Endpunkt war unzuverlässig).
+- In den Einstellungen steht jetzt eine **exakte Anleitung mit Direktlink**
+  (Tarif wählen → Schlüssel sofort erhalten → eintragen → aktualisieren);
+  die Statistik-Seite zeigt dieselbe Hilfe, solange der Schlüssel fehlt.
+
+### Gefunden-Liste wird gespeichert + aufklappbar
+- Das Scan-Ergebnis („Gefunden“) bleibt jetzt **dauerhaft gespeichert** –
+  nach einem Neustart ist kein erneutes Suchen nötig; bereits übernommene
+  Vorschläge blendet PVM automatisch aus.
+- Die Funde erscheinen als **aufklappbare Gruppen-Zeilen** (Messungen /
+  Geräte & Verbraucher) mit allen Entitäten im Detail.
+
+### Bedienung & Startverhalten
+- Nach dem Umschalten auf **Manuell** klappt PVM das Bedien-Menü der Karte
+  **sofort auf** – Regler und Knöpfe sind ohne weiteren Klick nutzbar.
+- Einrichtung abgeschlossen → PVM öffnet **immer direkt die Übersicht**.
+
 ## [1.9.4] – 2026-09-05
 
 ### Statistik repariert: „unknown Error“ behoben

@@ -428,6 +428,44 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
 .numval { font-weight:800; color:var(--acc); font-variant-numeric:tabular-nums;
   min-width:64px; text-align:right; white-space:nowrap; }
 .founditem p { margin:0; color:var(--mut); font-size:12px; line-height:1.45; word-break:break-word; }
+/* „Gefunden“: Gruppen + aufklappbare Zeilen (dauerhaft gespeichertes Scan-
+   Ergebnis). founditem bleibt als Dialog-Baustein (flex) erhalten – nur als
+   <details> wird es zur aufklappbaren Zeile. */
+.fgroup { border:1px solid var(--line); border-radius:var(--r); margin-top:14px;
+  background:var(--card); box-shadow:var(--sh); overflow:hidden; }
+.fgroup > summary { cursor:pointer; list-style:none; padding:12px 15px; font-weight:800;
+  display:flex; align-items:center; gap:8px; font-size:13.5px; user-select:none; }
+.fgroup > summary::-webkit-details-marker { display:none; }
+.fgroup > summary::before { content:"▾"; color:var(--acc); font-size:12px; transition:transform .15s ease; }
+.fgroup:not([open]) > summary::before { transform:rotate(-90deg); }
+details.founditem { display:block; padding:0; border-radius:0; border:none;
+  border-top:1px solid var(--line); box-shadow:none; margin-top:0; }
+.fgroup .founditem:last-child { border-bottom:1px solid var(--line); }
+details.founditem > summary { list-style:none; cursor:pointer; padding:11px 13px;
+  display:flex; align-items:center; gap:8px; user-select:none; }
+details.founditem > summary::-webkit-details-marker { display:none; }
+details.founditem > summary .arr { color:var(--mut); transition:transform .15s ease; }
+details.founditem[open] > summary .arr { transform:rotate(180deg); }
+details.founditem > summary:hover { background:var(--card2); }
+details.founditem .fbody { padding:2px 13px 12px; }
+details.founditem .fbody .frow { display:flex; gap:8px; align-items:baseline; padding:4px 0; }
+details.founditem .fbody .frow span { flex:0 0 160px; color:var(--mut); font-size:12px; }
+details.founditem .fbody .frow code { font-size:12px; word-break:break-all; }
+details.founditem .factions { display:flex; justify-content:flex-end; margin-top:8px; padding-top:8px;
+  border-top:1px dashed var(--line); }
+/* Prognose-Anleitung + Statistik-Zustände */
+.fchint { border:1px solid var(--line); border-left:4px solid var(--acc); background:var(--card2);
+  border-radius:11px; padding:10px 12px; font-size:12.5px; line-height:1.55; color:var(--txt); }
+.fchint.warn { border-left-color: var(--warn); }
+.fchint a { color:var(--acc); font-weight:700; }
+.fchint a:hover { text-decoration:underline; }
+.fgsteps { margin:0; padding-left:20px; display:flex; flex-direction:column; gap:4px; }
+.fgsteps li { font-size:12.5px; }
+.fcall { margin-top:8px; }
+.fcall .cloud-badge { margin:0 0 6px; }
+.stmsg { padding:16px 18px; color:var(--mut); font-size:12.5px; line-height:1.55;
+  border:1px dashed var(--line); border-radius:12px; background:var(--card); }
+.stmsg small { color:var(--mut); }
 
 #toasts { position:fixed; bottom:18px; right:18px; display:flex; flex-direction:column; gap:8px; z-index:400; }
 .toast { background:var(--bg2); border:1px solid var(--line); border-left:4px solid var(--acc);
@@ -566,6 +604,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
                         // darunterliegenden Dialog nicht mehr (wichtig: Geräte-Dialog)
     deviceDialog: null,
     accOpen: {},        // offene Einstellungs-Akkordeons (bleiben nach Reload erhalten)
+    manOpen: {},        // offene Manuell-Menüs der Gerätekarten (bleiben erhalten)
     instance: null,     // Instanz des aktuell geladenen Managers
     lastInstance: null, // Instanz beim letzten Speichern (für Reload-Erkennung)
     lastLive: 0,
@@ -1073,7 +1112,6 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     `;
     root.addEventListener("click", (ev) => onRootClick(root, ev));
     root.addEventListener("input", (ev) => onRootInput(root, ev));
-    root.addEventListener("change", (ev) => onRootChange(root, ev));
     root.addEventListener("change", (ev) => onRootChange(root, ev));
     return root;
   }
@@ -1627,14 +1665,16 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           <button class="ico" data-action="edit-device" data-device="${esc(device.id)}" title="Bearbeiten">${I.edit}</button>
           <button class="ico" data-action="del-device" data-device="${esc(device.id)}" title="Entfernen">${I.del}</button>
         </div>
-        ${manualControlsHtml(device, autoOn)}
+        ${manualControlsHtml(device, autoOn, !!state.manOpen[device.id])}
       </div>`;
   }
 
-  /* Kleines Ausklapp-Menü für die manuelle Steuerung direkt auf der Karte */
-  function manualControlsHtml(device, autoOn) {
+  /* Kleines Ausklapp-Menü für die manuelle Steuerung direkt auf der Karte.
+   * Offen/Zu wird in state.manOpen gemerkt – so bleibt das Menü auch nach
+   * Neuladen/Navigation auf („Manuell“ klappt es direkt auf). */
+  function manualControlsHtml(device, autoOn, open) {
     return `
-      <div class="devctl" data-el="devctl" data-device="${esc(device.id)}" data-auto="${autoOn ? "1" : "0"}" style="display:none">
+      <div class="devctl" data-el="devctl" data-device="${esc(device.id)}" data-auto="${autoOn ? "1" : "0"}" style="display:${open ? "block" : "none"}">
         ${manualControlsInner(device, autoOn)}
       </div>`;
   }
@@ -1797,12 +1837,12 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       const devctl = $(card, '[data-el="devctl"]');
       if (devctl) {
         const flag = autoNow ? "1" : "0";
+        const wantOpen = !!state.manOpen[d.id];
         if (devctl.getAttribute("data-auto") !== flag) {
-          const wasOpen = devctl.style.display === "block";
           devctl.setAttribute("data-auto", flag);
           devctl.innerHTML = manualControlsInner(d, autoNow);
-          if (wasOpen) devctl.style.display = "block";
         }
+        devctl.style.display = wantOpen ? "block" : "none";
       }
       // Wallbox: zeigt das zugeordnete Auto an (live ladend, sonst gelernt)
       const assigned = $(card, '[data-el="assigned-car"]');
@@ -1869,39 +1909,71 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
   }
 
   /* ------------------------------------------------------------------ *
-   * Gefunden (Scan)
+   * Gefunden (Scan) – aufklappbare Zeilen; Ergebnis wird dauerhaft
+   * gespeichert (kein erneutes Suchen nach Neustart), bereits übernommene
+   * Vorschläge blendet der Server automatisch aus.
    * ------------------------------------------------------------------ */
+  const FOUND_ROLE_LABELS = {
+    pv: "PV-Leistung", grid: "Netz", grid_import: "Netzbezug (separat)",
+    grid_export: "Einspeisung (separat)", house: "Haus", wallbox: "Wallbox",
+    wp: "Wärmepumpe", verbraucher: "Verbraucher", fahrzeug: "Auto",
+  };
   function htmlFound() {
     const sets = (state.scan && state.scan.sets) || [];
     const measures = sets.filter((s) => ["pv", "grid", "grid_import", "grid_export", "house"].includes(s.role));
     const devs = sets.filter((s) => !["pv", "grid", "grid_import", "grid_export", "house"].includes(s.role));
-    const rl = (r) => ({ pv: "PV-Leistung", grid: "Netz", grid_import: "Netzbezug (separat)", grid_export: "Einspeisung (separat)", house: "Haus", wallbox: "Wallbox", wp: "Wärmepumpe", verbraucher: "Verbraucher", fahrzeug: "Auto" }[r] || r);
+    const rl = (r) => FOUND_ROLE_LABELS[r] || r;
+    const group = (title, list, kind) => (list.length
+      ? `<details class="fgroup" open>
+          <summary>${esc(title)} <b>${list.length}</b></summary>
+          <div style="display:flex;flex-direction:column;gap:0;margin-top:8px">${list.map((m) => foundHtml(m, kind, rl(m.role))).join("")}</div>
+        </details>`
+      : "");
     return `
       <h2 class="sec">Automatisch gefunden</h2>
-      <p class="sub">PVM durchsucht deine Geräte nach passenden Sensoren und Verbrauchern. Du übernimmst nur, was wirklich deins ist.</p>
-      <button class="btn primary" data-action="run-scan">${I.radar} Jetzt suchen</button>
-      ${(measures.length || devs.length) ? `
-        ${measures.length ? `<h2 class="sec" style="margin-top:18px">Messungen</h2>` + measures.map((m) => foundHtml(m, "measure", rl(m.role))).join("") : ""}
-        ${devs.length ? `<h2 class="sec" style="margin-top:18px">Geräte</h2>` + devs.map((m) => foundHtml(m, "device", rl(m.role))).join("") : ""}`
+      <p class="sub">PVM durchsucht deine Geräte nach passenden Sensoren und Verbrauchern. Jede Zeile klappt sich auf – du siehst, welche Entitäten gefunden wurden, und übernimmst nur, was wirklich deins ist.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn primary" data-action="run-scan">${I.radar} Jetzt suchen</button>
+        ${sets.length ? `<span class="chip">Ergebnis gespeichert – kein erneutes Suchen nach Neustart nötig.</span>` : ""}
+      </div>
+      ${(measures.length || devs.length) ? `${group("Messungen", measures, "measure")}${group("Geräte & Verbraucher", devs, "device")}`
       : `<div class="empty" style="border:1px dashed var(--line);border-radius:16px;margin-top:16px;padding:26px">
-           Noch keine Vorschläge. Starte die Suche – alles Gefundene erscheint hier mit einem Klick zum Übernehmen.</div>`}
+           Noch keine Vorschläge. Starte die Suche – alles Gefundene erscheint hier aufklappbar und bleibt gespeichert.</div>`}
     `;
+  }
+  function foundFieldRows(fields) {
+    const defs = [
+      ["entity", "Energie-Sensor"], ["power_sensor", "Leistungs-Sensor"],
+      ["soc_sensor", "Akkustand (SoC)"], ["temp_sensor", "Temperatur-Sensor"],
+      ["switch_entity", "Schalter (An/Aus)"], ["on_entity", "Start-Taster"],
+      ["off_entity", "Stopp-Taster"], ["number_entity", "Leistungs-Begrenzer"],
+      ["temp_entity", "Ziel-Temperatur"],
+    ];
+    return defs
+      .filter(([k]) => fields[k])
+      .map(([k, label]) => `<div class="frow"><span>${esc(label)}</span><code>${esc(fields[k])}</code></div>`)
+      .join("");
   }
   function foundHtml(f, kind, roleLabel) {
     const fields = f.fields || {};
     const id = fields.entity || fields.power_sensor || fields.switch_entity || fields.temp_sensor || "";
-    const extra = fields.soc_sensor ? " · SoC: " + esc(fields.soc_sensor) : "";
-    const desc = id
-      ? esc(friendlyOf(id)) + " · " + esc(id) + extra
-      : "Mehrere passende Entitäten – PVM füllt das Formular vor.";
+    const rows = foundFieldRows(fields);
     return `
-      <div class="founditem">
-        <div class="grow">
-          <h4>${esc(f.title || "Gefunden")}</h4>
-          <p><span class="tag role" style="margin-right:6px">${esc(roleLabel)}</span>${desc}</p>
+      <details class="founditem">
+        <summary>
+          <span class="tag role" style="margin-right:8px">${esc(roleLabel)}</span>
+          <span class="grow"><b>${esc(f.title || "Gefunden")}</b>
+            <small style="display:block;color:var(--mut);font-weight:400">${id ? esc(friendlyOf(id)) + " · " + esc(id) : "Mehrere passende Entitäten – PVM füllt das Formular vor."}</small>
+          </span>
+          <span class="arr">${I.down}</span>
+        </summary>
+        <div class="fbody">
+          ${rows || `<p class="sub">Details klappt PVM beim Übernehmen automatisch in den Dialog – dort kannst du alles anpassen.</p>`}
+          <div class="factions">
+            <button class="btn primary" data-action="adopt" data-idx="${setsIndexOf(f)}">${I.plus} ${kind === "measure" ? "Übernehmen" : "Übernehmen & einrichten"}</button>
+          </div>
         </div>
-        <button class="btn ghost" data-action="adopt" data-idx="${setsIndexOf(f)}">Übernehmen</button>
-      </div>`;
+      </details>`;
   }
   function setsIndexOf(f) {
     const sets = (state.scan && state.scan.sets) || [];
@@ -2013,32 +2085,43 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     if (statState.loading) return;
     statState.loading = true;
     const src = statSources();
-    const root = state.root;
-    const chartEl = root && $(root, "[data-el=stat-chart]");
+    const chartEl = statChartBox();
+    const setMsg = (html, cls) => {
+      if (!chartEl) return;
+      chartEl.innerHTML = `<div class="stmsg ${cls || ""}">${html}</div>`;
+    };
     try {
       if (!state.hass || !state.hass.connection) {
-        statState.loading = false;
-        if (chartEl) {
-          chartEl.innerHTML =
-            `<div class="empty" style="padding:16px;color:var(--mut)">Der Verlauf wird direkt aus Home Assistant geladen – er erscheint hier, sobald PVM in HA läuft und Sensoren verbunden sind.</div>`;
-        }
+        setMsg(`Der Verlauf wird direkt aus Home Assistant geladen – er erscheint hier, sobald PVM in HA läuft und Sensoren verbunden sind.`);
         return;
       }
-      if (!Object.keys(src).length) {
-        statState.loading = false;
-        return;
-      }
+      if (!Object.keys(src).length) return;
       const entityIds = Array.from(new Set(Object.values(src).reduce((a, b) => a.concat(b), [])));
       const end = new Date();
       const start = new Date(end.getTime() - statState.rangeH * 3600 * 1000);
-      const raw = await state.hass.connection.sendMessagePromise({
-        type: "history/history_during_period",
-        start_time: start.toISOString(),
-        end_time: end.toISOString(),
-        entity_ids: entityIds,
-        minimal_response: true,
-        no_attributes: true,
-      });
+      // Genau wie HA es für seine eigenen Diagramme tut, fragt PVM den
+      // Verlauf über die WebSocket-Historie ab – zuerst das moderne Kommando
+      // der Oberfläche, dann das klassische des Recorders. So funktioniert
+      // die Statistik auf jeder HA-Version (selbst wenn ein Kommando mit
+      // „unknown“ antwortet, übernimmt das nächste).
+      let raw = null;
+      let lastErr = null;
+      for (const cmd of ["history/history_during_period", "recorder/history_during_period"]) {
+        try {
+          raw = await state.hass.connection.sendMessagePromise({
+            type: cmd,
+            start_time: start.toISOString(),
+            end_time: end.toISOString(),
+            entity_ids: entityIds,
+            minimal_response: true,
+            no_attributes: true,
+          });
+          break;
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      if (raw == null) throw lastErr || new Error("Verlauf nicht verfügbar");
       // HA antwortet: Dict {entity_id: [..]} – bei genau einer Entität aber
       // eine nackte Liste (bekanntes HA-Verhalten). Beides normalisieren.
       const byEntity = Array.isArray(raw) && entityIds.length === 1
@@ -2049,6 +2132,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       const startTs = start.getTime();
       const endTs = end.getTime();
       const bucketT = (i) => startTs + ((i + 0.5) * (endTs - startTs)) / per;
+      let anyPoints = false;
       Object.keys(src).forEach((key) => {
         const vals = new Array(per).fill(null);
         const sums = new Array(per).fill(0);
@@ -2062,7 +2146,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
           const unit = sNow && sNow.attributes
             ? sNow.attributes.unit_of_measurement || "" : "";
           const factor = unit === "kW" ? 1000 : unit === "mW" ? 0.001 : 1;
-          states.forEach((stRec) => {
+          (states || []).forEach((stRec) => {
             const v = parseFloat(stRec && (stRec.s != null ? stRec.s : stRec.state));
             if (stRec == null || isNaN(v)) return;
             // minimal_response: Zeitstempel in "lu" (last_updated) bzw. "lc"
@@ -2081,17 +2165,31 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         });
         for (let i = 0; i < per; i++) {
           vals[i] = cnts[i] ? sums[i] / cnts[i] : null;
+          if (vals[i] != null) anyPoints = true;
         }
         series[key] = { label: STAT_LABELS[key] || key, points: vals, t: bucketT };
       });
       statState.data = { series, startTs, endTs, per };
+      if (!anyPoints) {
+        setMsg(`In diesem Zeitraum hat Home Assistant noch keine Verlaufsdaten für diese Sensoren.<br><small>Erst wenn die Sensoren eine Weile Werte liefern (Recorder-Aufzeichnung), zeichnet PVM hier die Kurven – genau wie das HA-eigene Diagramm.</small>`);
+        return;
+      }
       drawStatChart();
     } catch (err) {
-      if (chartEl) chartEl.innerHTML = `<span style="color:var(--bad)">Verlauf konnte nicht geladen werden: ${esc(errText(err))}</span>`;
+      const msg = errText(err);
+      const hint = /unknown|not_loaded/i.test(msg)
+        ? `<br><small>Der Verlauf (Recorder) ist in dieser HA-Version gerade nicht erreichbar – die Live-Werte der Übersicht funktionieren trotzdem weiter.</small>`
+        : "";
+      setMsg(`Der Verlauf konnte nicht aus Home Assistant geladen werden.<br><small>${esc(msg)}</small>${hint}`);
     } finally {
       statState.loading = false;
     }
     loadForecastPanel();
+  }
+
+  function statChartBox() {
+    const root = state.root;
+    return root && $(root, "[data-el=stat-chart]");
   }
 
   function drawStatChart() {
@@ -2175,6 +2273,22 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     return m * 1000;
   }
 
+  /** Kompakte Anleitung (erscheint überall dort, wo ein API-Schlüssel fehlt
+   *  bzw. die Prognose leer bleibt – Statistik-Seite und Einstellungen). */
+  function forecastGuideBlock(intro, wide) {
+    return `
+      <div class="fcall" style="${wide ? "margin:10px 0" : ""}">
+        <div class="fchint warn" style="margin-top:4px">
+          <b>${esc(intro || "Für die PV-Prognose ist ein Open-Meteo-API-Schlüssel nötig.")}</b>
+          <ol class="fgsteps" style="margin:6px 0 2px">
+            <li>Öffne <a href="https://open-meteo.com/en/pricing" target="_blank" rel="noopener">open-meteo.com/en/pricing</a> und wähle einen Tarif (z. B. <b>„API Standard“</b>).</li>
+            <li>Direkt nach dem Checkout erhältst du <b>sofort deinen API-Schlüssel</b>.</li>
+            <li>Füge ihn unter <b>Einstellungen → PV-Prognose → API-Schlüssel</b> ein und drücke <b>„Prognose jetzt aktualisieren“</b>.</li>
+          </ol>
+        </div>
+      </div>`;
+  }
+
   async function loadForecastPanel() {
     const root = state.root;
     const el = root && $(root, "[data-el=stat-forecast]");
@@ -2182,6 +2296,12 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const s = configSettings();
     if (s.forecast_enabled === false) {
       el.innerHTML = `<div class="empty" style="padding:14px;color:var(--mut)">PV-Prognose ist in den Einstellungen ausgeschaltet.</div>`;
+      return;
+    }
+    // API-gebunden: ohne hinterlegten Schlüssel keine Abfrage – stattdessen
+    // die kurze Anleitung mit Direktlink anzeigen.
+    if (!String(s.forecast_api_key || "").trim()) {
+      el.innerHTML = forecastGuideBlock("PV-Prognose ist an – dafür fehlt noch dein API-Schlüssel.");
       return;
     }
     try {
@@ -2219,6 +2339,11 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     const root = state.root;
     const el = root && $(root, "[data-el=stat-forecast]");
     if (!el) return;
+    const s = configSettings();
+    if (s.forecast_enabled && !String(s.forecast_api_key || "").trim()) {
+      el.innerHTML = forecastGuideBlock("PV-Prognose ist an – dafür fehlt noch dein API-Schlüssel.");
+      return;
+    }
     const fc = statState.forecast || {};
     const series = fc.series || [];
     const dayCurve = fc.day_curve || [];
@@ -2236,7 +2361,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       </div>
       <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         ${fc.source === "openmeteo"
-          ? `<span class="cloud-badge ok">${I.cloud} Open-Meteo (anonym)</span>`
+          ? `<span class="cloud-badge ok">${I.cloud} Open-Meteo (Kunden-API)</span>`
           : fc.source === "local"
             ? `<span class="cloud-badge ok">${I.sunny} lokales Modell</span>`
             : `<span class="cloud-badge warn">${I.cloud} keine Prognose</span>`}
@@ -2349,12 +2474,24 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       `)}
       ${accordion("prognose", I.cloud, "PV-Prognose & smartes Laden", `
         <div class="row">
-          <span class="lbl grow">PV-Prognose<small>Standard: aus. Einschalten, wenn PVM die kommende PV-Leistung abschätzen soll (nächste 15 Min genau, 3 h, ganzer Tag). Ohne Internet fällt PVM auf das lokale Modell zurück – die Steuerung funktioniert immer.</small></span>
+          <span class="lbl grow">PV-Prognose<small>Standard: aus. Die Prognose ist <b>API-gebunden</b>: Ohne eigenen Open-Meteo-API-Schlüssel bleibt die Kurve leer (genaue Anleitung + Link direkt darunter). Die Steuerung funktioniert unabhängig davon immer.</small></span>
           <span class="sw ${s.forecast_enabled ? "on" : ""}" data-settings-toggle="forecast_enabled"><i></i></span>
         </div>
         ${s.forecast_enabled ? `
-        <details class="accdetails" ${s.forecast_api_key || s.forecast_lat ? "open" : ""}><summary>API, Standort & Koordinaten (optional)</summary>
-          <p class="sub" style="margin-bottom:6px">PVM nutzt die kostenlose Open-Meteo-Prognose – <b>kein Konto nötig</b>. Die Koordinaten deiner Home-Assistant-Installation werden automatisch verwendet (unter Einstellungen → System → Allgemein → Zonename/Standort einstellbar).</p>
+        <div class="fcall">${s.forecast_api_key ? `<span class="cloud-badge ok">${I.check} Schlüssel hinterlegt</span>` : `<span class="cloud-badge warn">⚠ API-Schlüssel fehlt – Prognose bleibt aus</span>`}</div>
+        <details class="accdetails" open><summary>API-Schlüssel, Standort & Koordinaten</summary>
+          <div class="fcall">
+            <div class="fchint warn">
+              PVM fragt die Prognose ausschließlich über den <b>Open-Meteo-Kunden-Endpunkt</b>
+              (customer-api.open-meteo.com) ab – dafür ist ein eigener <b>API-Schlüssel</b> nötig.
+              <a href="https://open-meteo.com/en/pricing" target="_blank" rel="noopener">Tarif &amp; Schlüssel erstellen → (open-meteo.com/en/pricing)</a>
+            </div>
+            <ol class="fgsteps">
+              <li>Öffne <a href="https://open-meteo.com/en/pricing" target="_blank" rel="noopener">open-meteo.com/en/pricing</a> und wähle einen Tarif (z. B. <b>„API Standard“</b>).</li>
+              <li>Direkt nach dem Checkout erhältst du <b>sofort deinen API-Schlüssel</b> und eine Rechnung – kein Warten, keine Bestätigungsmail nötig.</li>
+              <li>Kopiere den Schlüssel unten in das Feld <b>API-Schlüssel</b> und drücke <b>„Prognose jetzt aktualisieren“</b> – die Berechnung startet sofort.</li>
+            </ol>
+            <p class="sub" style="margin-bottom:6px">Standort: Standardmäßig nutzt PVM die Koordinaten deiner Home-Assistant-Installation (HA: Einstellungen → System → Allgemein). Steht die PV-Anlage woanders, trag unten Breiten- und Längengrad ein.</p>
           <div class="row">
             <span class="lbl grow">Breitengrad (nur bei anderem PV-Standort)<small>Leer lassen = Standort der HA-Installation.</small></span>
             <input type="text" placeholder="z. B. 48.1374" value="${esc(s.forecast_lat || "")}" data-setting-input="forecast_lat" style="flex:1;min-width:120px" autocomplete="off">
@@ -2364,8 +2501,8 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
             <input type="text" placeholder="z. B. 11.5755" value="${esc(s.forecast_lon || "")}" data-setting-input="forecast_lon" style="flex:1;min-width:120px" autocomplete="off">
           </div>
           <div class="row">
-            <span class="lbl grow">Eigener API-Schlüssel (optional)<small>Wer einen eigenen Schlüssel bei <b>open-meteo.com</b> anlegt (kostenlos, ohne Konto: Seite öffnen → „Forecast API“ → Schlüssel kopieren), bekommt schnellere Abfragen mit höherer Priorität. Feldfrei lassen = anonyme Abfrage.</small></span>
-            <input type="text" placeholder="API-Schlüssel (optional)" value="${esc(s.forecast_api_key || "")}" data-setting-input="forecast_api_key" style="flex:1;min-width:180px" autocomplete="off">
+            <span class="lbl grow">API-Schlüssel (erforderlich)<small>Dein Open-Meteo-Schlüssel aus dem Tarif (Parameter „apikey“, Endpunkt customer-api.open-meteo.com). Ohne Schlüssel startet PVM keine Abfrage.</small></span>
+            <input type="text" placeholder="z. B. abC123… (Schlüssel aus deinem Open-Meteo-Tarif)" value="${esc(s.forecast_api_key || "")}" data-setting-input="forecast_api_key" style="flex:1;min-width:220px" autocomplete="off">
           </div>
         </details>
         <div class="row" style="justify-content:flex-end;gap:8px">
@@ -3227,7 +3364,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
     if (to === "devices") { state.panel._nav("devices"); return; }
     if (to === "order") { state.panel._nav("order"); return; }
     if (to === "found") { state.panel._nav("found"); return; }
-    const idx = { energy: 0, steuerung: 1, wp: 2, design: 3, system: 4 }[to];
+    const idx = { energy: 0, steuerung: 1, prognose: 2, wp: 2, design: 3, system: 4 }[to];
     state.panel._nav("settings");
     setTimeout(() => {
       const accs = $$(state.root, ".acc");
@@ -3256,7 +3393,11 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       case "intro-finish":
       case "intro-skip": {
         configSettings().intro_done = true;
-        saveAndRefresh("Einführung ausgeblendet – dein Dashboard ist jetzt aufgeräumt.");
+        // Einrichtung abgeschlossen → PVM öffnet wie eine App immer direkt
+        // die Übersicht (die Einführung verschwindet per Knopfdruck).
+        saveAndRefresh("Einführung ausgeblendet – dein Dashboard ist jetzt aufgeräumt.")
+          .then(() => state.panel._nav("overview"))
+          .catch(() => state.panel._nav("overview"));
         break;
       }
       case "intro-restart": {
@@ -3287,6 +3428,9 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
             if (res && res.ok !== false) {
               updateDeviceLives();
               liveNow();
+              // Direkt nach dem Wechsel auf „Manuell“ das Bedien-Menü
+              // aufklappen – der Nutzer kann sofort Regler/Knöpfe nutzen.
+              if (!wantAuto) openManualPanel(root, devId);
             }
           })
           .catch(() => toast("Umschalten fehlgeschlagen", "bad"));
@@ -3298,6 +3442,7 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
         const box = $(root, '.devctl[data-device="' + cssEsc(devId) + '"]');
         if (!box) return;
         const show = box.style.display !== "block";
+        state.manOpen[devId] = show;
         box.style.display = show ? "block" : "none";
         if (show) box.scrollIntoView({ behavior: "smooth", block: "nearest" });
         break;
@@ -3479,26 +3624,34 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       }
       case "setup-location": {
         // Einrichtungs-Frage: Steht die PV am Standort der HA-Installation?
-        // Ja → Prognose sofort aktivieren (kostenlos über Open-Meteo, nutzt
-        // automatisch die HA-Koordinaten). Nein → Anleitung in Einstellungen.
+        // Ja → HA-Koordinaten übernehmen (die Prognose selbst ist API-
+        // gebunden: Sie startet, sobald ein Schlüssel hinterlegt ist).
         const overlay = openModal(`
           <h3>${I.cloud} Steht deine PV-Anlage hier?</h3>
-          <div class="msub">Am Standort deiner Home-Assistant-Installation? Dann nutzt PVM automatisch deren Koordinaten und berechnet die Prognose ab sofort kostenlos – ein API-Schlüssel ist dafür <b>nicht</b> nötig.</div>
+          <div class="msub">Am Standort deiner Home-Assistant-Installation? Dann nutzt PVM automatisch deren Koordinaten. Für die Prognose selbst ist ein <b>Open-Meteo-API-Schlüssel</b> nötig – die genaue Anleitung mit Link liegt direkt in den Einstellungen bereit.</div>
           <div class="mfoot">
             <button class="btn ghost" data-no>Nein, sie steht woanders</button>
-            <button class="btn primary" data-yes>Ja – Prognose starten</button>
+            <button class="btn primary" data-yes>Ja – Standort übernehmen</button>
           </div>`);
         overlay.addEventListener("click", (ev) => {
           if (ev.target.closest("[data-yes]")) {
             closeModal();
             const s = configSettings();
             s.pv_at_hass_location = true;
-            s.forecast_enabled = true;
-            saveAndRefresh("Prognose aktiviert – nutzt den Standort deiner HA-Installation.", { forecast: true });
+            s.forecast_lat = "";
+            s.forecast_lon = "";
+            if (String(s.forecast_api_key || "").trim()) {
+              // Schlüssel ist schon hinterlegt → Prognose sofort starten.
+              s.forecast_enabled = true;
+              saveAndRefresh("Standort übernommen – Prognose läuft mit deinem API-Schlüssel.", { forecast: true });
+            } else {
+              saveAndRefresh("Standort übernommen. Für die Prognose fehlt noch der API-Schlüssel.")
+                .then(() => { toast("API-Schlüssel für die Prognose benötigt.", "bad"); jumpTo("prognose"); });
+            }
           } else if (ev.target.closest("[data-no]")) {
             closeModal();
-            toast("Kein Problem – unter Einstellungen → PV-Prognose kannst du Koordinaten oder einen API-Schlüssel hinterlegen.");
-            jumpTo("energy");
+            toast("Kein Problem – Koordinaten & API-Schlüssel stellst du in den Einstellungen ein.");
+            jumpTo("prognose");
           }
         });
         break;
@@ -3610,6 +3763,29 @@ select:focus, input:focus { outline:2px solid rgba(255,159,28,.55); outline-offs
       case "reload": window.location.reload(); break;
       default: break;
     }
+  }
+
+  /** Klappt das manuelle Bedien-Menü einer Karte direkt auf (z. B. nach dem
+   *  Umschalten auf „Manuell“) – so kann man ohne weiteren Klick loslegen. */
+  function openManualPanel(root, devId) {
+    // Dauerhaft merken (überlebt Neuladen/Navigation): Manuell-Menü offen
+    state.manOpen[devId] = true;
+    if (!root) return;
+    const card = $(root, '[data-device="' + cssEsc(devId) + '"].dev');
+    if (!card) return;
+    const devctl = $(card, '[data-el="devctl"]');
+    if (!devctl) return;
+    // Inhalt sofort auf „Manuell“ umbauen (auch bevor die HA-Entität den
+    // neuen Zustand meldet) – dann sind die Regler/Knöpfe sofort da.
+    if (devctl.getAttribute("data-auto") !== "0") {
+      devctl.setAttribute("data-auto", "0");
+      const d = deviceById(devId);
+      devctl.innerHTML = manualControlsInner(d || {}, false);
+    }
+    devctl.style.display = "block";
+    updateDeviceLives();
+    liveNow();
+    devctl.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   /* input-/change-Delegation (Slider + Selects) */

@@ -175,6 +175,9 @@ class PvmManager:
         """Erstellt einen Manager und lädt die Konfiguration."""
         manager = cls(hass, entry)
         manager.config = await manager._store.async_load()
+        # Das letzte Scan-Ergebnis („Gefunden“) bleibt erhalten – der Nutzer
+        # muss nach einem Neustart nicht jedes Mal neu suchen.
+        manager.last_scan = await manager._store.async_load_scan()
         return manager
 
     async def async_start(self) -> None:
@@ -1233,6 +1236,23 @@ class PvmManager:
                 "note": "PV-Prognose ist in den Einstellungen ausgeschaltet.",
             }
             return
+        # Die Prognose ist zwingend API-gebunden: Ohne eigenen Open-Meteo-
+        # Schlüssel gibt es keine Abfrage (der offene Endpunkt wird von PVM
+        # nicht mehr genutzt – er war unzuverlässig).
+        if not str(settings.get("forecast_api_key") or "").strip():
+            self.forecast_data = {
+                "source": "off",
+                "ts": _time.time(),
+                "series": [],
+                "day_curve": [],
+                "day_kwh": None,
+                "recovery_min": None,
+                "note": (
+                    "API-Schlüssel fehlt: Unter Einstellungen → PV-Prognose "
+                    "einen Open-Meteo-Key eintragen (open-meteo.com/en/pricing)."
+                ),
+            }
+            return
         energy = self.config.get("energy", {})
         if not (energy.get("pv_sensor") or energy.get("grid_export_sensor")):
             self.forecast_data = {
@@ -1586,6 +1606,8 @@ class PvmManager:
             "ts": _time.time(),
         }
         self.last_scan = result
+        # Ergebnis dauerhaft speichern („Gefunden“ bleibt nach Neustart erhalten)
+        await self._store.async_save_scan(result)
         # Nur informieren, wenn es wirklich neue Vorschläge gibt
         if notify:
             if fresh:
@@ -1606,6 +1628,54 @@ class PvmManager:
                     {"notification_id": f"{DOMAIN}_scan"},
                 )
         self._broadcast()
+        return result
+
+    def scan_sets_visible(self) -> dict[str, Any]:
+        """Scan-Ergebnis für die Seite – bereits übernommene Vorschläge ausblenden.
+
+        Das komplette Ergebnis bleibt gespeichert; nur Vorschläge, deren
+        Entität(en) inzwischen in der Konfiguration verbunden sind, werden
+        der Seite nicht mehr als „frei“ angeboten (kein erneutes Suchen nötig).
+        """
+        result = dict(self.last_scan or {})
+        sets = result.get("sets")
+        if not isinstance(sets, list):
+            return result
+        configured: set[str] = set()
+        for device in self.config.get("devices", []):
+            for sensor in device.get("sensors", {}).values():
+                if sensor:
+                    configured.add(str(sensor))
+            control = device.get("control") or {}
+            for key in (
+                "switch_entity", "on_entity", "off_entity",
+                "number_entity", "temp_entity",
+            ):
+                if control.get(key):
+                    configured.add(str(control[key]))
+        energy = self.config.get("energy", {}) or {}
+        for key in (
+            "pv_sensor", "grid_sensor", "grid_import_sensor",
+            "grid_export_sensor", "house_sensor",
+            "battery_power_sensor", "battery_soc_sensor",
+        ):
+            if energy.get(key):
+                configured.add(str(energy[key]))
+        fields = (
+            "entity", "power_sensor", "soc_sensor", "temp_sensor",
+            "switch_entity", "on_entity", "off_entity",
+            "number_entity", "temp_entity",
+        )
+        visible = [
+            found
+            for found in sets
+            if not any(
+                found.get("fields", {}).get(field) in configured
+                for field in fields
+                if found.get("fields", {}).get(field)
+            )
+        ]
+        result["sets"] = visible
         return result
 
     def _scan_text(self, fresh: list[dict]) -> str:
@@ -1682,6 +1752,10 @@ class PvmManager:
         settings = self.config.get("settings", {})
         if not settings.get("forecast_enabled", True):
             return
+        # API-gebunden: ohne hinterlegten Schlüssel nie abfragen (der offene
+        # Endpunkt ist unzuverlässig – die Prognose blieb sonst leer).
+        if not str(settings.get("forecast_api_key") or "").strip():
+            return
         energy = self.config.get("energy", {})
         if not (energy.get("pv_sensor") or energy.get("grid_export_sensor")):
             return  # ohne PV-Messung keine sinnvolle Prognose
@@ -1724,7 +1798,12 @@ class PvmManager:
                 "note": "Keine Prognose verfügbar (offline / keine Koordinaten).",
             }
             meteo = None
-            if lat and lon and self.hass.helpers is not None:
+            if not lat or not lon:
+                data["note"] = (
+                    "Keine Koordinaten: Standort der HA-Installation oder unter "
+                    "Einstellungen → PV-Prognose eintragen."
+                )
+            elif self.hass.helpers is not None:
                 try:
                     session = self.hass.helpers.aiohttp_client.async_get_clientsession()
                     meteo = await fc.fetch_open_meteo(
@@ -1763,7 +1842,7 @@ class PvmManager:
                         "day_curve": fc.hourly_day_curve(day),
                         "day_kwh": fc.energy_kwh(day),
                         "recovery_min": fc.recovery_minutes(series, pv),
-                        "note": "Open-Meteo (anonym, ohne Schlüssel).",
+                        "note": "Open-Meteo über customer-api.open-meteo.com (eigener Schlüssel).",
                     }
                     self._pv_derate = fc._derate_from(pv, rad_now, self._pv_derate)
             else:

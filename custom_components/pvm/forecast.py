@@ -1,10 +1,13 @@
-"""PV-Prognose für PVM – Open-Meteo (ohne API-Schlüssel) + lokales Modell.
+"""PV-Prognose für PVM – Open-Meteo (mit eigenem API-Schlüssel).
 
 Konzept
 -------
-1. **Open-Meteo** liefert eine 15-Minuten-Strahlungsprognose (kostenlos,
-   anonym, ohne Registrierung). Aus der Strahlung wird mit einem gelernten
-   Umrechnungsfaktor (Watt PV je W/m²) die erwartete PV-Leistung geschätzt.
+1. **Open-Meteo** liefert eine 15-Minuten-Strahlungsprognose. PVM fragt die
+   Prognose NUR über den dedizierten Kunden-Endpunkt
+   (customer-api.open-meteo.com) ab – dafür ist ein eigener API-Schlüssel
+   erforderlich (unter open-meteo.com → Tarif wählen → Schlüssel erhalten).
+   Aus der Strahlung wird mit einem gelernten Umrechnungsfaktor
+   (Watt PV je W/m²) die erwartete PV-Leistung geschätzt.
 2. **Lokales Modell** (Fallback, wenn das Netz nicht erreichbar ist): PVM
    nutzt die Messungen der letzten Tage zur gleichen Tageszeit als
    Erwartungskurve – grob, aber komplett offline.
@@ -27,10 +30,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-# Offene Meteo – anonym möglich, optional mit eigenem API-Schlüssel
-# (Dann kommerzielle Endpunkte mit höherer Auflösung.)
+# Open-Meteo: Der offene Endpunkt (api.open-meteo.com) wird von PVM nicht
+# mehr genutzt – er ist unzuverlässig (keine Garantie). PVM fragt ausschließ-
+# lich den Kunden-Endpunkt mit eigenem API-Schlüssel ab.
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
-OPEN_METEO_API_URL = "https://api.open-meteo.com/v1/forecast"
+OPEN_METEO_API_URL = "https://customer-api.open-meteo.com/v1/forecast"
 # Min. Strahlung, ab der ein Umrechnungsfaktor gelernt wird (W/m²)
 RAD_LEARN_MIN_WM2 = 80.0
 # Nach dieser Dauer ohne Sonne verfällt der gelernte Faktor nicht sofort –
@@ -73,9 +77,8 @@ async def fetch_open_meteo(
 ) -> dict | None:
     """Holt die 15-Minuten-Strahlungsprognose von Open-Meteo.
 
-    Ohne ``api_key`` anonym (kostenlos, niedrigere Priorität); mit eigenem
-    Schlüssel wird der Parameter ``apikey`` mitgesendet – der Endpunkt bleibt
-    derselbe, die Abfrage wird aber als Kunden-Anfrage behandelt.
+    Erwartet einen eigenen ``api_key``; dieser wird als Parameter ``apikey``
+    an den Kunden-Endpunkt (customer-api.open-meteo.com) gesendet.
     Liefert {"times": [epoch, ...], "radiation": [W/m², ...]} oder None.
     """
     params = {

@@ -185,10 +185,17 @@ def build_panel_payload(
         registry = er.async_get(manager.hass)
 
     config: dict[str, Any] = manager.config or {}
+    # Scan-Ergebnis: gespeicherte Funde (kein erneutes Suchen nach Neustart),
+    # aber bereits übernommene Vorschläge sind ausgeblendet.
+    scan = (
+        manager.scan_sets_visible()
+        if hasattr(manager, "scan_sets_visible")
+        else (manager.last_scan or {})
+    )
     return {
         "config": config,
         "entities": build_entity_map(registry, config),
-        "scan": manager.last_scan or {},
+        "scan": scan,
         "setup": manager.setup_stage(),
         "version": VERSION,
         "instance": getattr(manager, "instance_id", None),
