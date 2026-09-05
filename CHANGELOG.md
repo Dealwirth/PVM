@@ -2,6 +2,16 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.9.3] – 2026-09-05
+
+### Neues PVM-Logo (Markenauftritt)
+- **Eigenes Firmenlogo** (Solarpanel + Sonne + „PVM“-Wortmarke) ersetzt die
+  alte Sun-Bolt-Grafik – als `icon.png` / `logo.png` im Projekt (HACS zeigt
+  es als Integration-Icon, README im Kopf) und **eingebettet in der
+  PVM-Seite** (Kopf der Übersicht, in hellen wie dunklen Themes lesbar).
+- Die Seite bleibt vollständig autark: Das Logo liegt als Data-URI direkt
+  in `panel.js` – kein externer Dateizugriff nötig.
+
 ## [1.9.2] – 2026-09-05
 
 ### Geräte-Steuerung repariert („out_of_range“)
