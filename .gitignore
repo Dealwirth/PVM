@@ -40,3 +40,7 @@ Thumbs.db
 docs-site/build/
 docs-site/.docusaurus/
 docs-site/node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
