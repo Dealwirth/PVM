@@ -2,17 +2,25 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import CONF_PVM_TOKEN, CONF_PVM_URL, CONF_SCAN_INTERVAL, CONF_VERIFY_SSL, DOMAIN, DEFAULT_SCAN_INTERVAL
+from .const import (
+    CONF_PVM_TOKEN,
+    CONF_PVM_URL,
+    CONF_SCAN_INTERVAL,
+    CONF_VERIFY_SSL,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,14 +37,19 @@ class PvmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     ) -> None:
         self.pvm_url = pvm_url.rstrip("/")
         self.pvm_token = pvm_token
-        self.verify_ssl = entry.options.get(CONF_VERIFY_SSL, entry.data.get(CONF_VERIFY_SSL, True))
-        interval = entry.options.get(CONF_SCAN_INTERVAL, entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL))
+        self.verify_ssl = entry.options.get(
+            CONF_VERIFY_SSL, entry.data.get(CONF_VERIFY_SSL, True)
+        )
+        interval = entry.options.get(
+            CONF_SCAN_INTERVAL, entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        )
         self._session = async_get_clientsession(hass, self.verify_ssl)
         super().__init__(
             hass,
             _LOGGER,
             name=f"{DOMAIN}:{entry.entry_id}",
             update_interval=timedelta(seconds=interval),
+            config_entry=entry,
         )
 
     def _headers(self) -> dict[str, str]:
@@ -50,10 +63,12 @@ class PvmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             async with self._session.get(
                 f"{self.pvm_url}/api/dashboard", headers=self._headers(), timeout=15
             ) as resp:
+                if resp.status == 401:
+                    raise ConfigEntryAuthFailed("PVM rejected the API token")
                 if resp.status != 200:
                     raise UpdateFailed(f"PVM dashboard HTTP {resp.status}")
                 return await resp.json()
-        except UpdateFailed:
+        except (UpdateFailed, ConfigEntryAuthFailed):
             raise
         except Exception as err:  # noqa: BLE001
             raise UpdateFailed(f"Cannot reach PVM backend: {err}") from err
@@ -76,12 +91,20 @@ class PvmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except Exception as err:  # noqa: BLE001
             raise HomeAssistantError(f"PVM service {service} unreachable: {err}") from err
 
-    async def async_request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> Any:
+    async def async_request(
+        self, method: str, path: str, payload: dict[str, Any] | None = None
+    ) -> Any:
         """Generic authenticated passthrough used by the panel proxy."""
         url = f"{self.pvm_url}{path}"
         async with self._session.request(
             method, url, json=payload, headers=self._headers(), timeout=30
         ) as resp:
-            if resp.content_type == "application/json":
-                return resp.status, await resp.json()
-            return resp.status, await resp.text()
+            text = await resp.text()
+            ctype = resp.headers.get("Content-Type", "")
+            if "application/json" in ctype or text[:1] in "{[":
+                try:
+                    return resp.status, json.loads(text)
+                except ValueError:
+                    pass
+            return resp.status, text
+

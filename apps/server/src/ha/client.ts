@@ -150,14 +150,26 @@ export class HaClient extends EventEmitter {
   /**
    * Registry data is only available over the authenticated WebSocket API.
    * We open a short-lived connection, fetch, then close.
+   *
+   * Commands are tried with the modern ``config/`` prefix first and fall back
+   * to the legacy unprefixed name, so the integration works across HA versions.
    */
   async getRegistry<T>(
     type: 'device_registry/list' | 'entity_registry/list' | 'area_registry/list',
   ): Promise<T[]> {
     const ws = await this.connectWs();
     try {
-      const result = await this.wsCommand<T[]>(ws, { type });
-      return result;
+      const candidates = type.startsWith('config/') ? [type] : [`config/${type}`, type];
+      let lastError: unknown;
+      for (const command of candidates) {
+        try {
+          return await this.wsCommand<T[]>(ws, { type: command });
+        } catch (err) {
+          lastError = err;
+          if (!isUnknownCommand(err)) throw err;
+        }
+      }
+      throw lastError ?? new PvmError('PVM-002', { error: 'registry command failed' });
     } finally {
       ws.close();
     }
@@ -224,7 +236,7 @@ export class HaClient extends EventEmitter {
           type: string;
           success?: boolean;
           result?: unknown;
-          error?: { message: string };
+          error?: { message: string; code?: string };
         };
         if (msg.id !== id) return;
         ws.off('message', onMessage);
@@ -232,7 +244,7 @@ export class HaClient extends EventEmitter {
         this.pending.delete(id);
         if (!p) return;
         if (msg.success === false) {
-          p.reject(new PvmError('PVM-002', { error: msg.error?.message }));
+          p.reject(new PvmError('PVM-002', { error: msg.error?.message, code: msg.error?.code }));
         } else {
           p.resolve(msg.result);
         }
@@ -326,4 +338,12 @@ export class HaClient extends EventEmitter {
     this.ws?.close();
     this.state.connected = false;
   }
+}
+
+/** True when an error stems from an unsupported/renamed WebSocket command. */
+function isUnknownCommand(err: unknown): boolean {
+  if (!(err instanceof PvmError)) return false;
+  const details = err.details ?? {};
+  if (details.code === 'unknown_command') return true;
+  return typeof details.error === 'string' && /unknown command/i.test(details.error);
 }

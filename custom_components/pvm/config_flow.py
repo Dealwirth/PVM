@@ -10,12 +10,14 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
     CONF_PVM_TOKEN,
     CONF_PVM_URL,
     CONF_SCAN_INTERVAL,
     CONF_VERIFY_SSL,
+    DEFAULT_PVM_URL,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MIN_SCAN_INTERVAL,
@@ -25,7 +27,7 @@ _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_PVM_URL, default="http://localhost:7000"): str,
+        vol.Required(CONF_PVM_URL, default=DEFAULT_PVM_URL): str,
         vol.Optional(CONF_PVM_TOKEN, default=""): str,
         vol.Optional(CONF_VERIFY_SSL, default=True): bool,
         vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
@@ -37,8 +39,6 @@ STEP_USER_SCHEMA = vol.Schema(
 
 async def _validate(hass: HomeAssistant, data: dict[str, Any]) -> None:
     """Validate the endpoint by calling the PVM health API."""
-    from homeassistant.helpers.aiohttp_client import async_get_clientsession
-
     session = async_get_clientsession(hass, data.get(CONF_VERIFY_SSL, True))
     url = f"{data[CONF_PVM_URL].rstrip('/')}/api/health"
     headers = {}
@@ -57,18 +57,52 @@ class PvmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
+            url = user_input[CONF_PVM_URL].rstrip("/")
+            user_input[CONF_PVM_URL] = url
+            await self.async_set_unique_id(url)
+            self._abort_if_unique_id_configured()
             try:
                 await _validate(self.hass, user_input)
             except Exception:  # noqa: BLE001 - surface as a form error
                 _LOGGER.exception("PVM connection validation failed")
                 errors["base"] = "cannot_connect"
             else:
-                await self.async_set_unique_id(user_input[CONF_PVM_URL])
-                self._abort_if_unique_id_configured()
                 return self.async_create_entry(title="PVM", data=user_input)
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_SCHEMA, errors=errors
+        )
+
+    async def async_step_import(self, import_data: dict[str, Any]) -> FlowResult:
+        """Import configuration from YAML (single-instance)."""
+        await self.async_set_unique_id(import_data[CONF_PVM_URL].rstrip("/"))
+        self._abort_if_unique_id_configured()
+        return self.async_create_entry(title="PVM", data=import_data)
+
+    async def async_step_reauth(self, entry_data: dict[str, Any]) -> FlowResult:
+        """Handle re-authentication when the stored token is rejected."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        errors: dict[str, str] = {}
+        entry = self._get_reauth_entry()
+        if user_input is not None:
+            new_data = {**entry.data, **user_input}
+            try:
+                await _validate(self.hass, new_data)
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("PVM re-auth validation failed")
+                errors["base"] = "cannot_connect"
+            else:
+                self.hass.config_entries.async_update_entry(entry, data=new_data)
+                await self.hass.config_entries.async_reload(entry.entry_id)
+                return self.async_abort(reason="reauth_successful")
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema({vol.Required(CONF_PVM_TOKEN): str}),
+            errors=errors,
         )
 
     @staticmethod
@@ -76,14 +110,11 @@ class PvmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
-        return PvmOptionsFlow(config_entry)
+        return PvmOptionsFlow()
 
 
 class PvmOptionsFlow(config_entries.OptionsFlow):
-    """Handle options (scan interval, token) updates."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self.config_entry = config_entry
+    """Handle options (scan interval, token, SSL) updates."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
@@ -95,7 +126,12 @@ class PvmOptionsFlow(config_entries.OptionsFlow):
                     CONF_SCAN_INTERVAL,
                     default=current.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
                 ): vol.All(int, vol.Range(min=MIN_SCAN_INTERVAL)),
+                vol.Optional(
+                    CONF_VERIFY_SSL,
+                    default=current.get(CONF_VERIFY_SSL, True),
+                ): bool,
                 vol.Optional(CONF_PVM_TOKEN, default=current.get(CONF_PVM_TOKEN, "")): str,
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)
+

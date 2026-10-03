@@ -7,5 +7,7 @@ export * from './types/ha.js';
 export * from './errors/catalog.js';
 export * from './schemas/device.js';
 export * from './schemas/settings.js';
+export * from './schemas/forecast.js';
+export * from './schemas/ha-service.js';
 export * from './schemas/common.js';
 export * from './utils/index.js';

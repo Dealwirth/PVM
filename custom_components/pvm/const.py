@@ -18,10 +18,11 @@ PANEL_ICON = "mdi:solar-power-variant"
 PANEL_URL_PATH = "pvm"
 PANEL_WEBCOMPONENT = "pvm-panel"
 
+DEFAULT_PVM_URL = "http://localhost:7000"
 DEFAULT_SCAN_INTERVAL = 30
 MIN_SCAN_INTERVAL = 5
 
-# HA services exposed under the ``pvm`` domain.
+# HA services exposed under the ``pvm`` domain and forwarded to the backend.
 SERVICES = [
     "set_device_state",
     "set_device_power",
@@ -56,4 +57,19 @@ SERVICE_SCHEMA: dict[str, vol.Schema] = {
         }
     ),
     "update_plan": vol.Schema({vol.Required("plan"): dict}),
+    "get_forecast": vol.Schema(
+        {vol.Optional("horizon"): vol.In(["day", "week", "total"])}
+    ),
+    "get_history": vol.Schema(
+        {
+            vol.Required("device_id"): cv.string,
+            vol.Optional("start"): cv.string,
+            vol.Optional("end"): cv.string,
+        }
+    ),
+    "get_calendar_events": vol.Schema({}),
+    "get_sensors": vol.Schema({}),
+    "get_entities": vol.Schema({}),
+    "get_devices": vol.Schema({}),
+    "run_planning_cycle": vol.Schema({}),
 }

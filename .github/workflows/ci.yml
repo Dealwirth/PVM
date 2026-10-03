@@ -47,6 +47,21 @@ jobs:
         env:
           PVM_API_SECRET: ${{ secrets.PVM_API_SECRET || 'ci-test-secret-at-least-32-characters-long' }}
 
+  ha-component-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install HA test dependencies
+        run: pip install -r tests/ha/requirements.txt
+
+      - name: Home Assistant component tests
+        run: python -m pytest tests/ha -q
+
   security-audit:
     runs-on: ubuntu-latest
     steps:

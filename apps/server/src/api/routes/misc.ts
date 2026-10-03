@@ -1,10 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import {
   addonInstallSchema,
+  forecastInputSchema,
   idParamSchema,
   logFilterSchema,
   plannerSettingsSchema,
   settingsPatchSchema,
+  validateHaServicePayload,
 } from '@pvm/shared';
 import type { AppContext } from '../../context.js';
 
@@ -46,7 +48,7 @@ export async function forecastRoutes(app: FastifyInstance): Promise<void> {
     return ctx().forecast.history(query.limit ? Number(query.limit) : 50);
   });
   app.post('/forecast/generate', async (request) => {
-    const body = request.body as Parameters<AppContext['forecast']['generate']>[0];
+    const body = forecastInputSchema.parse(request.body);
     return ctx().forecast.generate(body);
   });
 }
@@ -187,7 +189,10 @@ export async function haRoutes(app: FastifyInstance): Promise<void> {
   // Invoked by the Home Assistant custom component (pvm.* services).
   app.post('/ha/services/:service', async (request) => {
     const { service } = request.params as { service: string };
-    const payload = (request.body ?? {}) as Record<string, unknown>;
+    const payload = validateHaServicePayload(service, request.body ?? {}) as Record<
+      string,
+      unknown
+    >;
     return ctx().haServiceCall(service, payload);
   });
 }

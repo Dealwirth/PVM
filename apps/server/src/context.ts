@@ -24,6 +24,7 @@ import { AuthService } from './services/auth.js';
 import { DashboardService } from './services/dashboard.js';
 import { NotificationService } from './services/notifications.js';
 import { PvmError } from '@pvm/shared';
+import type { LoadPlan } from '@pvm/shared';
 
 /** Central dependency container wiring all services together. */
 export interface AppContext {
@@ -107,8 +108,12 @@ export function createContext(config: ServerConfig, db: Db): AppContext {
           value: Number(payload.temperature ?? 0),
           source: 'api',
         });
-      case 'update_plan':
-        return planner.latest();
+      case 'update_plan': {
+        const plan = payload.plan as LoadPlan | undefined;
+        if (!plan) throw new PvmError('PVM-015', { field: 'plan' });
+        log.info('ha-service', 'Load plan received via HA service', { id: plan.id });
+        return planner.applyPlans([plan]);
+      }
       case 'get_forecast':
         return forecast.latest((payload.horizon as string | undefined) ?? 'day');
       case 'get_calendar_events':

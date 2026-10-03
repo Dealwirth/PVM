@@ -110,6 +110,17 @@ export class PlannerService {
     return this.repo.history(limit);
   }
 
+  /**
+   * Replace the stored plans with an externally supplied batch (e.g. pushed via
+   * the ``pvm.update_plan`` HA service or the UI). Returns the applied plans.
+   */
+  applyPlans(plans: LoadPlan[]): LoadPlan[] {
+    if (plans.length === 0) throw new PvmError('PVM-015', { reason: 'no plans supplied' });
+    this.repo.replaceAll(plans);
+    this.log.info('planner', 'Load plans applied', { count: plans.length });
+    return plans;
+  }
+
   private energyNeed(device: Device, input: PlannerInput): number {
     if (device.type === 'pv' || device.type === 'battery') return 0; // producers, not scheduled
     if (device.type === 'wallbox') {

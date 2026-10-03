@@ -37,14 +37,14 @@ PVM is _not_ a HA addon and does _not_ use the HA addon store. It has its own
 
 ### Repository layout
 
-| Path                       | Purpose                                                                    |
-| -------------------------- | -------------------------------------------------------------------------- |
-| `packages/shared`          | Domain types, zod schemas, error catalogue, utils (shared by server & web) |
-| `apps/server`              | Fastify API, HA client, SQLite persistence, all business services, tests   |
-| `apps/web`                 | React SPA (Vite, Tailwind, React Query, Zustand, i18next), Cypress E2E     |
-| `ha/custom_components/pvm` | Home Assistant custom component: panel, services, proxy, sensors           |
-| `docs`                     | User & operator documentation                                              |
-| `.github/workflows`        | CI (typecheck, lint, build, tests, dependency audit, Docker build)         |
+| Path                    | Purpose                                                                    |
+| ----------------------- | -------------------------------------------------------------------------- |
+| `packages/shared`       | Domain types, zod schemas, error catalogue, utils (shared by server & web) |
+| `apps/server`           | Fastify API, HA client, SQLite persistence, all business services, tests   |
+| `apps/web`              | React SPA (Vite, Tailwind, React Query, Zustand, i18next), Cypress E2E     |
+| `custom_components/pvm` | Home Assistant custom component: panel, services, proxy, sensors           |
+| `docs`                  | User & operator documentation                                              |
+| `.github/workflows`     | CI (typecheck, lint, build, tests, dependency audit, Docker build)         |
 
 ---
 
@@ -112,7 +112,7 @@ See `docs/settings.md` for the complete list.
 
 ## Home Assistant integration
 
-Copy `ha/custom_components/pvm` into your HA `config/custom_components/pvm`
+Copy `custom_components/pvm` into your HA `config/custom_components/pvm`
 directory and restart HA. Add the integration via **Settings → Devices &
 Services → Add Integration → PVM**, entering the PVM backend URL and token.
 

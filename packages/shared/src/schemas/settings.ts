@@ -1,13 +1,16 @@
 import { z } from 'zod';
 import { FORECAST_METHODS } from '../types/forecast.js';
+import type { ForecastMethod } from '../types/forecast.js';
 import { CALENDAR_EVENT_KINDS } from '../types/forecast.js';
 import { LOG_LEVELS } from '../types/log.js';
 import { ADDON_PERMISSIONS, SECURITY_MODES } from '../types/addon.js';
 
+const forecastMethodTuple = FORECAST_METHODS as [ForecastMethod, ...ForecastMethod[]];
+
 export const languageSchema = z.enum(['de', 'en']);
 export const logLevelSchema = z.enum(LOG_LEVELS);
 export const securityModeSchema = z.enum(SECURITY_MODES);
-export const forecastMethodSchema = z.enum(FORECAST_METHODS as [string, ...string[]]);
+export const forecastMethodSchema = z.enum(forecastMethodTuple);
 export const calendarEventKindSchema = z.enum(CALENDAR_EVENT_KINDS);
 export const addonPermissionSchema = z.enum(ADDON_PERMISSIONS);
 

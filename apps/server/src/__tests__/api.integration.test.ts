@@ -198,4 +198,134 @@ describe('API integration', () => {
     expect(res.statusCode).toBe(500);
     expect((res.json() as { error: { code: string } }).error.code).toBe('PVM-020');
   });
+
+  it('validates HA service payloads (PVM-015)', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/ha/services/set_device_power',
+      headers: auth(),
+      payload: { device_id: 'dev1', power: 'not-a-number' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect((res.json() as { error: { code: string } }).error.code).toBe('PVM-015');
+  });
+
+  it('accepts a valid HA set_device_power payload', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/ha/services/set_device_power',
+      headers: auth(),
+      payload: { device_id: 'dev1', power: 11000 },
+    });
+    // Device does not exist, but the payload passed validation (no PVM-015).
+    expect(res.statusCode).not.toBe(400);
+  });
+
+  it('applies a load plan pushed through the HA bridge', async () => {
+    const plan = {
+      id: 'plan-ha-1',
+      generatedAt: '2026-10-03T12:00:00Z',
+      start: '2026-10-03T12:00:00Z',
+      end: '2026-10-03T18:00:00Z',
+      slots: [
+        {
+          deviceId: 'dev1',
+          deviceName: 'Wallbox',
+          start: '2026-10-03T12:00:00Z',
+          end: '2026-10-03T14:00:00Z',
+          powerW: 11000,
+          priority: 80,
+          reason: 'PV surplus window.',
+        },
+      ],
+      shutdowns: [],
+      conditions: [],
+      inputHash: 'abc123',
+    };
+    const applied = await app.inject({
+      method: 'POST',
+      url: '/api/ha/services/update_plan',
+      headers: auth(),
+      payload: { plan },
+    });
+    expect(applied.statusCode).toBe(200);
+    expect((applied.json() as Array<{ id: string }>)[0]?.id).toBe('plan-ha-1');
+
+    const latest = await app.inject({
+      method: 'GET',
+      url: '/api/plan/latest',
+      headers: auth(),
+    });
+    expect((latest.json() as { id: string }).id).toBe('plan-ha-1');
+  });
+
+  it('rejects an update_plan payload without a plan (PVM-015)', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/ha/services/update_plan',
+      headers: auth(),
+      payload: {},
+    });
+    expect(res.statusCode).toBe(400);
+    expect((res.json() as { error: { code: string } }).error.code).toBe('PVM-015');
+  });
+
+  it('validates forecast input and rejects malformed payloads (PVM-015)', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/forecast/generate',
+      headers: auth(),
+      payload: { horizon: 'day' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect((res.json() as { error: { code: string } }).error.code).toBe('PVM-015');
+  });
+
+  it('generates a deterministic forecast for a valid payload', async () => {
+    const payload = {
+      method: 'combined',
+      horizon: 'day',
+      history: [{ timestamp: '2026-10-02T12:00:00Z', productionWh: 1000, consumptionWh: 500 }],
+      weather: [
+        {
+          timestamp: '2026-10-03T12:00:00Z',
+          irradianceWm2: 500,
+          temperatureC: 20,
+          cloudCover: 0.2,
+        },
+      ],
+      calendarEvents: [],
+      devices: [{ deviceId: 'dev1', type: 'pv', ratedPowerW: 5000 }],
+      settings: { recencyWeight: 0.5, historyDays: 30, combinedWeatherWeight: 0.5 },
+    };
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/forecast/generate',
+      headers: auth(),
+      payload,
+    });
+    expect(first.statusCode).toBe(200);
+    const body = first.json() as {
+      method: string;
+      horizon: string;
+      points: unknown[];
+      totalResidualWh: number;
+      totalProductionWh: number;
+    };
+    expect(body.method).toBe('combined');
+    expect(body.points.length).toBeGreaterThan(0);
+
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/forecast/generate',
+      headers: auth(),
+      payload,
+    });
+    const again = second.json() as typeof body;
+    // id/generatedAt/window start depend on wall-clock time; the modelled
+    // values must be identical for identical input.
+    expect(again.points).toEqual(body.points);
+    expect(again.totalResidualWh).toBe(body.totalResidualWh);
+    expect(again.totalProductionWh).toBe(body.totalProductionWh);
+  });
 });

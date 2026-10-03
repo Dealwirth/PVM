@@ -39,7 +39,7 @@ docker compose --profile dev up
 
 Add this repository as a **custom repository** in HACS, install the **PVM**
 integration, then configure it with the URL of a running PVM backend. HACS
-deploys the files under `ha/custom_components/pvm`.
+deploys the files under `custom_components/pvm`.
 
 ## Environment variables
 

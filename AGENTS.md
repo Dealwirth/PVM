@@ -2,7 +2,7 @@
 
 Standalone PV/energy-management web app for Home Assistant. Monorepo:
 `packages/shared` (types/schemas/errors), `apps/server` (Fastify + SQLite),
-`apps/web` (React/Vite SPA), `ha/custom_components/pvm` (HA component).
+`apps/web` (React/Vite SPA), `custom_components/pvm` (HA component).
 
 ## Commands
 
@@ -25,7 +25,7 @@ npm run test:e2e    # Cypress; needs a running stack
   is root-owned).
 - Cypress needs `xvfb-run -a` and the apt packages installed
   (`xvfb libgtk-3-0 libgbm-dev libnotify-dev libnss3 libxss1 libasound2t64
-  libxtst6 xauth`). Run `apt-get update` first (repo snapshot).
+libxtst6 xauth`). Run `apt-get update` first (repo snapshot).
 
 ## E2E
 
@@ -39,6 +39,24 @@ PVM_E2E_BASE_URL=http://localhost:7000 PVM_API_SECRET=e2e-secret \
 
 ## Conventions
 
+- HA WebSocket registry commands take a `config/` prefix
+  (`config/device_registry/list`, ...). `HaClient.getRegistry` tries the
+  prefixed name first and falls back to the legacy unprefixed name, so device
+  discovery works across HA versions. Do not assume the unprefixed form.
+- `/api/forecast/generate` is validated with `forecastInputSchema`
+  (`packages/shared/src/schemas/forecast.ts`); add new request bodies to a schema
+  rather than casting `request.body`.
+- The HA bridge (`POST /api/ha/services/:service`) validates payloads with
+  `HA_SERVICE_SCHEMAS` (`packages/shared/src/schemas/ha-service.ts`). Add a
+  schema there for any new `pvm.*` service that takes input.
+- The HA component forwards only keys listed in `_ALLOWED_KEYS`
+  (`custom_components/pvm/__init__.py`) — update it and `SERVICE_SCHEMA` in
+  `const.py`, `services.yaml`, plus `strings.json`/`translations` together.
+- HA registry WS commands need the `config/` prefix; `HaClient.getRegistry`
+  falls back to the legacy name for old HA versions.
+- The HA component declares `frontend`/`panel_custom`, so `tests/ha/requirements.txt`
+  must include `home-assistant-frontend` (pinned to HA's required version) or
+  `pytest tests/ha` fails to set up the integration.
 - Static SPA assets are public; only `/api` and `/ws` require the bearer token.
 - Docker runtime stage installs prod deps via `npm ci` (nested workspace modules
   like `apps/server/node_modules/@fastify/static` must exist for ESM resolution).

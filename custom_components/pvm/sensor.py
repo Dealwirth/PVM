@@ -45,7 +45,7 @@ SENSORS: tuple[PvmSensorDescription, ...] = (
         translation_key="residual_energy",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
-        state_class=SensorStateClass.MEASUREMENT,
+        state_class=SensorStateClass.TOTAL,
         value_fn=lambda d: round((d.get("forecast", {}).get("totalResidualWh") or 0) / 1000, 2)
         if d.get("forecast")
         else None,
@@ -55,7 +55,7 @@ SENSORS: tuple[PvmSensorDescription, ...] = (
         translation_key="production_energy",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
-        state_class=SensorStateClass.MEASUREMENT,
+        state_class=SensorStateClass.TOTAL,
         value_fn=lambda d: round((d.get("forecast", {}).get("totalProductionWh") or 0) / 1000, 2)
         if d.get("forecast")
         else None,
@@ -84,7 +84,7 @@ class PvmSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{DOMAIN}_{entry_id}_{description.key}"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry_id)},
-            "name": "PVM (PV-Manager)",
+            "name": "PVM",
             "manufacturer": "PVM",
             "model": "PV-Manager",
         }

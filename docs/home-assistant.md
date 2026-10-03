@@ -2,9 +2,9 @@
 
 PVM talks to Home Assistant over the **HA Local API**:
 
-- REST (`/api/states`, `/api/services/*`, `/api/history/period/*`,
-  `/api/config/device_registry/list`, `/api/config/entity_registry/list`)
-- WebSocket (`/api/websocket`) for real-time state changes
+- REST (`/api/states`, `/api/services/*`, `/api/history/period/*`)
+- WebSocket (`/api/websocket`) for real-time state changes **and** the registries
+  (`config/device_registry/list`, `config/entity_registry/list`)
 
 Authentication uses a **Long-Lived Access Token** created in HA under
 _Profile → Security → Long-Lived Access Tokens_.
@@ -70,11 +70,15 @@ The custom component registers these services so HA automations can drive PVM:
 `pvm.get_entities`, `pvm.get_devices`, `pvm.run_planning_cycle`.
 
 They are forwarded to the PVM backend at
-`POST /api/ha/services/:service`.
+`POST /api/ha/services/:service`, which validates the payload with a per-service
+schema (`packages/shared/src/schemas/ha-service.ts`) before dispatching.
+
+The component ships UI metadata for every service in `services.yaml` plus
+`strings.json` (English) and `translations/{de,en}.json`.
 
 ## Installing the custom component
 
-1. Copy `ha/custom_components/pvm` to `<HA config>/custom_components/pvm`.
+1. Copy `custom_components/pvm` to `<HA config>/custom_components/pvm`.
 2. Restart Home Assistant.
 3. **Settings → Devices & Services → Add Integration → PVM**.
 4. Enter the PVM backend URL (e.g. `http://localhost:7000`) and the PVM API

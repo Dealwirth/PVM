@@ -1,0 +1,124 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "PVM verbinden",
+        "description": "Gib die Adresse der PVM-Backend-API an. Der PVM-API-Token wird nur im HA-Speicher abgelegt.",
+        "data": {
+          "pvm_url": "PVM-URL",
+          "pvm_token": "PVM-API-Token",
+          "verify_ssl": "TLS-Zertifikat prüfen",
+          "scan_interval": "Aktualisierungsintervall (Sekunden)"
+        }
+      }
+    },
+    "options": {
+      "step": {
+        "init": {
+          "title": "PVM-Optionen",
+          "data": {
+            "pvm_token": "PVM-API-Token",
+            "verify_ssl": "TLS-Zertifikat prüfen",
+            "scan_interval": "Aktualisierungsintervall (Sekunden)"
+          }
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zum PVM-Backend fehlgeschlagen."
+    },
+    "abort": {
+      "already_configured": "PVM ist bereits konfiguriert.",
+      "reauth_successful": "Neuanmeldung erfolgreich."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "total_power": { "name": "Gesamtleistung" },
+      "device_count": { "name": "Anzahl Geräte" },
+      "residual_energy": { "name": "Restenergie" },
+      "production_energy": { "name": "Erzeugungsenergie" }
+    }
+  },
+  "services": {
+    "set_device_state": {
+      "name": "Gerätezustand setzen",
+      "description": "Setzt den Ein/Aus-Zustand eines PVM-Geräts über das PVM-Backend.",
+      "fields": {
+        "device_id": { "name": "Geräte-ID", "description": "PVM-Gerätekennung." },
+        "state": {
+          "name": "Zustand",
+          "description": "Zielzustand (on/off, true/false oder gerätespezifischer Wert)."
+        }
+      }
+    },
+    "set_device_power": {
+      "name": "Geräteleistung setzen",
+      "description": "Setzt den Leistungssollwert eines PVM-Geräts in Watt.",
+      "fields": {
+        "device_id": { "name": "Geräte-ID", "description": "PVM-Gerätekennung." },
+        "power": { "name": "Leistung (W)", "description": "Ziel-Leistungssollwert in Watt." }
+      }
+    },
+    "set_device_temperature": {
+      "name": "Gerätetemperatur setzen",
+      "description": "Setzt den Temperatursollwert eines PVM-Geräts in °C.",
+      "fields": {
+        "device_id": { "name": "Geräte-ID", "description": "PVM-Gerätekennung." },
+        "temperature": {
+          "name": "Temperatur (°C)",
+          "description": "Zieltemperatur in Grad Celsius."
+        }
+      }
+    },
+    "update_plan": {
+      "name": "Ladeplan aktualisieren",
+      "description": "Überträgt einen Ladeplan an das PVM-Backend.",
+      "fields": {
+        "plan": { "name": "Plan", "description": "Das anzuwendende Plan-Objekt." }
+      }
+    },
+    "run_planning_cycle": {
+      "name": "Planungszyklus starten",
+      "description": "Startet den Ladeplan-Algorithmus von PVM."
+    },
+    "get_forecast": {
+      "name": "Prognose abrufen",
+      "description": "Liefert die aktuelle Reststrom-Prognose von PVM.",
+      "fields": {
+        "horizon": { "name": "Zeithorizont", "description": "Prognose-Zeithorizont." }
+      }
+    },
+    "get_history": {
+      "name": "Gerätehistorie abrufen",
+      "description": "Liefert die aufgezeichnete Historie eines PVM-Geräts.",
+      "fields": {
+        "device_id": { "name": "Geräte-ID", "description": "PVM-Gerätekennung." },
+        "start": {
+          "name": "Start",
+          "description": "Optionaler ISO-Zeitstempel für den Beginn des Zeitraums."
+        },
+        "end": {
+          "name": "Ende",
+          "description": "Optionaler ISO-Zeitstempel für das Ende des Zeitraums."
+        }
+      }
+    },
+    "get_calendar_events": {
+      "name": "Kalenderereignisse abrufen",
+      "description": "Liefert die PVM bekannten Kalenderereignisse."
+    },
+    "get_sensors": {
+      "name": "Sensoren abrufen",
+      "description": "Liefert die PVM bekannten Home-Assistant-Sensorzustände."
+    },
+    "get_entities": {
+      "name": "Entitäten abrufen",
+      "description": "Liefert die PVM bekannte Home-Assistant-Entitätsregistry."
+    },
+    "get_devices": {
+      "name": "Geräte abrufen",
+      "description": "Liefert die von PVM verwalteten Geräte."
+    }
+  }
+}
