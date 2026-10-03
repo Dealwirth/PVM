@@ -1,0 +1,245 @@
+import type { CalendarEvent, CalendarSource, Forecast, LoadPlan } from '@pvm/shared';
+import type { Db } from '../index.js';
+
+export class ForecastRepository {
+  constructor(private readonly db: Db) {}
+
+  save(forecast: Forecast): void {
+    this.db
+      .prepare(
+        `INSERT OR REPLACE INTO forecasts (id, method, horizon, generated_at, window_start, window_end, data)
+         VALUES (@id, @method, @horizon, @generatedAt, @start, @end, @data)`,
+      )
+      .run({
+        id: forecast.id,
+        method: forecast.method,
+        horizon: forecast.horizon,
+        generatedAt: forecast.generatedAt,
+        start: forecast.start,
+        end: forecast.end,
+        data: JSON.stringify(forecast),
+      });
+  }
+
+  latest(horizon?: string): Forecast | undefined {
+    const row = horizon
+      ? (this.db
+          .prepare(
+            'SELECT data FROM forecasts WHERE horizon = ? ORDER BY generated_at DESC LIMIT 1',
+          )
+          .get(horizon) as { data: string } | undefined)
+      : (this.db.prepare('SELECT data FROM forecasts ORDER BY generated_at DESC LIMIT 1').get() as
+          { data: string } | undefined);
+    return row ? (JSON.parse(row.data) as Forecast) : undefined;
+  }
+
+  history(limit = 50): Forecast[] {
+    const rows = this.db
+      .prepare('SELECT data FROM forecasts ORDER BY generated_at DESC LIMIT ?')
+      .all(limit) as Array<{ data: string }>;
+    return rows.map((r) => JSON.parse(r.data) as Forecast);
+  }
+}
+
+export class PlanRepository {
+  constructor(private readonly db: Db) {}
+
+  save(plan: LoadPlan): void {
+    this.db
+      .prepare(
+        `INSERT OR REPLACE INTO load_plans (id, generated_at, window_start, window_end, data)
+         VALUES (@id, @generatedAt, @start, @end, @data)`,
+      )
+      .run({
+        id: plan.id,
+        generatedAt: plan.generatedAt,
+        start: plan.start,
+        end: plan.end,
+        data: JSON.stringify(plan),
+      });
+  }
+
+  latest(): LoadPlan | undefined {
+    const row = this.db
+      .prepare('SELECT data FROM load_plans ORDER BY generated_at DESC LIMIT 1')
+      .get() as { data: string } | undefined;
+    return row ? (JSON.parse(row.data) as LoadPlan) : undefined;
+  }
+
+  history(limit = 50): LoadPlan[] {
+    const rows = this.db
+      .prepare('SELECT data FROM load_plans ORDER BY generated_at DESC LIMIT ?')
+      .all(limit) as Array<{ data: string }>;
+    return rows.map((r) => JSON.parse(r.data) as LoadPlan);
+  }
+}
+
+export class CalendarRepository {
+  constructor(private readonly db: Db) {}
+
+  listSources(): CalendarSource[] {
+    const rows = this.db
+      .prepare('SELECT * FROM calendar_sources ORDER BY name ASC')
+      .all() as Array<{
+      id: string;
+      name: string;
+      entity_id: string;
+      refresh_minutes: number;
+      enabled: number;
+      last_sync_at: string | null;
+      last_error: string | null;
+    }>;
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      entityId: r.entity_id,
+      refreshMinutes: r.refresh_minutes,
+      enabled: r.enabled === 1,
+      lastSyncAt: r.last_sync_at ?? undefined,
+      lastError: r.last_error ?? undefined,
+    }));
+  }
+
+  upsertSource(source: CalendarSource): void {
+    this.db
+      .prepare(
+        `INSERT INTO calendar_sources (id, name, entity_id, refresh_minutes, enabled, last_sync_at, last_error)
+         VALUES (@id, @name, @entityId, @refreshMinutes, @enabled, @lastSyncAt, @lastError)
+         ON CONFLICT(id) DO UPDATE SET name=@name, entity_id=@entityId, refresh_minutes=@refreshMinutes,
+          enabled=@enabled, last_sync_at=@lastSyncAt, last_error=@lastError`,
+      )
+      .run({
+        id: source.id,
+        name: source.name,
+        entityId: source.entityId,
+        refreshMinutes: source.refreshMinutes,
+        enabled: source.enabled ? 1 : 0,
+        lastSyncAt: source.lastSyncAt ?? null,
+        lastError: source.lastError ?? null,
+      });
+  }
+
+  removeSource(id: string): void {
+    this.db.prepare('DELETE FROM calendar_sources WHERE id = ?').run(id);
+  }
+
+  upsertEvents(events: CalendarEvent[]): void {
+    const stmt = this.db.prepare(
+      `INSERT OR REPLACE INTO calendar_events
+        (id, calendar_entity_id, title, start, end, all_day, kind, description, location, expected_energy_wh)
+       VALUES (@id, @calendarEntityId, @title, @start, @end, @allDay, @kind, @description, @location, @expectedEnergyWh)`,
+    );
+    const tx = this.db.transaction((rows: CalendarEvent[]) => {
+      for (const e of rows) {
+        stmt.run({
+          id: e.id,
+          calendarEntityId: e.calendarEntityId ?? null,
+          title: e.title,
+          start: e.start,
+          end: e.end,
+          allDay: e.allDay ? 1 : 0,
+          kind: e.kind,
+          description: e.description ?? null,
+          location: e.location ?? null,
+          expectedEnergyWh: e.expectedEnergyWh ?? null,
+        });
+      }
+    });
+    tx(events);
+  }
+
+  eventsBetween(start: string, end: string): CalendarEvent[] {
+    const rows = this.db
+      .prepare('SELECT * FROM calendar_events WHERE end >= ? AND start <= ? ORDER BY start ASC')
+      .all(start, end) as Array<{
+      id: string;
+      calendar_entity_id: string | null;
+      title: string;
+      start: string;
+      end: string;
+      all_day: number;
+      kind: string;
+      description: string | null;
+      location: string | null;
+      expected_energy_wh: number | null;
+    }>;
+    return rows.map((r) => ({
+      id: r.id,
+      calendarEntityId: r.calendar_entity_id ?? undefined,
+      title: r.title,
+      start: r.start,
+      end: r.end,
+      allDay: r.all_day === 1,
+      kind: r.kind as CalendarEvent['kind'],
+      description: r.description ?? undefined,
+      location: r.location ?? undefined,
+      expectedEnergyWh: r.expected_energy_wh ?? undefined,
+    }));
+  }
+
+  allEvents(): CalendarEvent[] {
+    return this.eventsBetween('1970-01-01T00:00:00.000Z', '2999-12-31T23:59:59.999Z');
+  }
+}
+
+export interface SafetyEventRecord {
+  id: string;
+  timestamp: string;
+  code: string;
+  category: string;
+  severity: string;
+  action: string;
+  deviceId?: string;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+export class SafetyRepository {
+  constructor(private readonly db: Db) {}
+
+  add(event: SafetyEventRecord): void {
+    this.db
+      .prepare(
+        `INSERT INTO safety_events (id, timestamp, code, category, severity, action, device_id, message, details)
+         VALUES (@id, @timestamp, @code, @category, @severity, @action, @deviceId, @message, @details)`,
+      )
+      .run({
+        id: event.id,
+        timestamp: event.timestamp,
+        code: event.code,
+        category: event.category,
+        severity: event.severity,
+        action: event.action,
+        deviceId: event.deviceId ?? null,
+        message: event.message,
+        details: event.details ? JSON.stringify(event.details) : null,
+      });
+  }
+
+  list(limit = 200): SafetyEventRecord[] {
+    const rows = this.db
+      .prepare('SELECT * FROM safety_events ORDER BY timestamp DESC LIMIT ?')
+      .all(limit) as Array<{
+      id: string;
+      timestamp: string;
+      code: string;
+      category: string;
+      severity: string;
+      action: string;
+      device_id: string | null;
+      message: string;
+      details: string | null;
+    }>;
+    return rows.map((r) => ({
+      id: r.id,
+      timestamp: r.timestamp,
+      code: r.code,
+      category: r.category,
+      severity: r.severity,
+      action: r.action,
+      deviceId: r.device_id ?? undefined,
+      message: r.message,
+      details: r.details ? (JSON.parse(r.details) as Record<string, unknown>) : undefined,
+    }));
+  }
+}

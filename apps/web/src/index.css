@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-ha-bg text-gray-100 antialiased;
+  font-family:
+    Roboto,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+
+/* HA-like card primitives reused across pages. */
+@layer components {
+  .pvm-card {
+    @apply rounded-xl border border-ha-border bg-ha-surface p-4 shadow-lg;
+  }
+  .pvm-card-title {
+    @apply mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400;
+  }
+  .pvm-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors;
+  }
+  .pvm-btn-primary {
+    @apply pvm-btn bg-ha-primary text-white hover:bg-sky-500 disabled:opacity-50;
+  }
+  .pvm-btn-ghost {
+    @apply pvm-btn border border-ha-border text-gray-200 hover:bg-ha-surfaceAlt;
+  }
+  .pvm-btn-danger {
+    @apply pvm-btn bg-ha-error text-white hover:bg-red-500;
+  }
+  .pvm-input {
+    @apply w-full rounded-lg border border-ha-border bg-ha-surfaceAlt px-3 py-2 text-sm text-gray-100 outline-none focus:border-ha-primary;
+  }
+  .pvm-label {
+    @apply mb-1 block text-xs font-medium uppercase tracking-wide text-gray-400;
+  }
+  .pvm-badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold;
+  }
+}

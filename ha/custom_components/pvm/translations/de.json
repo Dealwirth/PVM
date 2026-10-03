@@ -1,0 +1,33 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "PVM verbinden",
+        "description": "Gib die Adresse der PVM-Backend-API an. Der PVM-API-Token wird nur im HA-Speicher abgelegt.",
+        "data": {
+          "pvm_url": "PVM-URL",
+          "pvm_token": "PVM-API-Token",
+          "verify_ssl": "TLS-Zertifikat prüfen",
+          "scan_interval": "Aktualisierungsintervall (Sekunden)"
+        }
+      }
+    },
+    "options": {
+      "step": {
+        "init": {
+          "title": "PVM-Optionen",
+          "data": {
+            "pvm_token": "PVM-API-Token",
+            "scan_interval": "Aktualisierungsintervall (Sekunden)"
+          }
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zum PVM-Backend fehlgeschlagen."
+    },
+    "abort": {
+      "already_configured": "PVM ist bereits konfiguriert."
+    }
+  }
+}

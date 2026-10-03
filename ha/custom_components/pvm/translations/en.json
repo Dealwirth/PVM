@@ -1,0 +1,33 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect PVM",
+        "description": "Enter the address of the PVM backend API. The PVM API token is stored in Home Assistant only.",
+        "data": {
+          "pvm_url": "PVM URL",
+          "pvm_token": "PVM API token",
+          "verify_ssl": "Verify TLS certificate",
+          "scan_interval": "Update interval (seconds)"
+        }
+      }
+    },
+    "options": {
+      "step": {
+        "init": {
+          "title": "PVM options",
+          "data": {
+            "pvm_token": "PVM API token",
+            "scan_interval": "Update interval (seconds)"
+          }
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the PVM backend."
+    },
+    "abort": {
+      "already_configured": "PVM is already configured."
+    }
+  }
+}
