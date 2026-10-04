@@ -4,6 +4,7 @@ export * from './types/addon.js';
 export * from './types/log.js';
 export * from './types/settings.js';
 export * from './types/ha.js';
+export * from './types/backup.js';
 export * from './errors/catalog.js';
 export * from './schemas/device.js';
 export * from './schemas/settings.js';

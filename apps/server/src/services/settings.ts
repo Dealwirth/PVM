@@ -109,6 +109,22 @@ export class SettingsService {
     return initial;
   }
 
+  /**
+   * Drop the in-memory cache and reload from the repository. Used after a
+   * backup restore has written settings directly to the database.
+   */
+  reload(): Settings {
+    this.cached = undefined;
+    const settings = this.get();
+    this.ha.configure({
+      url: settings.ha.url,
+      token: settings.ha.token,
+      localOnly: settings.ha.localOnly,
+    });
+    this.log.setLevel(settings.log.level);
+    return settings;
+  }
+
   update(patch: SettingsPatch): Settings {
     const current = this.get();
     const merged = deepMerge(current, patch);

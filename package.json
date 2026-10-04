@@ -1,6 +1,6 @@
 {
   "name": "pvm",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "private": true,
   "description": "PVM (PV-Manager) - standalone PV management web application for Home Assistant",
   "license": "MIT",

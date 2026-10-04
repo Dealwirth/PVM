@@ -198,6 +198,7 @@ See `docs/error-codes.md`.
 | Document                                             | Contents                                                                           |
 | ---------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | [docs/installation.md](docs/installation.md)         | Install modes (standalone, Docker, HACS), env, proxy, backups                      |
+| [docs/effects.md](docs/effects.md)                   | Für Einsteiger: Was welche Einstellung bewirkt (Verbindung, Sicherheit, Backup)    |
 | [docs/connect-backend.md](docs/connect-backend.md)   | Schritt-für-Schritt: Backend starten, HA-URL finden (DuckDNS), PVM-002/016 beheben |
 | [docs/hacs.md](docs/hacs.md)                         | HACS install/update/remove walkthrough and troubleshooting                         |
 | [docs/home-assistant.md](docs/home-assistant.md)     | HA integration, services, discovery, error handling                                |

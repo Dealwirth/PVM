@@ -27,6 +27,7 @@ a remediation hint.
 | PVM-018 | device   | medium   | Selbstheilung durchgeführt               | no       |
 | PVM-019 | security | critical | Rate-Limit überschritten                 | no       |
 | PVM-020 | unknown  | medium   | Unbekannter Fehler                       | no       |
+| PVM-021 | config   | medium   | Backup ungültig                          | no       |
 
 ## Categories
 

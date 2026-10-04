@@ -29,28 +29,30 @@ export const en = {
     setup: {
       title: 'Setup',
       intro:
-        'Connected in seconds: PVM finds Home Assistant automatically. All you need is the Long-Lived Access Token.',
+        'Connected in seconds. Choose how PVM reaches your Home Assistant and paste the Long-Lived Access Token. PVM verifies the connection before anything is saved.',
       step1: '1. Create a token in Home Assistant',
       step1Hint:
         'Open HA → Profile (bottom left) → Security → Long-Lived Access Tokens → “Create Token”.',
       step2: '2. Paste the token here',
       tokenLabel: 'Long-Lived Access Token',
-      tokenHint: 'The token is stored encrypted server-side and never returned to the browser.',
-      step3: '3. Connect',
-      step3Hint: 'PVM verifies the HA API connection and only then saves it.',
+      tokenHint: 'The token is stored server-side and never returned to the browser.',
+      step3: '3. Choose the connection type',
+      step3Hint: 'Not sure? Leave “Automatic” selected — PVM finds the address itself.',
+      step4: '4. Connect & save',
+      step4Hint:
+        'PVM verifies the connection to the HA API. Address and token are only saved on success.',
       detectedUrl: 'Detected HA address',
       noUrlDetected:
-        'No HA address detected automatically. Open “Advanced” and enter the HA URL manually.',
+        'No HA address detected automatically. Pick the matching connection type above and enter the address.',
       ok: 'Connection successful',
       failed: 'Connection failed',
       connect: 'Connect & save',
       later: 'Later',
       advanced: 'Advanced (HA URL manually)',
-      urlHint:
-        'Only needed if detection fails. Example: homeassistant.local:8123 or myinstance.duckdns.org:8123',
+      urlHint: 'The scheme is optional: homeassistant.local:8123 is enough.',
       allowRemote: 'Allow non-local HA address and retry',
       remoteBlockedHint:
-        'Your HA address is not local (e.g. DuckDNS/public domain) and was blocked by “Allow local HA URL only”. Allow it here once.',
+        'Your HA address is not local (e.g. DuckDNS/Nabu Casa) and was blocked by “Allow local HA URL only”. Allow it here once.',
       remoteAllowed: 'Non-local HA address is now allowed.',
       helpTitle: 'How to find the HA URL',
       helpLocalTitle: 'Local network (recommended)',
@@ -59,9 +61,54 @@ export const en = {
       helpDuckdnsTitle: 'DuckDNS / remote access',
       helpDuckdnsText:
         'With DuckDNS the URL is usually https://<your-name>.duckdns.org. If you use another port, append it: https://<your-name>.duckdns.org:8123. This address is not local and must be allowed.',
+      helpNabuTitle: 'Nabu Casa (Home Assistant Cloud)',
+      helpNabuText:
+        'With Home Assistant Cloud you reach HA via https://<your-name>.ui.nabu.casa. This address is not local and must be allowed.',
       helpDockerTitle: 'PVM in a Docker container',
       helpDockerText:
         'If PVM runs in Docker and HA on the host, reach HA via http://host.docker.internal:8123. This is the default in docker-compose.',
+      impactTitle: 'What do these settings do?',
+      impactTokenTitle: 'The token',
+      impactTokenText:
+        'The token is the key to Home Assistant. PVM can read devices with it and (if you enable it) control them. It stays on the PVM server and is never shown in the browser. If PVM runs locally only, the risk is low; do not share it.',
+      impactRemoteTitle: 'Local vs. public address',
+      impactRemoteText:
+        'A local address (e.g. 192.168.x.x) never leaves your home network — safer and faster. A public address (DuckDNS/Nabu Casa) goes over the internet. That is why “Allow local HA URL only” is on by default and blocks public addresses. Choosing DuckDNS or Nabu Casa lifts this block for that address.',
+      impactTestTitle: 'Connection test',
+      impactTestText:
+        'The test is non-binding: nothing is saved unless the connection works. If it fails, your existing settings stay unchanged.',
+      connTypes: {
+        auto: {
+          label: 'Automatic',
+          hint: 'Recommended. PVM tries the address reported by Home Assistant and known local addresses automatically.',
+          placeholder: 'detected automatically',
+        },
+        local: {
+          label: 'Local network',
+          hint: 'HA runs on the same network. Use the local IP or homeassistant.local. Safest option, no exception needed.',
+          placeholder: 'homeassistant.local:8123',
+        },
+        duckdns: {
+          label: 'DuckDNS',
+          hint: 'HA is reachable from outside via DuckDNS. The address is public — PVM allows it automatically when you pick this type.',
+          placeholder: 'myinstance.duckdns.org:8123',
+        },
+        nabu: {
+          label: 'Nabu Casa',
+          hint: 'HA runs via Home Assistant Cloud. The address is public — PVM allows it automatically when you pick this type.',
+          placeholder: 'myinstance.ui.nabu.casa',
+        },
+        docker: {
+          label: 'Docker',
+          hint: 'PVM runs in a container and HA on the host. Use host.docker.internal. No exception needed.',
+          placeholder: 'host.docker.internal:8123',
+        },
+        manual: {
+          label: 'Manual',
+          hint: 'For custom setups (reverse proxy, another port). Enter the full address.',
+          placeholder: 'http://192.168.1.50:8123',
+        },
+      },
     },
     nav: {
       dashboard: 'Dashboard',
@@ -350,6 +397,17 @@ export const en = {
       safetyMode: 'Safety mode',
       backupExport: 'Backup/Export',
       developerMode: 'Developer mode',
+      hintAutoStart:
+        'PVM starts automatically when Home Assistant starts. Off = you start PVM yourself.',
+      hintShutdownOnError:
+        'On critical errors devices are shut down safely. Off = PVM only reports and does not shut down.',
+      hintSelfHealing:
+        'PVM tries to restore a previous state automatically. Off = you fix errors yourself.',
+      hintSafetyMode:
+        'Monitors limits (power, temperature) and intervenes. Recommended for beginners: on.',
+      hintBackupExport: 'Unlocks the backup card below. Without a backup you cannot restore data.',
+      hintDeveloperMode:
+        'Shows additional technical options and details. Leave off for normal use.',
       devLog: 'Dev log',
       logLevel: 'Log level',
       autoLogs: 'Auto logs',
@@ -365,6 +423,37 @@ export const en = {
       haTokenHint: 'Stored encrypted, never returned to the browser.',
       runSetupAgain: 'Run setup assistant again',
       connectedTo: 'Connected to HA',
+      backup: {
+        title: 'Backup & restore',
+        description:
+          'Saves all your PVM data to a file and can restore it later. Recommended before updates or larger changes.',
+        includesTitle: 'What is included in the backup?',
+        includesText:
+          'Included: settings, devices, history, forecasts, load plans, calendar, addon configuration and safety events.',
+        excludesText:
+          'Not included (for security): your HA token. After restoring you must enter the token once again. The backup file is unencrypted — keep it safe.',
+        exportButton: 'Download backup',
+        exportSuccess: 'Backup downloaded.',
+        exportWithSecrets: 'Include HA token in the backup (not recommended)',
+        exportWithSecretsHint:
+          'When enabled, the file contains your HA token in plain text. Only use on a secure device.',
+        importTitle: 'Restore a backup',
+        importHint: 'Warning: restoring replaces all current PVM data. Create a backup first!',
+        importButton: 'Choose backup file',
+        importConfirm: 'Restore now? All current data will be replaced by the backup.',
+        importSuccess: 'Backup restored successfully.',
+        importError: 'Restore failed',
+        counts: 'Included records',
+        countsDevices: 'Devices',
+        countsHistory: 'History records',
+        countsPlans: 'Load plans',
+        countsCalendar: 'Calendar events',
+        countsAddons: 'Addons',
+        createdAt: 'Created at',
+        secretsIncluded: 'HA token included',
+        disabledHint: 'Backup/Export is off. Turn it on to create or restore backups.',
+        enableButton: 'Enable Backup/Export',
+      },
     },
     tutorial: {
       title: 'Welcome to PVM',

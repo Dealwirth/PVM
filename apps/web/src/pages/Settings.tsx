@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { LogLevel, SecurityMode, Settings } from '@pvm/shared';
 import { api } from '../lib/api.js';
+import { BackupCard } from '../components/BackupCard.js';
 import {
   Badge,
   Card,
@@ -246,31 +247,37 @@ export function SettingsPage(): JSX.Element {
             />
             <Toggle
               label={t('settings.autoStart')}
+              hint={t('settings.hintAutoStart')}
               checked={s.general.autoStartOnHaStart}
               onChange={(v) => patchGeneral('autoStartOnHaStart', v)}
             />
             <Toggle
               label={t('settings.shutdownOnError')}
+              hint={t('settings.hintShutdownOnError')}
               checked={s.general.shutdownOnError}
               onChange={(v) => patchGeneral('shutdownOnError', v)}
             />
             <Toggle
               label={t('settings.selfHealing')}
+              hint={t('settings.hintSelfHealing')}
               checked={s.general.selfHealing}
               onChange={(v) => patchGeneral('selfHealing', v)}
             />
             <Toggle
               label={t('settings.safetyMode')}
+              hint={t('settings.hintSafetyMode')}
               checked={s.general.safetyMode}
               onChange={(v) => patchGeneral('safetyMode', v)}
             />
             <Toggle
               label={t('settings.backupExport')}
+              hint={t('settings.hintBackupExport')}
               checked={s.general.backupExport}
               onChange={(v) => patchGeneral('backupExport', v)}
             />
             <Toggle
               label={t('settings.developerMode')}
+              hint={t('settings.hintDeveloperMode')}
               checked={s.general.developerMode}
               onChange={(v) => patchGeneral('developerMode', v)}
             />
@@ -413,6 +420,11 @@ export function SettingsPage(): JSX.Element {
           />
         </div>
       </Card>
+
+      <BackupCard
+        enabled={s.general.backupExport}
+        onEnable={() => patchGeneral('backupExport', true)}
+      />
 
       {save.isError && <ErrorBanner message={(save.error as Error).message} />}
     </div>

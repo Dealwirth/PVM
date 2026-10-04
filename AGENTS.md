@@ -93,3 +93,17 @@ PVM_E2E_BASE_URL=http://localhost:7000 PVM_API_SECRET=e2e-secret \
   **topic** (e.g. `home-assistant`, `hacs`) must be set in the GitHub repo
   settings; the license check reads `LICENSE` from the default branch, so merge
   before expecting it to pass.
+- Backup/restore lives in `apps/server/src/services/backup.ts` and is exposed as
+  `GET /api/backup/info|export` and `POST /api/backup/import` (`backupRoutes` in
+  `apps/server/src/api/routes/misc.ts`). Restores run in one transaction and
+  whitelist columns via `PRAGMA table_info`, so unknown/extra columns are ignored
+  and column names can never be injected. The HA token is stripped from the
+  export unless `?secrets=true`. After a successful import the route calls
+  `settings.reload()` so the in-memory cache and HA client pick up the restored
+  settings. The web card is gated by the `general.backupExport` master switch.
+- Setup assistant (`apps/web/src/components/SetupWizard.tsx`) exposes connection
+  types `auto|local|duckdns|nabu|docker|manual`. Picking `duckdns` or `nabu`
+  PUTs `ha.localOnly=false` before testing so a deliberately public URL is not
+  rejected with `PVM-016`. Keep the `setup.connTypes.*` and `setup.help*` /
+  `setup.impact*` i18n keys in both `de.ts` and `en.ts` (the i18n test enforces
+  key parity). User-facing impact explanations live in `docs/effects.md`.

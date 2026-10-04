@@ -12,6 +12,7 @@ import { registerAuthHooks } from './auth.js';
 import { deviceRoutes } from './routes/devices.js';
 import {
   addonRoutes,
+  backupRoutes,
   calendarRoutes,
   dashboardRoutes,
   errorRoutes,
@@ -53,7 +54,7 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
 
   app.get('/api/health', async () => ({
     status: 'ok',
-    version: '1.0.0',
+    version: '1.3.0',
     ha: ctx.ha.getState(),
     uptimeSeconds: Math.round(process.uptime()),
   }));
@@ -82,6 +83,7 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
       await safetyRoutes(api);
       await haRoutes(api);
       await errorRoutes(api);
+      await backupRoutes(api);
     },
     { prefix: '/api' },
   );

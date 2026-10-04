@@ -24,12 +24,23 @@ interface TestResult {
 }
 
 /**
+ * How the user reaches Home Assistant. Each choice only guides the URL field
+ * and the security default; the real connection is always verified against the
+ * live HA API before anything is saved.
+ */
+type ConnectionType = 'auto' | 'local' | 'duckdns' | 'nabu' | 'docker' | 'manual';
+
+const CONNECTION_TYPES: ConnectionType[] = ['auto', 'local', 'duckdns', 'nabu', 'docker', 'manual'];
+
+/** Non-local connection types must not be blocked by the local-only guard. */
+const REMOTE_TYPES: ConnectionType[] = ['duckdns', 'nabu'];
+
+/**
  * First-run setup assistant.
  *
- * Detects the Home Assistant URL automatically (candidates pushed by the HA
- * custom component or the HA_URL env fallback) so the user only has to paste a
- * Long-Lived Access Token. The connection is verified against the real HA API
- * before it is saved; the token is stored server-side only.
+ * Works with every common way of reaching Home Assistant (local IP/mDNS,
+ * DuckDNS, Nabu Casa, Docker host, or a manually typed URL) and explains what
+ * each choice does. The token is stored server-side only.
  */
 export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
   const { t } = useTranslation();
@@ -40,15 +51,16 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
   });
 
   const [token, setToken] = useState('');
-  const [urlOverride, setUrlOverride] = useState<string>();
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [url, setUrl] = useState<string>();
+  const [connType, setConnType] = useState<ConnectionType>('auto');
   const [showHelp, setShowHelp] = useState(false);
+  const [showImpact, setShowImpact] = useState(false);
   const [result, setResult] = useState<TestResult>();
   const [remoteAllowed, setRemoteAllowed] = useState(false);
 
   const knownUrl = useMemo(
-    () => urlOverride ?? settings.data?.ha.url ?? settings.data?.ha.candidateUrls?.[0] ?? '',
-    [urlOverride, settings.data],
+    () => url ?? settings.data?.ha.url ?? settings.data?.ha.candidateUrls?.[0] ?? '',
+    [url, settings.data],
   );
 
   const test = useMutation({
@@ -66,6 +78,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
         ha: {
           ...(token ? { token } : {}),
           ...(detectedUrl ? { url: detectedUrl } : {}),
+          ...(REMOTE_TYPES.includes(connType) ? { localOnly: false } : {}),
         },
         general: { setupDismissed: true },
       }),
@@ -84,8 +97,8 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
     },
   });
 
-  // One-click escape hatch for DuckDNS / public HA URLs that the "local only"
-  // guard blocked: allow non-local URLs and immediately retry the connection.
+  // One-click escape hatch for a public HA URL (DuckDNS/Nabu Casa) that the
+  // "local only" guard blocked: allow non-local URLs and retry immediately.
   const allowRemote = useMutation({
     mutationFn: async () => {
       await api.put<PublicSettings>('/settings', { ha: { localOnly: false } });
@@ -101,6 +114,13 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
 
   const connect = async (): Promise<void> => {
     setResult(undefined);
+    // Remote connection types opt out of the local-only guard up front so the
+    // test does not fail with PVM-016 for a URL the user deliberately chose.
+    if (REMOTE_TYPES.includes(connType)) {
+      await api
+        .put<PublicSettings>('/settings', { ha: { localOnly: false } })
+        .catch(() => undefined);
+    }
     const res = await test.mutateAsync().catch(() => undefined);
     if (res?.ok) {
       await save.mutateAsync(res.url ?? knownUrl);
@@ -112,7 +132,15 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
   const errorCode = result && !result.ok ? (result.errorCode ?? 'PVM-002') : undefined;
   const remoteBlocked = errorCode === 'PVM-016';
 
+  const selectType = (type: ConnectionType): void => {
+    setConnType(type);
+    setResult(undefined);
+    setUrl(undefined);
+  };
+
   if (settings.isLoading) return <Spinner />;
+
+  const urlPlaceholder = t(`setup.connTypes.${connType}.placeholder`);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-ha-bg p-4">
@@ -148,19 +176,54 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
             />
             <p className="text-xs text-gray-500">{t('setup.tokenHint')}</p>
           </li>
-          <li className="space-y-1">
+
+          <li className="space-y-2">
             <p className="text-sm font-medium text-gray-200">{t('setup.step3')}</p>
             <p className="text-xs text-gray-500">{t('setup.step3Hint')}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {CONNECTION_TYPES.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  className={`rounded-full border px-2.5 py-1 text-xs ${
+                    connType === type
+                      ? 'border-ha-primary bg-ha-primary/20 text-gray-100'
+                      : 'border-ha-border text-gray-400 hover:text-gray-200'
+                  }`}
+                  onClick={() => selectType(type)}
+                >
+                  {t(`setup.connTypes.${type}.label`)}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500">{t(`setup.connTypes.${connType}.hint`)}</p>
+            <label className="pvm-label" htmlFor="setup-url">
+              {t('settings.haUrl')}
+            </label>
+            <input
+              id="setup-url"
+              className="pvm-input"
+              value={url ?? settings.data?.ha.url ?? ''}
+              placeholder={urlPlaceholder}
+              onChange={(e) => {
+                setUrl(e.target.value);
+                setResult(undefined);
+              }}
+            />
+            {knownUrl ? (
+              <p className="text-xs text-gray-400">
+                {t('setup.detectedUrl')}: <span className="text-gray-200">{knownUrl}</span>
+              </p>
+            ) : (
+              <p className="text-xs text-amber-400">{t('setup.noUrlDetected')}</p>
+            )}
+          </li>
+
+          <li className="space-y-1">
+            <p className="text-sm font-medium text-gray-200">{t('setup.step4')}</p>
+            <p className="text-xs text-gray-500">{t('setup.step4Hint')}</p>
           </li>
         </ol>
-
-        {knownUrl ? (
-          <p className="text-xs text-gray-400">
-            {t('setup.detectedUrl')}: <span className="text-gray-200">{knownUrl}</span>
-          </p>
-        ) : (
-          <p className="text-xs text-amber-400">{t('setup.noUrlDetected')}</p>
-        )}
 
         {result && (
           <div
@@ -224,32 +287,6 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
           <button
             type="button"
             className="text-xs text-gray-500 hover:text-gray-300"
-            onClick={() => setShowAdvanced((v) => !v)}
-          >
-            {showAdvanced ? '▾' : '▸'} {t('setup.advanced')}
-          </button>
-          {showAdvanced && (
-            <div className="space-y-1">
-              <label className="pvm-label" htmlFor="setup-url">
-                {t('settings.haUrl')}
-              </label>
-              <input
-                id="setup-url"
-                className="pvm-input"
-                defaultValue={settings.data?.ha.url}
-                placeholder="homeassistant.local:8123"
-                onChange={(e) => {
-                  setUrlOverride(e.target.value);
-                  setResult(undefined);
-                }}
-              />
-              <p className="text-xs text-gray-500">{t('setup.urlHint')}</p>
-            </div>
-          )}
-
-          <button
-            type="button"
-            className="text-xs text-gray-500 hover:text-gray-300"
             onClick={() => setShowHelp((v) => !v)}
           >
             {showHelp ? '▾' : '▸'} {t('setup.helpTitle')}
@@ -265,8 +302,36 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
                 <dd>{t('setup.helpDuckdnsText')}</dd>
               </div>
               <div>
+                <dt className="font-medium text-gray-300">{t('setup.helpNabuTitle')}</dt>
+                <dd>{t('setup.helpNabuText')}</dd>
+              </div>
+              <div>
                 <dt className="font-medium text-gray-300">{t('setup.helpDockerTitle')}</dt>
                 <dd>{t('setup.helpDockerText')}</dd>
+              </div>
+            </dl>
+          )}
+
+          <button
+            type="button"
+            className="text-xs text-gray-500 hover:text-gray-300"
+            onClick={() => setShowImpact((v) => !v)}
+          >
+            {showImpact ? '▾' : '▸'} {t('setup.impactTitle')}
+          </button>
+          {showImpact && (
+            <dl className="space-y-2 rounded-lg border border-gray-800 bg-gray-950/40 p-3 text-xs text-gray-400">
+              <div>
+                <dt className="font-medium text-gray-300">{t('setup.impactTokenTitle')}</dt>
+                <dd>{t('setup.impactTokenText')}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-300">{t('setup.impactRemoteTitle')}</dt>
+                <dd>{t('setup.impactRemoteText')}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-300">{t('setup.impactTestTitle')}</dt>
+                <dd>{t('setup.impactTestText')}</dd>
               </div>
             </dl>
           )}

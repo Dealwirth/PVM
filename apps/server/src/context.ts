@@ -21,6 +21,7 @@ import { CalendarService } from './services/calendar.js';
 import { AddonService } from './services/addon.js';
 import { GitHubAddonFetcher } from './services/addon-fetcher.js';
 import { AuthService } from './services/auth.js';
+import { BackupService } from './services/backup.js';
 import { DashboardService } from './services/dashboard.js';
 import { NotificationService } from './services/notifications.js';
 import { PvmError } from '@pvm/shared';
@@ -40,6 +41,7 @@ export interface AppContext {
   calendar: CalendarService;
   addons: AddonService;
   auth: AuthService;
+  backup: BackupService;
   dashboard: DashboardService;
   notifications: NotificationService;
   /** Dispatch a HA-originated ``pvm.*`` service call. */
@@ -79,6 +81,7 @@ export function createContext(config: ServerConfig, db: Db): AppContext {
   const fetcher = new GitHubAddonFetcher(log, process.env.GITHUB_TOKEN);
   const addons = new AddonService(addonRepo, settings, log, config.addonsDir, fetcher);
   const auth = new AuthService(config.apiSecret);
+  const backup = new BackupService(db, log);
   const dashboard = new DashboardService(devices, forecast, planner, safety, settings, ha, log);
   const notifications = new NotificationService(settings, log);
 
@@ -154,6 +157,7 @@ export function createContext(config: ServerConfig, db: Db): AppContext {
     calendar,
     addons,
     auth,
+    backup,
     dashboard,
     notifications,
     haServiceCall,
