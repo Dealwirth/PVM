@@ -1,7 +1,13 @@
-import type { RequiredSettingStatus, Settings, SettingsPatch } from '@pvm/shared';
-import { PvmError } from '@pvm/shared';
+import type {
+  HaConnectionTestResult,
+  RequiredSettingStatus,
+  Settings,
+  SettingsPatch,
+} from '@pvm/shared';
+import { PvmError, isLocalUrl } from '@pvm/shared';
 import type { SettingsRepository } from '../db/repositories/settings.js';
 import type { ServerConfig } from '../config.js';
+import type { HaClient } from '../ha/client.js';
 import type { DevLog } from './devlog.js';
 
 export function defaultSettings(config: ServerConfig): Settings {
@@ -18,12 +24,14 @@ export function defaultSettings(config: ServerConfig): Settings {
       safetyMode: true,
       backupExport: false,
       developerMode: false,
+      setupDismissed: false,
     },
     ha: {
       url: config.haUrl,
       token: config.haToken,
       localOnly: config.haLocalOnly,
       reconnectBaseMs: 5000,
+      candidateUrls: [],
     },
     api: {
       host: config.host,
@@ -85,6 +93,7 @@ export class SettingsService {
     private readonly repo: SettingsRepository,
     private readonly config: ServerConfig,
     private readonly log: DevLog,
+    private readonly ha: HaClient,
   ) {}
 
   get(): Settings {
@@ -116,7 +125,9 @@ export class SettingsService {
     const s = this.get();
     const missing: RequiredSettingStatus['missing'] = [];
     if (!s.ha.url) missing.push({ key: 'ha.url', label: 'HA-Host (URL)', errorCode: 'PVM-001' });
-    if (!s.ha.token) {
+    // The UI receives a masked token; treat that as "set" so the required
+    // banner clears once the user has saved a token.
+    if (!s.ha.token || s.ha.token === TOKEN_MASK) {
       missing.push({ key: 'ha.token', label: 'HA Long-Lived Access Token', errorCode: 'PVM-001' });
     }
     if (!s.general.language) {
@@ -125,7 +136,85 @@ export class SettingsService {
     if (!s.general.timezone) {
       missing.push({ key: 'general.timezone', label: 'Zeitzone', errorCode: 'PVM-001' });
     }
-    return { complete: missing.length === 0, missing };
+    return { complete: missing.length === 0, missing, setupDismissed: s.general.setupDismissed };
+  }
+
+  /**
+   * Test a Home Assistant URL/token pair without persisting it.
+   *
+   * Sends a real ``GET /api/config`` request through the HA client so the user
+   * gets an immediate, trustworthy answer (and an error code) before saving.
+   * An empty token or the masked placeholder falls back to the stored token.
+   */
+  async testHaConnection(input: { url?: string; token?: string }): Promise<HaConnectionTestResult> {
+    const s = this.get();
+    const rawToken = input.token ?? '';
+    const token = rawToken && rawToken !== TOKEN_MASK ? rawToken : s.ha.token;
+    if (!token) {
+      return { ok: false, errorCode: 'PVM-001', message: 'HA-Token fehlt.' };
+    }
+    const url = (input.url ?? '').trim().replace(/\/+$/, '');
+    if (url) return this.probe(url, token);
+    // No URL supplied: try the stored URL, then any known candidates.
+    return this.detectHa([s.ha.url], token);
+  }
+
+  /**
+   * Probe candidate HA base URLs and return the first reachable one.
+   *
+   * Candidates come from the explicit list, the stored candidates pushed by the
+   * HA custom component and the `HA_URL` env fallback. Non-local candidates are
+   * skipped when `localOnly` is set.
+   */
+  async detectHa(extra: string[] = [], tokenOverride?: string): Promise<HaConnectionTestResult> {
+    const s = this.get();
+    const token = tokenOverride ?? s.ha.token;
+    if (!token) {
+      return { ok: false, errorCode: 'PVM-001', message: 'HA-Token fehlt.' };
+    }
+    const seen = new Set<string>();
+    const candidates: string[] = [];
+    for (const raw of [...extra, ...(s.ha.candidateUrls ?? []), s.ha.url, this.config.haUrl]) {
+      const url = (raw ?? '').trim().replace(/\/+$/, '');
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      if (s.ha.localOnly && !isLocalUrl(url)) continue;
+      candidates.push(url);
+    }
+    let last: HaConnectionTestResult = {
+      ok: false,
+      errorCode: 'PVM-002',
+      message: 'Keine erreichbare HA-Instanz gefunden.',
+    };
+    for (const url of candidates) {
+      const result = await this.probe(url, token);
+      if (result.ok) return result;
+      last = result;
+    }
+    return last;
+  }
+
+  private async probe(url: string, token: string): Promise<HaConnectionTestResult> {
+    const result = await this.ha.testConnection({ url, token });
+    if (result.ok) {
+      return {
+        ok: true,
+        url,
+        haVersion: result.config?.version,
+        locationName: result.config?.location_name,
+      };
+    }
+    return {
+      ok: false,
+      errorCode: result.errorCode ?? this.errorCodeFor(result.error),
+      message: result.error,
+    };
+  }
+
+  private errorCodeFor(message?: string): string {
+    if (!message) return 'PVM-002';
+    const match = /PVM-\d{3}/.exec(message);
+    return match ? match[0] : 'PVM-002';
   }
 
   /** Throw if required settings are missing (guard for store/control). */
@@ -137,12 +226,19 @@ export class SettingsService {
   }
 
   /** Redact secrets before sending settings to the UI. */
-  toPublic(): Settings & { ha: { token: string }; api: { token?: string } } {
+  toPublic(): Settings & { ha: { token: string; tokenSet: boolean } } {
     const s = this.get();
     return {
       ...s,
-      ha: { ...s.ha, token: s.ha.token ? '••••••••' : '' },
+      ha: {
+        ...s.ha,
+        token: s.ha.token ? TOKEN_MASK : '',
+        tokenSet: Boolean(s.ha.token) && s.ha.token !== TOKEN_MASK,
+      },
       api: { ...s.api, token: undefined },
     };
   }
 }
+
+/** Placeholder returned to the UI instead of the raw HA token. */
+export const TOKEN_MASK = '••••••••';

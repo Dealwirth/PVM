@@ -154,6 +154,10 @@
     "get_devices": {
       "name": "Get devices",
       "description": "Return the devices managed by PVM."
+    },
+    "detect_ha_url": {
+      "name": "Detect Home Assistant URL",
+      "description": "Push this Home Assistant instance's base URL(s) to the PVM backend so the PVM setup assistant can find Home Assistant automatically."
     }
   }
 }

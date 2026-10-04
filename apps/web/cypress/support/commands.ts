@@ -5,6 +5,7 @@ declare global {
   namespace Cypress {
     interface Chainable {
       login(token?: string): Chainable<void>;
+      dismissSetup(): Chainable<void>;
     }
   }
 }
@@ -19,6 +20,30 @@ Cypress.Commands.add('login', (token?: string) => {
     if (res.body?.token) {
       window.localStorage.setItem('pvm.token', res.body.token);
     }
+  });
+});
+
+// The E2E scenarios describe an already-configured instance; dismiss the
+// first-run setup assistant so the page navigation is not blocked by it.
+Cypress.Commands.add('dismissSetup', () => {
+  cy.request({
+    method: 'POST',
+    url: '/api/auth/login',
+    body: { token: Cypress.env('PVM_API_SECRET') },
+    failOnStatusCode: false,
+  }).then((login) => {
+    expect(login.status, `login ${JSON.stringify(login.body)}`).to.eq(200);
+    // Return the request so Cypress waits for it before the test body ends.
+    return cy
+      .request({
+        method: 'PUT',
+        url: '/api/settings',
+        headers: { Authorization: `Bearer ${login.body.token}` },
+        body: { general: { setupDismissed: true } },
+        failOnStatusCode: false,
+      })
+      .its('status')
+      .should('eq', 200);
   });
 });
 

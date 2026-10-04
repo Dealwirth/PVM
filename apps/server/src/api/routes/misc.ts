@@ -2,6 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import {
   addonInstallSchema,
   forecastInputSchema,
+  haDetectSchema,
+  haTestSchema,
   idParamSchema,
   logFilterSchema,
   plannerSettingsSchema,
@@ -9,6 +11,7 @@ import {
   validateHaServicePayload,
 } from '@pvm/shared';
 import type { AppContext } from '../../context.js';
+import { TOKEN_MASK } from '../../services/settings.js';
 
 export async function settingsRoutes(app: FastifyInstance): Promise<void> {
   const ctx = (): AppContext => app.pvm;
@@ -18,7 +21,19 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
 
   app.put('/settings', async (request) => {
     const patch = settingsPatchSchema.parse(request.body);
-    const updated = ctx().settings.update(patch);
+    // Never overwrite the stored token with the UI placeholder.
+    if (patch.ha?.token === TOKEN_MASK) delete patch.ha.token;
+    let updated = ctx().settings.update(patch);
+
+    // Auto-detect the HA URL when it is still unknown (candidates are pushed
+    // by the HA custom component, or come from the HA_URL env fallback).
+    if (!updated.ha.url) {
+      const detected = await ctx().settings.detectHa();
+      if (detected.ok && detected.url) {
+        updated = ctx().settings.update({ ha: { url: detected.url } });
+      }
+    }
+
     ctx().ha.configure({
       url: updated.ha.url,
       token: updated.ha.token,
@@ -28,7 +43,12 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
     return ctx().settings.toPublic();
   });
 
-  app.post('/settings/test-ha', async () => ctx().ha.testConnection());
+  // Non-persisting connection test used by the setup wizard. Accepts an
+  // optional url/token so the user can verify before saving.
+  app.post('/settings/test-ha', async (request) => {
+    const body = haTestSchema.parse(request.body ?? {});
+    return ctx().settings.testHaConnection(body);
+  });
 }
 
 export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
@@ -194,6 +214,22 @@ export async function haRoutes(app: FastifyInstance): Promise<void> {
       unknown
     >;
     return ctx().haServiceCall(service, payload);
+  });
+
+  // Called by the HA custom component during setup so the user only has to
+  // enter the HA token in PVM. The component hands over the HA base URL(s) it
+  // can derive and (optionally) the HA token it already holds, then PVM probes
+  // them and stores the first reachable URL.
+  app.post('/ha/internal/detect', async (request) => {
+    const input = haDetectSchema.parse(request.body ?? {});
+    const candidates = [...(input.url ? [input.url] : []), ...(input.candidates ?? [])];
+    const result = await ctx().settings.detectHa(candidates, input.token);
+    if (result.ok && result.url) {
+      ctx().settings.update({ ha: { url: result.url } });
+      ctx().ha.configure({ url: result.url });
+      ctx().log.info('ha', 'HA URL auto-detected', { url: result.url });
+    }
+    return result;
   });
 }
 

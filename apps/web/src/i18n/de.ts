@@ -16,6 +16,29 @@ export const de = {
       invalid: 'Token ungültig. Bitte prüfen und erneut versuchen.',
       unreachable: 'Server nicht erreichbar. Verbindung prüfen.',
     },
+    setup: {
+      title: 'Einrichtung',
+      intro:
+        'In wenigen Sekunden verbunden: PVM findet Home Assistant automatisch. Du brauchst nur den Long-Lived Access Token.',
+      step1: '1. Token in Home Assistant anlegen',
+      step1Hint:
+        'HA öffnen → Profil (unten links) → Sicherheit → Long-Lived Access Tokens → „Token erstellen“.',
+      step2: '2. Token hier einfügen',
+      tokenLabel: 'Long-Lived Access Token',
+      tokenHint:
+        'Der Token wird verschlüsselt serverseitig gespeichert und nie an den Browser zurückgegeben.',
+      step3: '3. Verbinden',
+      step3Hint: 'PVM prüft die Verbindung zur HA-API und speichert erst danach.',
+      detectedUrl: 'Erkannte HA-Adresse',
+      noUrlDetected:
+        'Keine HA-Adresse automatisch gefunden. Öffne „Erweitert“ und gib die HA-URL manuell ein.',
+      ok: 'Verbindung erfolgreich',
+      failed: 'Verbindung fehlgeschlagen',
+      connect: 'Verbinden & speichern',
+      later: 'Später',
+      advanced: 'Erweitert (HA-URL manuell)',
+      urlHint: 'Nur nötig, wenn die Erkennung fehlschlägt, z. B. http://homeassistant.local:8123',
+    },
     nav: {
       dashboard: 'Dashboard',
       devices: 'Geräte',
@@ -310,12 +333,17 @@ export const de = {
       maxDevicePower: 'Max. Geräteleistung (W)',
       minBattery: 'Min. Batterie (%)',
       requiredBadge: 'Pflicht',
+      tokenSaved: 'Gespeichert',
+      haUrlAutoHint: 'Wird beim Einrichten automatisch erkannt.',
+      haTokenHint: 'Verschlüsselt gespeichert, nie an den Browser zurückgegeben.',
+      runSetupAgain: 'Einrichtungsassistent erneut starten',
+      connectedTo: 'Verbunden mit HA',
     },
     tutorial: {
       title: 'Willkommen bei PVM',
       step1Title: '1. Installation & Konfiguration',
       step1Text:
-        'PVM ist installiert. Öffne die Einstellungen und trage HA-URL und Long-Lived Access Token ein.',
+        'PVM ist installiert. Öffne die Einrichtung und füge den Long-Lived Access Token ein — die HA-Adresse wird automatisch erkannt.',
       step2Title: '2. HA-Integration',
       step2Text:
         'Teste die Verbindung zu Home Assistant. PVM liest Geräte und Entitäten automatisch aus.',

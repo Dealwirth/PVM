@@ -61,6 +61,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
+    # Hand PVM the HA URL(s) so the user only needs to enter the HA token in
+    # the PVM setup assistant. Best-effort; never blocks setup.
+    await coordinator.async_push_ha_url()
+
     # Same-origin authenticated proxy for the PVM API (registered once).
     if not hass.data.get(_PROXY_KEY) and not _view_registered(hass):
         hass.http.register_view(PvmProxyView(hass))
@@ -111,6 +115,10 @@ def _register_services(hass: HomeAssistant) -> None:
             )
             if coordinator is None:
                 raise HomeAssistantError("PVM integration is not loaded")
+            # URL detection runs HA-side (it needs hass.config), not in the backend.
+            if service == "detect_ha_url":
+                await coordinator.async_push_ha_url()
+                return
             payload = {key: call.data[key] for key in call.data if key in _ALLOWED_KEYS}
             await coordinator.async_call_service(service, payload)
 

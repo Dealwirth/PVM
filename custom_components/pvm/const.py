@@ -35,6 +35,7 @@ SERVICES = [
     "get_entities",
     "get_devices",
     "run_planning_cycle",
+    "detect_ha_url",
 ]
 
 SERVICE_SCHEMA: dict[str, vol.Schema] = {
@@ -72,4 +73,5 @@ SERVICE_SCHEMA: dict[str, vol.Schema] = {
     "get_entities": vol.Schema({}),
     "get_devices": vol.Schema({}),
     "run_planning_cycle": vol.Schema({}),
+    "detect_ha_url": vol.Schema({}),
 }

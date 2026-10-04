@@ -19,6 +19,7 @@ export const haConnectionSchema = z.object({
   token: z.string().max(2000),
   localOnly: z.boolean(),
   reconnectBaseMs: z.number().int().min(1000).max(600_000),
+  candidateUrls: z.array(z.string().url().max(500)).max(20).default([]),
 });
 
 export const apiSettingsSchema = z.object({
@@ -44,6 +45,7 @@ export const generalSettingsSchema = z.object({
   safetyMode: z.boolean(),
   backupExport: z.boolean(),
   developerMode: z.boolean(),
+  setupDismissed: z.boolean().default(false),
 });
 
 export const notificationSettingsSchema = z.object({
@@ -149,6 +151,29 @@ export const addonInstallSchema = z.object({
 export const loginSchema = z.object({
   token: z.string().min(1).max(2000),
 });
+
+/** Body for POST /api/settings/test-ha (non-persisting connection test). */
+export const haTestSchema = z
+  .object({
+    url: z.string().max(500).optional(),
+    token: z.string().max(2000).optional(),
+  })
+  .strict();
+
+/**
+ * Body for POST /api/ha/internal/detect, used by the HA custom component to
+ * hand PVM the HA base URL(s) and, optionally, the HA token it already holds.
+ */
+export const haDetectSchema = z
+  .object({
+    url: z.string().max(500).optional(),
+    token: z.string().max(2000).optional(),
+    candidates: z.array(z.string().max(500)).max(20).optional(),
+  })
+  .strict();
+
+export type HaTestInput = z.infer<typeof haTestSchema>;
+export type HaDetectInput = z.infer<typeof haDetectSchema>;
 
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>;
 export type PlannerSettingsSchema = z.infer<typeof plannerSettingsSchema>;

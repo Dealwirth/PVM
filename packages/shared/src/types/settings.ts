@@ -13,6 +13,25 @@ export interface HaConnectionSettings {
   localOnly: boolean;
   /** WebSocket reconnect backoff base in ms. */
   reconnectBaseMs: number;
+  /**
+   * Alternate HA base URLs probed when `url` is empty (e.g. pushed by the HA
+   * custom component during setup).
+   */
+  candidateUrls: string[];
+}
+
+/** Result of a non-persisting HA connection test (`POST /api/settings/test-ha`). */
+export interface HaConnectionTestResult {
+  ok: boolean;
+  /** Reachable HA base URL (present on success). */
+  url?: string;
+  /** HA version reported by `GET /api/config` on success. */
+  haVersion?: string;
+  /** HA instance name on success. */
+  locationName?: string;
+  /** PVM error code (e.g. PVM-002, PVM-003) on failure. */
+  errorCode?: string;
+  message?: string;
 }
 
 export interface PvmApiSettings {
@@ -41,6 +60,8 @@ export interface GeneralSettings {
   safetyMode: boolean;
   backupExport: boolean;
   developerMode: boolean;
+  /** Operator has dismissed the first-run setup assistant. */
+  setupDismissed: boolean;
 }
 
 export interface NotificationSettings {
@@ -114,4 +135,6 @@ export interface Settings {
 export interface RequiredSettingStatus {
   complete: boolean;
   missing: Array<{ key: string; label: string; errorCode: string }>;
+  /** Whether the operator has dismissed the first-run setup assistant. */
+  setupDismissed: boolean;
 }

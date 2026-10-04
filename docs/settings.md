@@ -25,21 +25,22 @@ for store installs and device control.
 
 ## General
 
-| Key                  | Default | Notes                              |
-| -------------------- | ------- | ---------------------------------- |
-| `language`           | `de`    | UI language                        |
-| `timezone`           | `auto`  | Used for calendar & plan rendering |
-| `units.power`        | `W`     | `W` or `kW`                        |
-| `units.temperature`  | `C`     | `C` or `F`                         |
-| `units.energy`       | `kWh`   | `Wh` or `kWh`                      |
-| `autoCache`          | `true`  | Cache HA states                    |
-| `autoUpdate`         | `false` | Auto-update installed addons       |
-| `autoStartOnHaStart` | `false` | Start stream/scheduler with HA     |
-| `shutdownOnError`    | `true`  | Safety shutdown on critical errors |
-| `selfHealing`        | `true`  | Restore last good state            |
-| `safetyMode`         | `true`  | Enable the safety subsystem        |
-| `backupExport`       | `false` | Enable backup/export endpoints     |
-| `developerMode`      | `false` | Expose extra dev tooling           |
+| Key                  | Default | Notes                                  |
+| -------------------- | ------- | -------------------------------------- |
+| `language`           | `de`    | UI language                            |
+| `timezone`           | `auto`  | Used for calendar & plan rendering     |
+| `units.power`        | `W`     | `W` or `kW`                            |
+| `units.temperature`  | `C`     | `C` or `F`                             |
+| `units.energy`       | `kWh`   | `Wh` or `kWh`                          |
+| `autoCache`          | `true`  | Cache HA states                        |
+| `autoUpdate`         | `false` | Auto-update installed addons           |
+| `autoStartOnHaStart` | `false` | Start stream/scheduler with HA         |
+| `shutdownOnError`    | `true`  | Safety shutdown on critical errors     |
+| `selfHealing`        | `true`  | Restore last good state                |
+| `safetyMode`         | `true`  | Enable the safety subsystem            |
+| `backupExport`       | `false` | Enable backup/export endpoints         |
+| `developerMode`      | `false` | Expose extra dev tooling               |
+| `setupDismissed`     | `false` | Operator dismissed the setup assistant |
 
 ## Home Assistant (`ha`)
 
@@ -47,8 +48,13 @@ for store installs and device control.
 | ----------------- | --------------------------------------------------------------------- |
 | `url`             | e.g. `http://homeassistant.local:8123`                                |
 | `token`           | Long-Lived Access Token (stored hybrid-encrypted, never returned raw) |
+| `candidateUrls`   | Alternate HA URLs probed during auto-detection                        |
 | `localOnly`       | When true, non-local URLs are rejected (`PVM-016`)                    |
 | `reconnectBaseMs` | WebSocket reconnect backoff base                                      |
+
+The UI only ever receives a masked token (`••••••••`) plus a `tokenSet`
+boolean; sending the mask back is ignored and never overwrites the stored
+token.
 
 ## PVM API (`api`)
 

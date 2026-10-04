@@ -14,7 +14,7 @@ import {
   Toggle,
 } from '../components/ui.js';
 
-type PublicSettings = Settings & { ha: Settings['ha'] & { token: string } };
+type PublicSettings = Settings & { ha: Settings['ha'] & { token: string; tokenSet: boolean } };
 
 export function SettingsPage(): JSX.Element {
   const { t } = useTranslation();
@@ -33,7 +33,12 @@ export function SettingsPage(): JSX.Element {
 
   const [haUrl, setHaUrl] = useState<string>();
   const [haToken, setHaToken] = useState<string>();
-  const [testResult, setTestResult] = useState<string>();
+  const [testResult, setTestResult] = useState<{
+    ok: boolean;
+    errorCode?: string;
+    message?: string;
+    haVersion?: string;
+  }>();
 
   const save = useMutation({
     mutationFn: (patch: Record<string, unknown>) => api.put<PublicSettings>('/settings', patch),
@@ -44,11 +49,21 @@ export function SettingsPage(): JSX.Element {
     },
   });
 
+  // Test the connection with the values currently in the form, without saving.
   const testHa = useMutation({
     mutationFn: () =>
-      api.post<{ ok: boolean; error?: string; config?: { version: string } }>('/settings/test-ha'),
-    onSuccess: (r) =>
-      setTestResult(r.ok ? `OK (${r.config?.version ?? ''})` : `Fehler: ${r.error}`),
+      api.post<{
+        ok: boolean;
+        url?: string;
+        haVersion?: string;
+        locationName?: string;
+        errorCode?: string;
+        message?: string;
+      }>('/settings/test-ha', {
+        ...(haUrl !== undefined ? { url: haUrl } : {}),
+        ...(haToken !== undefined ? { token: haToken } : {}),
+      }),
+    onSuccess: (r) => setTestResult(r),
   });
 
   if (settings.isLoading || !settings.data) return <Spinner />;
@@ -82,7 +97,7 @@ export function SettingsPage(): JSX.Element {
           <div>
             <label className="pvm-label" htmlFor="ha-url">
               {t('settings.haUrl')}{' '}
-              <span className="text-red-400">({t('settings.requiredBadge')})</span>
+              {!s.ha.url && <span className="text-red-400">({t('settings.requiredBadge')})</span>}
             </label>
             <input
               id="ha-url"
@@ -91,19 +106,26 @@ export function SettingsPage(): JSX.Element {
               onChange={(e) => setHaUrl(e.target.value)}
               placeholder="http://homeassistant.local:8123"
             />
+            {!s.ha.url && (
+              <p className="mt-1 text-xs text-gray-500">{t('settings.haUrlAutoHint')}</p>
+            )}
           </div>
           <div>
             <label className="pvm-label" htmlFor="ha-token">
               {t('settings.haToken')}{' '}
-              <span className="text-red-400">({t('settings.requiredBadge')})</span>
+              {!s.ha.tokenSet && (
+                <span className="text-red-400">({t('settings.requiredBadge')})</span>
+              )}
+              {s.ha.tokenSet && <Badge tone="success">{t('settings.tokenSaved')}</Badge>}
             </label>
             <input
               id="ha-token"
               className="pvm-input"
               type="password"
-              placeholder={s.ha.token || '••••••••'}
+              placeholder={s.ha.tokenSet ? '••••••••' : 'eyJ0eXAiOiJKV1Qi…'}
               onChange={(e) => setHaToken(e.target.value)}
             />
+            <p className="mt-1 text-xs text-gray-500">{t('settings.haTokenHint')}</p>
           </div>
           <Toggle
             label={t('settings.localOnly')}
@@ -134,9 +156,23 @@ export function SettingsPage(): JSX.Element {
             >
               {testHa.isPending ? t('settings.testing') : t('settings.testConnection')}
             </button>
-            {testResult && (
-              <Badge tone={testResult.startsWith('OK') ? 'success' : 'error'}>{testResult}</Badge>
-            )}
+            {testResult &&
+              (testResult.ok ? (
+                <Badge tone="success">
+                  {t('settings.connectedTo')} {testResult.haVersion ?? 'HA'}
+                </Badge>
+              ) : (
+                <Badge tone="error">
+                  {testResult.errorCode ?? 'PVM-002'}: {testResult.message ?? t('setup.failed')}
+                </Badge>
+              ))}
+            <button
+              type="button"
+              className="pvm-btn-ghost"
+              onClick={() => save.mutate({ general: { setupDismissed: false } })}
+            >
+              {t('settings.runSetupAgain')}
+            </button>
           </div>
         </div>
       </Card>
