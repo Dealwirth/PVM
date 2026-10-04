@@ -23,13 +23,21 @@ automatically, so the user only pastes the Long-Lived Access Token:
    the browser.
 
 If detection fails (e.g. HA has no internal/external URL configured), the
-assistant offers an "Advanced" field to enter the HA URL manually. Calling the
+assistant offers an "Advanced" field to enter the HA URL manually. The scheme
+(`http://`/`https://`) is optional — PVM fills it in. Calling the
 `pvm.detect_ha_url` service re-runs detection after changing the HA URL.
+
+Step-by-step instructions (including how to find the HA URL with **DuckDNS**,
+Nabu Casa, Docker or a reverse proxy): [connect-backend.md](connect-backend.md).
 
 ## Connection & security
 
 - The token is stored server-side in SQLite and never returned to the browser.
-- `HA_LOCAL_ONLY=true` rejects URLs that are not loopback / RFC1918 (`PVM-016`).
+- `HA_LOCAL_ONLY=true` rejects URLs that are not loopback / RFC1918. A blocked
+  public URL (DuckDNS, Nabu Casa, reverse proxy) reports **`PVM-016`** with the
+  exact URL and a one-click "allow non-local address" action in the setup
+  assistant. When only non-local candidates exist, auto-detection returns
+  `PVM-016` instead of an opaque `PVM-002`.
 - TLS verification can be toggled per integration (don't disable in production).
 - Connection failures surface as `PVM-002` (unreachable) or `PVM-003`
   (authentication rejected), both with remediation hints.

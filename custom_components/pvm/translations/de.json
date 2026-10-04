@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "PVM verbinden",
-        "description": "Gib die Adresse der PVM-Backend-API an. Der PVM-API-Token wird nur im HA-Speicher abgelegt.",
+        "description": "Gib die Adresse der PVM-Backend-API an. Ohne Schema tippen spart Arbeit, z. B. homeassistant.local:7000 oder host.docker.internal:7000 (Docker). Der PVM-API-Token wird nur im HA-Speicher abgelegt.",
         "data": {
           "pvm_url": "PVM-URL",
           "pvm_token": "PVM-API-Token",
@@ -20,7 +20,8 @@
       }
     },
     "error": {
-      "cannot_connect": "Verbindung zum PVM-Backend fehlgeschlagen."
+      "cannot_connect": "Verbindung zum PVM-Backend fehlgeschlagen. Läuft das Backend? Stimmen URL und Port? In Docker host.docker.internal statt localhost verwenden.",
+      "invalid_auth": "Das PVM-Backend hat den API-Token abgelehnt. Bitte das am Server gesetzte PVM_API_SECRET eingeben."
     },
     "abort": {
       "already_configured": "PVM ist bereits konfiguriert.",

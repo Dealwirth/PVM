@@ -21,6 +21,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MIN_SCAN_INTERVAL,
+    normalize_pvm_url,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,16 +38,35 @@ STEP_USER_SCHEMA = vol.Schema(
 )
 
 
+class CannotConnect(Exception):
+    """Raised when the PVM backend is unreachable or rejects the token."""
+
+    def __init__(self, reason: str = "cannot_connect") -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
 async def _validate(hass: HomeAssistant, data: dict[str, Any]) -> None:
-    """Validate the endpoint by calling the PVM health API."""
+    """Validate the endpoint by calling the PVM health API.
+
+    Raises :class:`CannotConnect` with a specific ``reason`` so the form can
+    show an actionable message instead of a generic failure.
+    """
     session = async_get_clientsession(hass, data.get(CONF_VERIFY_SSL, True))
-    url = f"{data[CONF_PVM_URL].rstrip('/')}/api/health"
+    url = f"{normalize_pvm_url(data[CONF_PVM_URL])}/api/health"
     headers = {}
     if data.get(CONF_PVM_TOKEN):
         headers["Authorization"] = f"Bearer {data[CONF_PVM_TOKEN]}"
-    async with session.get(url, headers=headers, timeout=10) as resp:
-        if resp.status != 200:
-            raise ConnectionError(f"PVM health returned HTTP {resp.status}")
+    try:
+        async with session.get(url, headers=headers, timeout=10) as resp:
+            if resp.status in (401, 403):
+                raise CannotConnect("invalid_auth")
+            if resp.status != 200:
+                raise CannotConnect("cannot_connect")
+    except CannotConnect:
+        raise
+    except Exception as err:  # noqa: BLE001 - surfaced as a form error
+        raise CannotConnect("cannot_connect") from err
 
 
 class PvmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -57,12 +77,14 @@ class PvmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
-            url = user_input[CONF_PVM_URL].rstrip("/")
+            url = normalize_pvm_url(user_input[CONF_PVM_URL])
             user_input[CONF_PVM_URL] = url
             await self.async_set_unique_id(url)
             self._abort_if_unique_id_configured()
             try:
                 await _validate(self.hass, user_input)
+            except CannotConnect as err:
+                errors["base"] = err.reason
             except Exception:  # noqa: BLE001 - surface as a form error
                 _LOGGER.exception("PVM connection validation failed")
                 errors["base"] = "cannot_connect"
@@ -75,7 +97,9 @@ class PvmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_import(self, import_data: dict[str, Any]) -> FlowResult:
         """Import configuration from YAML (single-instance)."""
-        await self.async_set_unique_id(import_data[CONF_PVM_URL].rstrip("/"))
+        import_data = dict(import_data)
+        import_data[CONF_PVM_URL] = normalize_pvm_url(import_data[CONF_PVM_URL])
+        await self.async_set_unique_id(import_data[CONF_PVM_URL])
         self._abort_if_unique_id_configured()
         return self.async_create_entry(title="PVM", data=import_data)
 
@@ -92,6 +116,8 @@ class PvmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             new_data = {**entry.data, **user_input}
             try:
                 await _validate(self.hass, new_data)
+            except CannotConnect as err:
+                errors["base"] = err.reason
             except Exception:  # noqa: BLE001
                 _LOGGER.exception("PVM re-auth validation failed")
                 errors["base"] = "cannot_connect"

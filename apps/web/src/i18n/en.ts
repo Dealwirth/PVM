@@ -15,6 +15,16 @@ export const en = {
       submit: 'Sign in',
       invalid: 'Invalid token. Please check and try again.',
       unreachable: 'Server unreachable. Check the connection.',
+      backendUnreachable:
+        'The PVM backend is unreachable. The PVM server (Node.js) is not running or cannot be reached at this address.',
+      backendReachableSteps: 'How to get PVM running:',
+      backendStep1: 'Start the backend: “docker compose up -d” or “npm start” (port 7000).',
+      backendStep2:
+        'If Home Assistant runs on another machine: set PVM_HOST=0.0.0.0 and use the correct IP/port.',
+      backendStep3:
+        'If PVM runs behind a reverse proxy: set VITE_PVM_API_BASE to the public URL and rebuild.',
+      apiBase: 'API base in use',
+      retry: 'Retry',
     },
     setup: {
       title: 'Setup',
@@ -36,7 +46,22 @@ export const en = {
       connect: 'Connect & save',
       later: 'Later',
       advanced: 'Advanced (HA URL manually)',
-      urlHint: 'Only needed if detection fails, e.g. http://homeassistant.local:8123',
+      urlHint:
+        'Only needed if detection fails. Example: homeassistant.local:8123 or myinstance.duckdns.org:8123',
+      allowRemote: 'Allow non-local HA address and retry',
+      remoteBlockedHint:
+        'Your HA address is not local (e.g. DuckDNS/public domain) and was blocked by “Allow local HA URL only”. Allow it here once.',
+      remoteAllowed: 'Non-local HA address is now allowed.',
+      helpTitle: 'How to find the HA URL',
+      helpLocalTitle: 'Local network (recommended)',
+      helpLocalText:
+        'In the HA dashboard under Settings → System → Network. Use e.g. http://homeassistant.local:8123 or http://192.168.1.50:8123.',
+      helpDuckdnsTitle: 'DuckDNS / remote access',
+      helpDuckdnsText:
+        'With DuckDNS the URL is usually https://<your-name>.duckdns.org. If you use another port, append it: https://<your-name>.duckdns.org:8123. This address is not local and must be allowed.',
+      helpDockerTitle: 'PVM in a Docker container',
+      helpDockerText:
+        'If PVM runs in Docker and HA on the host, reach HA via http://host.docker.internal:8123. This is the default in docker-compose.',
     },
     nav: {
       dashboard: 'Dashboard',
@@ -307,6 +332,10 @@ export const en = {
       haUrl: 'HA host (URL)',
       haToken: 'Long-Lived Access Token',
       localOnly: 'Allow local HA URL only',
+      localOnlyHint:
+        'Blocks non-local addresses such as DuckDNS/public domains. Disable for remote access.',
+      haUrlExamples:
+        'Examples: homeassistant.local:8123 · 192.168.1.50:8123 · host.docker.internal:8123 · myinstance.duckdns.org:8123',
       testConnection: 'Test connection',
       testing: 'Testing…',
       requiredHint:

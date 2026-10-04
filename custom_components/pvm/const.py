@@ -22,6 +22,31 @@ DEFAULT_PVM_URL = "http://localhost:7000"
 DEFAULT_SCAN_INTERVAL = 30
 MIN_SCAN_INTERVAL = 5
 
+
+def normalize_pvm_url(raw: str) -> str:
+    """Normalise a user-entered PVM URL (scheme, trailing slash).
+
+    ``localhost:7000`` becomes ``http://localhost:7000`` and a bare public
+    hostname gets ``https://``, so users never have to type the scheme.
+    """
+    value = (raw or "").strip().rstrip("/")
+    if not value:
+        return value
+    if "://" not in value:
+        host = value.split("/")[0].split(":")[0].lower()
+        local = (
+            host.startswith("localhost")
+            or host.startswith("127.")
+            or host.startswith("10.")
+            or host.startswith("192.168.")
+            or host.startswith("169.254.")
+            or host == "host.docker.internal"
+            or host.endswith(".local")
+        )
+        value = f"{'http' if local else 'https'}://{value}"
+    return value
+
+
 # HA services exposed under the ``pvm`` domain and forwarded to the backend.
 SERVICES = [
     "set_device_state",

@@ -1,5 +1,10 @@
 const API_BASE = import.meta.env.VITE_PVM_API_BASE ?? '/api';
 
+/** The configured PVM API base, for diagnostics in the UI. */
+export function getApiBase(): string {
+  return API_BASE;
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly code: string,

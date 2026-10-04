@@ -109,6 +109,7 @@ export function SettingsPage(): JSX.Element {
             {!s.ha.url && (
               <p className="mt-1 text-xs text-gray-500">{t('settings.haUrlAutoHint')}</p>
             )}
+            <p className="mt-1 text-xs text-gray-500">{t('settings.haUrlExamples')}</p>
           </div>
           <div>
             <label className="pvm-label" htmlFor="ha-token">
@@ -132,6 +133,7 @@ export function SettingsPage(): JSX.Element {
             checked={s.ha.localOnly}
             onChange={(v) => save.mutate({ ha: { localOnly: v } })}
           />
+          <p className="-mt-2 text-xs text-gray-500">{t('settings.localOnlyHint')}</p>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"

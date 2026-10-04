@@ -72,6 +72,20 @@ PVM_E2E_BASE_URL=http://localhost:7000 PVM_API_SECRET=e2e-secret \
 - HACS packaging: keep `custom_components/pvm/manifest.json` to HA's standard
   keys only (no `homeassistant` key — that belongs in `hacs.json`). `hacs.json`
   and `manifest.json` versions are bumped independently when releasing.
+- HA-URL handling: user-entered URLs may omit the scheme. `normalizeUrlInput`
+  (`packages/shared/src/utils/index.ts`) and `normalize_pvm_url`
+  (`custom_components/pvm/const.py`) must stay in sync: they strip the port
+  before deciding local-vs-public, default to `http` for local hosts
+  (localhost, RFC1918, `.local`, `host.docker.internal`) and `https` otherwise,
+  and strip trailing slashes. Never compare `host:port` against local patterns
+  without splitting off the port first.
+- When `HA_LOCAL_ONLY=true` and only non-local (DuckDNS/Nabu Casa) HA candidates
+  exist, `detectHa`/`test-ha` return `PVM-016` with the offending URL — not an
+  opaque `PVM-002`. The web SetupWizard offers a one-click "allow non-local"
+  action that PUTs `ha.localOnly=false` and retries. Keep the frontend probe
+  (`LoginGate.probeAuth`) using `getApiBase()` so a custom `VITE_PVM_API_BASE`
+  is respected; a fetch rejection means the backend is down (`PVM-002`), a 401
+  means it is up but needs a token.
 - CI validations: `.github/workflows/hacs.yml` (HACS Action, category
   `integration`) and `.github/workflows/hassfest.yml` must stay green; a HACS
   release requires a full GitHub release (not just a tag). The HACS Action also

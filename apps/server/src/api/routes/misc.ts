@@ -6,6 +6,7 @@ import {
   haTestSchema,
   idParamSchema,
   logFilterSchema,
+  normalizeUrlInput,
   plannerSettingsSchema,
   settingsPatchSchema,
   validateHaServicePayload,
@@ -23,6 +24,11 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
     const patch = settingsPatchSchema.parse(request.body);
     // Never overwrite the stored token with the UI placeholder.
     if (patch.ha?.token === TOKEN_MASK) delete patch.ha.token;
+    // Accept scheme-less input (e.g. "homeassistant.local:8123").
+    if (patch.ha?.url) {
+      const normalized = normalizeUrlInput(patch.ha.url);
+      if (normalized) patch.ha.url = normalized;
+    }
     let updated = ctx().settings.update(patch);
 
     // Auto-detect the HA URL when it is still unknown (candidates are pushed

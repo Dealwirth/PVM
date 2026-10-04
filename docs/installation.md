@@ -46,6 +46,13 @@ PVM backend. HACS deploys the files under `custom_components/pvm`.
 Step-by-step instructions, update/removal and troubleshooting:
 [hacs.md](hacs.md).
 
+## Mode D — Backend-Adresse, DuckDNS & Fehlersuche
+
+Wenn die Verbindung nicht klappt („Backend nicht erreichbar“, PVM-016 bei
+DuckDNS/Nabu Casa, PVM-002/003 bei HA), führt
+[connect-backend.md](connect-backend.md) jeden Schritt durch — inklusive, wie
+man die HA-URL findet und das Schema weglassen darf.
+
 ## Environment variables
 
 See [.env.example](.env.example). The critical ones:

@@ -1,16 +1,25 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { setAuthToken, getAuthToken, api } from '../lib/api.js';
+import { setAuthToken, getAuthToken, getApiBase, api } from '../lib/api.js';
 import { SetupWizard } from './SetupWizard.js';
 
+/** Result of the guarded probe: is auth required, or is the backend down? */
+type ProbeResult = { reachable: true; authRequired: boolean } | { reachable: false };
+
 /** A guarded endpoint used to detect whether the server requires a token. */
-async function probeAuth(): Promise<boolean> {
+async function probeAuth(): Promise<ProbeResult> {
   const headers: Record<string, string> = {};
   const token = getAuthToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch('/api/settings/required', { headers });
-  return res.status !== 401;
+  try {
+    const res = await fetch(`${getApiBase()}/settings/required`, { headers });
+    // 401 => the server is up but wants a token; anything else => reachable.
+    return { reachable: true, authRequired: res.status === 401 };
+  } catch {
+    // Network error: the PVM backend is not reachable at all (PVM-002).
+    return { reachable: false };
+  }
 }
 
 interface LoginResponse {
@@ -36,6 +45,9 @@ export function LoginGate({ children }: { children: ReactNode }): JSX.Element {
     staleTime: Infinity,
   });
 
+  const reachable = probe.data?.reachable === true;
+  const authRequired = probe.data?.reachable === true ? probe.data.authRequired : false;
+
   const required = useQuery({
     queryKey: ['settings-required'],
     queryFn: () =>
@@ -44,7 +56,7 @@ export function LoginGate({ children }: { children: ReactNode }): JSX.Element {
         missing: Array<{ key: string; label: string }>;
         setupDismissed: boolean;
       }>('/settings/required'),
-    enabled: probe.data === true,
+    enabled: reachable && !authRequired,
   });
 
   const [wizardDismissed, setWizardDismissed] = useState(false);
@@ -53,7 +65,7 @@ export function LoginGate({ children }: { children: ReactNode }): JSX.Element {
     return <div className="p-8 text-center text-gray-400">{t('common.loading')}</div>;
   }
 
-  if (probe.data) {
+  if (reachable && !authRequired) {
     // Wait for the required-settings probe before deciding whether to show
     // the first-run setup assistant.
     if (required.isLoading) {
@@ -67,11 +79,43 @@ export function LoginGate({ children }: { children: ReactNode }): JSX.Element {
     return <>{children}</>;
   }
 
+  if (!reachable) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-ha-bg p-4">
+        <div className="pvm-card w-full max-w-lg space-y-3">
+          <h1 className="text-lg font-semibold">
+            {t('app.name')} <span className="text-xs text-gray-400">{t('app.tagline')}</span>
+          </h1>
+          <div className="rounded-lg border border-red-800 bg-red-950/60 p-3 text-sm text-red-200">
+            <span className="pvm-badge bg-red-900 text-red-200">PVM-002</span>{' '}
+            {t('login.backendUnreachable')}
+          </div>
+          <p className="text-sm text-gray-300">{t('login.backendReachableSteps')}</p>
+          <ol className="list-decimal space-y-1 pl-5 text-xs text-gray-400">
+            <li>{t('login.backendStep1')}</li>
+            <li>{t('login.backendStep2')}</li>
+            <li>{t('login.backendStep3')}</li>
+          </ol>
+          <p className="text-xs text-gray-500">
+            {t('login.apiBase')}: <span className="text-gray-300">{getApiBase()}</span>
+          </p>
+          <button
+            type="button"
+            className="pvm-btn-primary w-full"
+            onClick={() => void qc.invalidateQueries({ queryKey: ['auth-probe'] })}
+          >
+            {t('login.retry')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const submit = async (): Promise<void> => {
     setSubmitting(true);
     setError(undefined);
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(`${getApiBase()}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),

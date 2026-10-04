@@ -62,12 +62,17 @@ and must be stopped separately.
 
 ## Troubleshooting
 
-| Symptom                             | Fix                                                                                |
-| ----------------------------------- | ---------------------------------------------------------------------------------- |
-| `cannot_connect` during setup       | The backend URL is wrong, the backend is down, or `PVM_API_SECRET` does not match. |
-| Sidebar panel blank                 | The PVM backend URL must be reachable from the browser.                            |
-| `PVM is already configured`         | One entry per backend URL is allowed; edit the existing entry instead.             |
-| Reauth prompt after changing secret | Update the token via the entry's **Reconfigure**/reauth flow.                      |
+| Symptom                             | Fix                                                                                                                                             |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cannot_connect` during setup       | The backend URL is wrong, the backend is down, or `PVM_API_SECRET` does not match. In Docker use `host.docker.internal` instead of `localhost`. |
+| `invalid_auth` during setup         | The PVM API token does not match `PVM_API_SECRET` on the server.                                                                                |
+| Sidebar panel blank                 | The PVM backend URL must be reachable from the browser.                                                                                         |
+| PVM-016 in the PVM UI               | Your HA URL is public (DuckDNS/Nabu Casa). Allow non-local URLs in the setup assistant or under Settings → Home Assistant.                      |
+| `PVM is already configured`         | One entry per backend URL is allowed; edit the existing entry instead.                                                                          |
+| Reauth prompt after changing secret | Update the token via the entry's **Reconfigure**/reauth flow.                                                                                   |
+
+Full walkthrough (start the backend, find the HA URL incl. DuckDNS, fix
+PVM-002/PVM-016): [connect-backend.md](connect-backend.md).
 
 The integration requires Home Assistant **2024.7.0** or newer (declared in
 `hacs.json`).

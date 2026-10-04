@@ -56,6 +56,39 @@ async def test_user_flow_cannot_connect(hass: HomeAssistant, pvm_url: str) -> No
     assert result["errors"]["base"] == "cannot_connect"
 
 
+async def test_user_flow_invalid_auth(hass: HomeAssistant, pvm_url: str) -> None:
+    """A rejected token surfaces the invalid_auth form error."""
+    from custom_components.pvm.config_flow import CannotConnect
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    with patch(
+        "custom_components.pvm.config_flow._validate",
+        side_effect=CannotConnect("invalid_auth"),
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_PVM_URL: pvm_url, CONF_PVM_TOKEN: "wrong"}
+        )
+
+    assert result["type"] == data_entry_flow.FlowResultType.FORM
+    assert result["errors"]["base"] == "invalid_auth"
+
+
+async def test_user_flow_normalises_scheme_less_url(hass: HomeAssistant) -> None:
+    """A scheme-less PVM URL (e.g. host:port) gets http:// prefixed."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    with patch("custom_components.pvm.config_flow._validate", return_value=None):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_PVM_URL: "pvm.local:7000/", CONF_PVM_TOKEN: "secret"}
+        )
+
+    assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_PVM_URL] == "http://pvm.local:7000"
+
+
 async def test_user_flow_duplicate_aborts(hass: HomeAssistant, pvm_url: str) -> None:
     """A second entry for the same URL is rejected as already configured."""
     MockConfigEntry(

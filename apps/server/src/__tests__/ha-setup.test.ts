@@ -163,4 +163,59 @@ describe('HA setup assistant', () => {
     });
     expect((res.json() as { setupDismissed: boolean }).setupDismissed).toBe(true);
   });
+
+  it('normalises a scheme-less HA URL on save', async () => {
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/settings',
+      headers: auth(),
+      payload: { ha: { url: 'homeassistant.local:8123/' } },
+    });
+    expect((res.json() as { ha: { url: string } }).ha.url).toBe('http://homeassistant.local:8123');
+  });
+});
+
+describe('non-local (public) HA URL handling', () => {
+  it('reports PVM-016 (not a generic PVM-002) for a blocked public URL', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/settings/test-ha',
+      headers: auth(),
+      payload: { url: 'https://pvm-test.invalid:8123', token: 'good-token' },
+    });
+    const body = res.json() as { ok: boolean; errorCode?: string; url?: string };
+    expect(body.ok).toBe(false);
+    expect(body.errorCode).toBe('PVM-016');
+    expect(body.url).toBe('https://pvm-test.invalid:8123');
+  });
+
+  it('reports PVM-016 from detection when only public candidates exist', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/ha/internal/detect',
+      headers: auth(),
+      payload: { candidates: ['https://pvm-test.invalid:8123'], token: 'good-token' },
+    });
+    expect(res.json()).toMatchObject({ ok: false, errorCode: 'PVM-016' });
+  });
+
+  it('attempts the public URL once non-local URLs are allowed', async () => {
+    await app.inject({
+      method: 'PUT',
+      url: '/api/settings',
+      headers: auth(),
+      payload: { ha: { localOnly: false } },
+    });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/settings/test-ha',
+      headers: auth(),
+      payload: { url: 'https://pvm-test.invalid:8123', token: 'good-token' },
+    });
+    const body = res.json() as { ok: boolean; errorCode?: string };
+    expect(body.ok).toBe(false);
+    // Not blocked anymore; the failure is a real network error (DNS/unreachable).
+    expect(body.errorCode).not.toBe('PVM-016');
+    expect(body.errorCode).toBe('PVM-002');
+  });
 });

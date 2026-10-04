@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Connect PVM",
-        "description": "Enter the address of the PVM backend API. The PVM API token is stored in Home Assistant only.",
+        "description": "Enter the address of the PVM backend API. Use the scheme-less form to save typing, e.g. homeassistant.local:7000 or host.docker.internal:7000 (Docker). The PVM API token is stored in Home Assistant only.",
         "data": {
           "pvm_url": "PVM URL",
           "pvm_token": "PVM API token",
@@ -20,7 +20,8 @@
       }
     },
     "error": {
-      "cannot_connect": "Could not connect to the PVM backend."
+      "cannot_connect": "Could not connect to the PVM backend. Check that the backend is running and that the URL/port are correct (in Docker use host.docker.internal, not localhost).",
+      "invalid_auth": "The PVM backend rejected the API token. Enter the PVM_API_SECRET configured on the server."
     },
     "abort": {
       "already_configured": "PVM is already configured.",

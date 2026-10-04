@@ -42,7 +42,9 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
   const [token, setToken] = useState('');
   const [urlOverride, setUrlOverride] = useState<string>();
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [result, setResult] = useState<TestResult>();
+  const [remoteAllowed, setRemoteAllowed] = useState(false);
 
   const knownUrl = useMemo(
     () => urlOverride ?? settings.data?.ha.url ?? settings.data?.ha.candidateUrls?.[0] ?? '',
@@ -82,6 +84,21 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
     },
   });
 
+  // One-click escape hatch for DuckDNS / public HA URLs that the "local only"
+  // guard blocked: allow non-local URLs and immediately retry the connection.
+  const allowRemote = useMutation({
+    mutationFn: async () => {
+      await api.put<PublicSettings>('/settings', { ha: { localOnly: false } });
+      return test.mutateAsync().catch(() => undefined);
+    },
+    onSuccess: (r) => {
+      setRemoteAllowed(true);
+      void qc.invalidateQueries({ queryKey: ['settings'] });
+      if (r?.ok) void save.mutateAsync(r.url ?? knownUrl);
+      else if (r) setResult(r);
+    },
+  });
+
   const connect = async (): Promise<void> => {
     setResult(undefined);
     const res = await test.mutateAsync().catch(() => undefined);
@@ -93,6 +110,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
   };
 
   const errorCode = result && !result.ok ? (result.errorCode ?? 'PVM-002') : undefined;
+  const remoteBlocked = errorCode === 'PVM-016';
 
   if (settings.isLoading) return <Spinner />;
 
@@ -166,11 +184,28 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
           </div>
         )}
 
+        {remoteBlocked && (
+          <div className="space-y-2 rounded-lg border border-amber-800 bg-amber-950/40 p-3 text-sm text-amber-200">
+            <p>{t('setup.remoteBlockedHint')}</p>
+            <button
+              type="button"
+              className="pvm-btn-primary"
+              disabled={allowRemote.isPending}
+              onClick={() => allowRemote.mutate()}
+            >
+              {allowRemote.isPending ? t('settings.testing') : t('setup.allowRemote')}
+            </button>
+          </div>
+        )}
+        {remoteAllowed && !remoteBlocked && (
+          <p className="text-xs text-green-300">{t('setup.remoteAllowed')}</p>
+        )}
+
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             className="pvm-btn-primary"
-            disabled={!token || test.isPending || save.isPending}
+            disabled={!token || test.isPending || save.isPending || allowRemote.isPending}
             onClick={() => void connect()}
           >
             {test.isPending || save.isPending ? t('settings.testing') : t('setup.connect')}
@@ -185,31 +220,57 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
           </button>
         </div>
 
-        <button
-          type="button"
-          className="text-xs text-gray-500 hover:text-gray-300"
-          onClick={() => setShowAdvanced((v) => !v)}
-        >
-          {showAdvanced ? '▾' : '▸'} {t('setup.advanced')}
-        </button>
-        {showAdvanced && (
-          <div className="space-y-1">
-            <label className="pvm-label" htmlFor="setup-url">
-              {t('settings.haUrl')}
-            </label>
-            <input
-              id="setup-url"
-              className="pvm-input"
-              defaultValue={settings.data?.ha.url}
-              placeholder="http://homeassistant.local:8123"
-              onChange={(e) => {
-                setUrlOverride(e.target.value);
-                setResult(undefined);
-              }}
-            />
-            <p className="text-xs text-gray-500">{t('setup.urlHint')}</p>
-          </div>
-        )}
+        <div className="space-y-2">
+          <button
+            type="button"
+            className="text-xs text-gray-500 hover:text-gray-300"
+            onClick={() => setShowAdvanced((v) => !v)}
+          >
+            {showAdvanced ? '▾' : '▸'} {t('setup.advanced')}
+          </button>
+          {showAdvanced && (
+            <div className="space-y-1">
+              <label className="pvm-label" htmlFor="setup-url">
+                {t('settings.haUrl')}
+              </label>
+              <input
+                id="setup-url"
+                className="pvm-input"
+                defaultValue={settings.data?.ha.url}
+                placeholder="homeassistant.local:8123"
+                onChange={(e) => {
+                  setUrlOverride(e.target.value);
+                  setResult(undefined);
+                }}
+              />
+              <p className="text-xs text-gray-500">{t('setup.urlHint')}</p>
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="text-xs text-gray-500 hover:text-gray-300"
+            onClick={() => setShowHelp((v) => !v)}
+          >
+            {showHelp ? '▾' : '▸'} {t('setup.helpTitle')}
+          </button>
+          {showHelp && (
+            <dl className="space-y-2 rounded-lg border border-gray-800 bg-gray-950/40 p-3 text-xs text-gray-400">
+              <div>
+                <dt className="font-medium text-gray-300">{t('setup.helpLocalTitle')}</dt>
+                <dd>{t('setup.helpLocalText')}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-300">{t('setup.helpDuckdnsTitle')}</dt>
+                <dd>{t('setup.helpDuckdnsText')}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-300">{t('setup.helpDockerTitle')}</dt>
+                <dd>{t('setup.helpDockerText')}</dd>
+              </div>
+            </dl>
+          )}
+        </div>
       </div>
     </div>
   );
