@@ -157,6 +157,28 @@ export const haTestSchema = z
   .object({
     url: z.string().max(500).optional(),
     token: z.string().max(2000).optional(),
+    /** Verify a deliberately public URL (DuckDNS/Nabu Casa) despite local-only. */
+    allowRemote: z.boolean().optional(),
+    /** Only accept a working HA→PVM push connection; never probe PVM→HA. */
+    requireIntegration: z.boolean().optional(),
+  })
+  .strict();
+
+/**
+ * Body for POST /api/ha/internal/ingest: a Home Assistant snapshot pushed by
+ * the HA custom component (the API-free path).
+ */
+export const haIngestSchema = z
+  .object({
+    takenAt: z.string().max(100).optional(),
+    haVersion: z.string().max(100).optional(),
+    locationName: z.string().max(500).optional(),
+    haUrl: z.string().max(500).optional(),
+    states: z.array(z.record(z.unknown())).max(50_000).optional(),
+    services: z.array(z.record(z.unknown())).max(2_000).optional(),
+    deviceRegistry: z.array(z.record(z.unknown())).max(10_000).optional(),
+    entityRegistry: z.array(z.record(z.unknown())).max(50_000).optional(),
+    areaRegistry: z.array(z.record(z.unknown())).max(10_000).optional(),
   })
   .strict();
 
@@ -173,6 +195,7 @@ export const haDetectSchema = z
   .strict();
 
 export type HaTestInput = z.infer<typeof haTestSchema>;
+export type HaIngestInput = z.infer<typeof haIngestSchema>;
 export type HaDetectInput = z.infer<typeof haDetectSchema>;
 
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>;

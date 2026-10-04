@@ -1,5 +1,6 @@
 import type {
   HaConnectionTestResult,
+  HaSnapshot,
   RequiredSettingStatus,
   Settings,
   SettingsPatch,
@@ -140,10 +141,15 @@ export class SettingsService {
   requiredStatus(): RequiredSettingStatus {
     const s = this.get();
     const missing: RequiredSettingStatus['missing'] = [];
-    if (!s.ha.url) missing.push({ key: 'ha.url', label: 'HA-Host (URL)', errorCode: 'PVM-001' });
+    // In integration mode the HA integration pushes URL/data to PVM, so an HA
+    // URL and HA token are not required for PVM to work.
+    const integration = this.ha.hasSnapshot();
+    if (!s.ha.url && !integration) {
+      missing.push({ key: 'ha.url', label: 'HA-Host (URL)', errorCode: 'PVM-001' });
+    }
     // The UI receives a masked token; treat that as "set" so the required
     // banner clears once the user has saved a token.
-    if (!s.ha.token || s.ha.token === TOKEN_MASK) {
+    if ((!s.ha.token || s.ha.token === TOKEN_MASK) && !integration) {
       missing.push({ key: 'ha.token', label: 'HA Long-Lived Access Token', errorCode: 'PVM-001' });
     }
     if (!s.general.language) {
@@ -161,18 +167,45 @@ export class SettingsService {
    * Sends a real ``GET /api/config`` request through the HA client so the user
    * gets an immediate, trustworthy answer (and an error code) before saving.
    * An empty token or the masked placeholder falls back to the stored token.
+   *
+   * `allowRemote` verifies a deliberately public URL (DuckDNS/Nabu Casa) even
+   * though the local-only guard is on, and remembers the choice on success so
+   * the user never has to retry manually. `requireIntegration` skips the
+   * PVM→HA probe entirely and only succeeds if the HA integration is pushing.
    */
-  async testHaConnection(input: { url?: string; token?: string }): Promise<HaConnectionTestResult> {
+  async testHaConnection(input: {
+    url?: string;
+    token?: string;
+    allowRemote?: boolean;
+    requireIntegration?: boolean;
+  }): Promise<HaConnectionTestResult> {
     const s = this.get();
+    if (input.requireIntegration) {
+      if (this.ha.hasSnapshot()) {
+        const snapshot = this.ha.getSnapshot();
+        return {
+          ok: true,
+          url: s.ha.url,
+          haVersion: snapshot?.haVersion,
+          locationName: snapshot?.locationName,
+          mode: 'integration',
+        };
+      }
+      return {
+        ok: false,
+        errorCode: 'PVM-022',
+        message: 'Keine Verbindung über die Home-Assistant-Integration empfangen.',
+      };
+    }
     const rawToken = input.token ?? '';
     const token = rawToken && rawToken !== TOKEN_MASK ? rawToken : s.ha.token;
     if (!token) {
       return { ok: false, errorCode: 'PVM-001', message: 'HA-Token fehlt.' };
     }
     const url = normalizeUrlInput(input.url ?? '');
-    if (url) return this.probe(url, token);
+    if (url) return this.probe(url, token, input.allowRemote ?? false);
     // No URL supplied: try the stored URL, then any known candidates.
-    return this.detectHa([s.ha.url], token);
+    return this.detectHa([s.ha.url], token, input.allowRemote ?? false);
   }
 
   /**
@@ -182,9 +215,13 @@ export class SettingsService {
    * HA custom component and the `HA_URL` env fallback. When `localOnly` is set,
    * non-local candidates are not skipped silently: if none of the local
    * candidates work but a non-local one exists, the user gets an actionable
-   * `PVM-016` result instead of an opaque "not found".
+   * `PVM-016` result (with `publicUrl: true`) instead of an opaque "not found".
    */
-  async detectHa(extra: string[] = [], tokenOverride?: string): Promise<HaConnectionTestResult> {
+  async detectHa(
+    extra: string[] = [],
+    tokenOverride?: string,
+    allowRemote = false,
+  ): Promise<HaConnectionTestResult> {
     const s = this.get();
     const token = tokenOverride ?? s.ha.token;
     if (!token) {
@@ -199,53 +236,86 @@ export class SettingsService {
       seen.add(url);
       (isLocalUrl(url) ? local : remote).push(url);
     }
-    const ordered = s.ha.localOnly ? local : [...local, ...remote];
+    const ordered = s.ha.localOnly && !allowRemote ? local : [...local, ...remote];
     let last: HaConnectionTestResult = {
       ok: false,
       errorCode: 'PVM-002',
       message: 'Keine erreichbare HA-Instanz gefunden.',
     };
     for (const url of ordered) {
-      const result = await this.probe(url, token);
+      const result = await this.probe(url, token, allowRemote);
       if (result.ok) return result;
       last = result;
     }
     // Nothing local worked but a non-local candidate exists: tell the user
     // exactly why (and how to allow it) instead of hiding it behind PVM-002.
-    if (s.ha.localOnly && remote.length > 0) {
+    if (s.ha.localOnly && !allowRemote && remote.length > 0) {
       return {
         ok: false,
         errorCode: 'PVM-016',
         url: remote[0],
+        publicUrl: true,
         message: `Die HA-Adresse ${remote[0]} ist nicht lokal und wurde blockiert.`,
       };
     }
     return last;
   }
 
-  private async probe(url: string, token: string): Promise<HaConnectionTestResult> {
-    if (this.get().ha.localOnly && !isLocalUrl(url)) {
+  private async probe(
+    url: string,
+    token: string,
+    allowRemote: boolean,
+  ): Promise<HaConnectionTestResult> {
+    if (this.get().ha.localOnly && !allowRemote && !isLocalUrl(url)) {
       return {
         ok: false,
         errorCode: 'PVM-016',
         url,
+        publicUrl: true,
         message: `Die HA-Adresse ${url} ist nicht lokal und wurde blockiert.`,
       };
     }
-    const result = await this.ha.testConnection({ url, token });
+    const result = await this.ha.testConnection({ url, token, allowRemote });
     if (result.ok) {
+      // Prefer the live API over a possibly stale pushed snapshot from now on.
+      this.ha.markConnected();
+      // A verified public URL is allowed from now on: the user deliberately
+      // chose it and it works, so remember the choice instead of re-blocking.
+      if (!isLocalUrl(url) && this.get().ha.localOnly) {
+        this.update({ ha: { localOnly: false } });
+        this.ha.configure({ localOnly: false });
+      }
       return {
         ok: true,
         url,
         haVersion: result.config?.version,
         locationName: result.config?.location_name,
+        mode: 'api',
       };
     }
     return {
       ok: false,
       errorCode: result.errorCode ?? this.errorCodeFor(result.error),
       message: result.error,
+      publicUrl: !isLocalUrl(url),
     };
+  }
+
+  /**
+   * Store a snapshot pushed by the HA integration. This is the API-free path:
+   * PVM never has to reach HA over the network. Returns a small summary so the
+   * integration can log what was accepted.
+   */
+  ingestSnapshot(snapshot: HaSnapshot): { ok: true; counts: Record<string, number> } {
+    this.ha.setSnapshot({ ...snapshot, takenAt: snapshot.takenAt ?? new Date().toISOString() });
+    const counts = {
+      states: snapshot.states?.length ?? 0,
+      services: snapshot.services?.length ?? 0,
+      devices: snapshot.deviceRegistry?.length ?? 0,
+      entities: snapshot.entityRegistry?.length ?? 0,
+    };
+    this.log.info('ha', 'HA snapshot ingested (integration mode)', counts);
+    return { ok: true, counts };
   }
 
   private errorCodeFor(message?: string): string {

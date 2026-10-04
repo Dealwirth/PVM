@@ -28,6 +28,7 @@ a remediation hint.
 | PVM-019 | security | critical | Rate-Limit überschritten                 | no       |
 | PVM-020 | unknown  | medium   | Unbekannter Fehler                       | no       |
 | PVM-021 | config   | medium   | Backup ungültig                          | no       |
+| PVM-022 | network  | medium   | HA-Integration nicht verbunden           | no       |
 
 ## Categories
 

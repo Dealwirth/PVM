@@ -176,7 +176,8 @@ export const ERROR_CATALOG: Record<string, ErrorDefinition> = {
     title: 'Nicht-lokale HA-URL blockiert',
     description:
       'Die konfigurierte HA-URL ist nicht lokal und wurde aus Sicherheitsgründen blockiert.',
-    remediation: 'Lokale HA-URL verwenden oder HA_LOCAL_ONLY bewusst deaktivieren.',
+    remediation:
+      'Lokale HA-URL verwenden, die öffentliche Adresse im Setup-Assistenten einmalig erlauben („Verbinden & speichern“ erlaubt sie automatisch) oder die HA-Integration ohne API-Zugriff nutzen.',
     triggersShutdown: true,
   },
   'PVM-017': {
@@ -223,6 +224,17 @@ export const ERROR_CATALOG: Record<string, ErrorDefinition> = {
     description: 'Die Backup-Datei ist beschädigt oder stammt nicht von PVM.',
     remediation:
       'Eine mit dieser PVM-Version erstellte Backup-Datei (.json) verwenden. Es wurde nichts geändert.',
+    triggersShutdown: false,
+  },
+  'PVM-022': {
+    code: 'PVM-022',
+    category: 'network',
+    severity: 'medium',
+    title: 'HA-Integration nicht verbunden',
+    description:
+      'PVM hat über die Home-Assistant-Integration noch keine Daten empfangen (Modus ohne direkten API-Zugriff).',
+    remediation:
+      'PVM in Home Assistant als Integration einrichten (HACS) und dort die PVM-Adresse/Token eintragen; die Integration sendet die Daten dann selbst an PVM.',
     triggersShutdown: false,
   },
 };

@@ -39,6 +39,7 @@ export function SettingsPage(): JSX.Element {
     errorCode?: string;
     message?: string;
     haVersion?: string;
+    publicUrl?: boolean;
   }>();
 
   const save = useMutation({
@@ -51,20 +52,34 @@ export function SettingsPage(): JSX.Element {
   });
 
   // Test the connection with the values currently in the form, without saving.
+  // A blocked public URL (DuckDNS/Nabu Casa) is retried once with allowRemote
+  // so the user is not stuck on a PVM-016 dead end.
   const testHa = useMutation({
-    mutationFn: () =>
-      api.post<{
+    mutationFn: async () => {
+      const body = {
+        ...(haUrl !== undefined ? { url: haUrl } : {}),
+        ...(haToken !== undefined ? { token: haToken } : {}),
+      };
+      type Result = {
         ok: boolean;
         url?: string;
         haVersion?: string;
         locationName?: string;
         errorCode?: string;
         message?: string;
-      }>('/settings/test-ha', {
-        ...(haUrl !== undefined ? { url: haUrl } : {}),
-        ...(haToken !== undefined ? { token: haToken } : {}),
-      }),
-    onSuccess: (r) => setTestResult(r),
+        publicUrl?: boolean;
+      };
+      let r = await api.post<Result>('/settings/test-ha', body);
+      if (!r.ok && (r.publicUrl || r.errorCode === 'PVM-016')) {
+        await api.put<PublicSettings>('/settings', { ha: { localOnly: false } });
+        r = await api.post<Result>('/settings/test-ha', { ...body, allowRemote: true });
+      }
+      return r;
+    },
+    onSuccess: (r) => {
+      setTestResult(r);
+      if (r.ok) void qc.invalidateQueries({ queryKey: ['settings'] });
+    },
   });
 
   if (settings.isLoading || !settings.data) return <Spinner />;

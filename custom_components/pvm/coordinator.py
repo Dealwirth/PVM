@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -59,6 +59,9 @@ class PvmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return headers
 
     async def _async_update_data(self) -> dict[str, Any]:
+        # Push a snapshot to PVM first: this is what makes PVM work even when
+        # it cannot reach HA directly (the API-free path). Best-effort.
+        await self.async_push_snapshot()
         try:
             async with self._session.get(
                 f"{self.pvm_url}/api/dashboard", headers=self._headers(), timeout=15
@@ -132,6 +135,105 @@ class PvmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except Exception as err:  # noqa: BLE001 - detection is best-effort
             _LOGGER.debug("PVM HA-URL detection failed: %s", err)
             return None
+
+    async def async_push_snapshot(self) -> dict[str, Any] | None:
+        """Push a snapshot of HA state to PVM (the API-free path).
+
+        PVM may be unable to reach HA (firewall, HA bound to a private address,
+        self-signed certificate). Instead of requiring PVM→HA connectivity, the
+        integration pushes the data it already holds to PVM. Best-effort: any
+        failure is logged and swallowed so HA is never blocked.
+        """
+        payload = _jsonable(await self._collect_snapshot())
+        try:
+            async with self._session.post(
+                f"{self.pvm_url}/api/ha/internal/ingest",
+                json=payload,
+                headers=self._headers(),
+                timeout=30,
+            ) as resp:
+                if resp.status >= 400:
+                    _LOGGER.debug("PVM snapshot push returned HTTP %s", resp.status)
+                    return None
+                return await resp.json(content_type=None)
+        except Exception as err:  # noqa: BLE001 - push is best-effort
+            _LOGGER.debug("PVM snapshot push failed: %s", err)
+            return None
+
+    async def _collect_snapshot(self) -> dict[str, Any]:
+        """Collect HA states, services and registries for the PVM snapshot."""
+        from homeassistant.helpers import area_registry, device_registry, entity_registry
+
+        states = [
+            {
+                "entity_id": state.entity_id,
+                "state": state.state,
+                "attributes": dict(state.attributes),
+                "last_changed": state.last_changed.isoformat(),
+                "last_updated": state.last_updated.isoformat(),
+            }
+            for state in self.hass.states.async_all()
+        ]
+        services = [
+            {
+                "domain": domain,
+                "services": {name: {} for name in service},
+            }
+            for domain, service in self.hass.services.async_services().items()
+        ]
+        devices = [
+            _entry_to_dict(entry)
+            for entry in device_registry.async_get(self.hass).devices.values()
+        ]
+        entities = [
+            _entry_to_dict(entry)
+            for entry in entity_registry.async_get(self.hass).entities.values()
+        ]
+        areas = [
+            _entry_to_dict(entry)
+            for entry in area_registry.async_get(self.hass).areas.values()
+        ]
+        config = getattr(self.hass, "config", None)
+        return {
+            "takenAt": datetime.now(timezone.utc).isoformat(),
+            "haVersion": getattr(config, "version", None),
+            "locationName": getattr(config, "location_name", None),
+            "haUrl": next(iter(_ha_url_candidates(self.hass)), None),
+            "states": states,
+            "services": services,
+            "deviceRegistry": devices,
+            "entityRegistry": entities,
+            "areaRegistry": areas,
+        }
+
+
+def _entry_to_dict(entry: Any) -> dict[str, Any]:
+    """Serialise an HA registry entry to a plain JSON-compatible dict.
+
+    ``dataclasses.asdict`` recurses into nested dataclasses (identifiers are
+    tuples of tuples), which keeps the payload valid JSON without extra work.
+    """
+    from dataclasses import asdict, is_dataclass
+
+    if is_dataclass(entry) and not isinstance(entry, type):
+        return asdict(entry)
+    return dict(entry)
+
+
+def _jsonable(value: Any) -> Any:
+    """Recursively make a value JSON-compatible.
+
+    HA registry entries hold ``set`` fields (e.g. ``identifiers``) and
+    ``datetime`` values (``created_at``), neither of which ``json.dumps`` can
+    serialise; aiohttp's ``json=`` would otherwise raise.
+    """
+    if isinstance(value, dict):
+        return {key: _jsonable(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [_jsonable(item) for item in value]
+    if isinstance(value, (datetime,)):
+        return value.isoformat()
+    return value
 
 
 def _ha_url_candidates(hass: HomeAssistant) -> list[str]:

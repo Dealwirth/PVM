@@ -21,6 +21,8 @@ interface TestResult {
   locationName?: string;
   errorCode?: string;
   message?: string;
+  publicUrl?: boolean;
+  mode?: 'api' | 'integration';
 }
 
 /**
@@ -64,12 +66,17 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
   );
 
   const test = useMutation({
-    mutationFn: () =>
+    mutationFn: (opts: { allowRemote?: boolean } = {}) =>
       api.post<TestResult>('/settings/test-ha', {
         ...(knownUrl ? { url: knownUrl } : {}),
         ...(token ? { token } : {}),
+        ...(opts.allowRemote ? { allowRemote: true } : {}),
       }),
-    onSuccess: (r) => setResult(r),
+  });
+
+  // API-free path: succeeds only if the HA integration is already pushing data.
+  const testIntegration = useMutation({
+    mutationFn: () => api.post<TestResult>('/settings/test-ha', { requireIntegration: true }),
   });
 
   const save = useMutation({
@@ -89,6 +96,17 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
     },
   });
 
+  // Finish setup in integration mode: no HA token needed, PVM gets its data
+  // pushed by the Home Assistant integration.
+  const finishIntegration = useMutation({
+    mutationFn: () => api.put<PublicSettings>('/settings', { general: { setupDismissed: true } }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['settings'] });
+      void qc.invalidateQueries({ queryKey: ['settings-required'] });
+      onDone();
+    },
+  });
+
   const dismiss = useMutation({
     mutationFn: () => api.put<PublicSettings>('/settings', { general: { setupDismissed: true } }),
     onSuccess: () => {
@@ -97,36 +115,38 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
     },
   });
 
-  // One-click escape hatch for a public HA URL (DuckDNS/Nabu Casa) that the
-  // "local only" guard blocked: allow non-local URLs and retry immediately.
-  const allowRemote = useMutation({
-    mutationFn: async () => {
-      await api.put<PublicSettings>('/settings', { ha: { localOnly: false } });
-      return test.mutateAsync().catch(() => undefined);
-    },
-    onSuccess: (r) => {
-      setRemoteAllowed(true);
-      void qc.invalidateQueries({ queryKey: ['settings'] });
-      if (r?.ok) void save.mutateAsync(r.url ?? knownUrl);
-      else if (r) setResult(r);
-    },
-  });
-
+  // Verify the HA connection, auto-allowing a blocked public URL (PVM-016) in
+  // one step, then fall back to the API-free integration mode when HA cannot be
+  // reached directly.
   const connect = async (): Promise<void> => {
     setResult(undefined);
-    // Remote connection types opt out of the local-only guard up front so the
-    // test does not fail with PVM-016 for a URL the user deliberately chose.
-    if (REMOTE_TYPES.includes(connType)) {
-      await api
-        .put<PublicSettings>('/settings', { ha: { localOnly: false } })
-        .catch(() => undefined);
+    let res = await test.mutateAsync({}).catch(() => undefined);
+    // A blocked public URL is not a dead end: verify it and allow it in one
+    // step, then keep going. The server only drops the local-only guard once the
+    // URL actually verified, so a failed attempt cannot weaken it.
+    if (res && !res.ok && (res.publicUrl || res.errorCode === 'PVM-016')) {
+      setRemoteAllowed(true);
+      res = await test.mutateAsync({ allowRemote: true }).catch(() => undefined);
     }
-    const res = await test.mutateAsync().catch(() => undefined);
     if (res?.ok) {
       await save.mutateAsync(res.url ?? knownUrl);
-    } else if (res) {
-      setResult(res);
+      return;
     }
+    // The direct API did not work: if the HA integration is already pushing
+    // data to PVM, finish setup in integration mode (no HA token required).
+    const integ = await testIntegration.mutateAsync().catch(() => undefined);
+    if (integ?.ok) {
+      await finishIntegration.mutateAsync();
+      return;
+    }
+    if (res) setResult(res);
+  };
+
+  const connectViaIntegration = async (): Promise<void> => {
+    setResult(undefined);
+    const integ = await testIntegration.mutateAsync().catch(() => undefined);
+    if (integ?.ok) await finishIntegration.mutateAsync();
+    else if (integ) setResult(integ);
   };
 
   const errorCode = result && !result.ok ? (result.errorCode ?? 'PVM-002') : undefined;
@@ -247,19 +267,6 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
           </div>
         )}
 
-        {remoteBlocked && (
-          <div className="space-y-2 rounded-lg border border-amber-800 bg-amber-950/40 p-3 text-sm text-amber-200">
-            <p>{t('setup.remoteBlockedHint')}</p>
-            <button
-              type="button"
-              className="pvm-btn-primary"
-              disabled={allowRemote.isPending}
-              onClick={() => allowRemote.mutate()}
-            >
-              {allowRemote.isPending ? t('settings.testing') : t('setup.allowRemote')}
-            </button>
-          </div>
-        )}
         {remoteAllowed && !remoteBlocked && (
           <p className="text-xs text-green-300">{t('setup.remoteAllowed')}</p>
         )}
@@ -268,10 +275,18 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
           <button
             type="button"
             className="pvm-btn-primary"
-            disabled={!token || test.isPending || save.isPending || allowRemote.isPending}
+            disabled={!token || test.isPending || save.isPending}
             onClick={() => void connect()}
           >
             {test.isPending || save.isPending ? t('settings.testing') : t('setup.connect')}
+          </button>
+          <button
+            type="button"
+            className="pvm-btn-ghost"
+            disabled={testIntegration.isPending || finishIntegration.isPending}
+            onClick={() => void connectViaIntegration()}
+          >
+            {testIntegration.isPending ? t('settings.testing') : t('setup.connectIntegration')}
           </button>
           <button
             type="button"
@@ -282,6 +297,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
             {t('setup.later')}
           </button>
         </div>
+        <p className="text-xs text-gray-500">{t('setup.connectIntegrationHint')}</p>
 
         <div className="space-y-2">
           <button

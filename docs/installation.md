@@ -66,6 +66,11 @@ See [.env.example](.env.example). The critical ones:
 | `HA_LOCAL_ONLY`      | Reject non-local HA URLs      |
 | `PVM_CORS_ORIGINS`   | Extra allowed origins         |
 
+> **No direct HA access?** If PVM cannot reach HA (firewall, HA bound to a
+> private address, self-signed certificate), you can skip the HA URL/token in
+> PVM entirely. Install the HA integration and let it push data to PVM instead;
+> see [connect-backend.md](connect-backend.md), Teil 3, Weg C.
+
 ## Reverse proxy / HTTPS
 
 Terminate TLS with nginx or Caddy in front of PVM. Example Caddy:
