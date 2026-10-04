@@ -47,8 +47,13 @@ for store installs and device control.
 | ----------------- | --------------------------------------------------------------------- |
 | `url`             | e.g. `http://homeassistant.local:8123`                                |
 | `token`           | Long-Lived Access Token (stored hybrid-encrypted, never returned raw) |
+| `candidateUrls`   | Alternate HA URLs probed during auto-detection                        |
 | `localOnly`       | When true, non-local URLs are rejected (`PVM-016`)                    |
 | `reconnectBaseMs` | WebSocket reconnect backoff base                                      |
+
+The UI only ever receives a masked token (`••••••••`) plus a `tokenSet`
+boolean; sending the mask back is ignored and never overwrites the stored
+token.
 
 ## PVM API (`api`)
 

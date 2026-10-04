@@ -9,6 +9,23 @@ PVM talks to Home Assistant over the **HA Local API**:
 Authentication uses a **Long-Lived Access Token** created in HA under
 _Profile → Security → Long-Lived Access Tokens_.
 
+## Setup assistant (only the token is required)
+
+The PVM web UI shows a setup assistant on first run. The HA URL is detected
+automatically, so the user only pastes the Long-Lived Access Token:
+
+1. The HA custom component pushes this HA instance's base URL(s)
+   (`internal_url`, `external_url`, API base URL) to
+   `POST /api/ha/internal/detect` on setup.
+2. The user pastes the token; PVM verifies it with a real `GET /api/config`
+   call (`POST /api/settings/test-ha`) and only saves it after success.
+3. The token is stored server-side (masked in the UI) and never returned to
+   the browser.
+
+If detection fails (e.g. HA has no internal/external URL configured), the
+assistant offers an "Advanced" field to enter the HA URL manually. Calling the
+`pvm.detect_ha_url` service re-runs detection after changing the HA URL.
+
 ## Connection & security
 
 - The token is stored server-side in SQLite and never returned to the browser.
@@ -67,7 +84,8 @@ The custom component registers these services so HA automations can drive PVM:
 `pvm.set_device_state`, `pvm.set_device_power`,
 `pvm.set_device_temperature`, `pvm.update_plan`, `pvm.get_forecast`,
 `pvm.get_calendar_events`, `pvm.get_history`, `pvm.get_sensors`,
-`pvm.get_entities`, `pvm.get_devices`, `pvm.run_planning_cycle`.
+`pvm.get_entities`, `pvm.get_devices`, `pvm.run_planning_cycle`,
+`pvm.detect_ha_url`.
 
 They are forwarded to the PVM backend at
 `POST /api/ha/services/:service`, which validates the payload with a per-service

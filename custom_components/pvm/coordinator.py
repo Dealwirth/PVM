@@ -108,3 +108,54 @@ class PvmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     pass
             return resp.status, text
 
+    async def async_push_ha_url(self) -> dict[str, Any] | None:
+        """Hand PVM the HA base URL(s) so the user only needs to enter the token.
+
+        Best-effort: PVM probes the candidates (and the token it already has)
+        and stores the first reachable URL. Failures are logged, never raised,
+        so a missing PVM connection cannot block HA setup.
+        """
+        candidates = _ha_url_candidates(self.hass)
+        if not candidates:
+            return None
+        try:
+            async with self._session.post(
+                f"{self.pvm_url}/api/ha/internal/detect",
+                json={"candidates": candidates},
+                headers=self._headers(),
+                timeout=15,
+            ) as resp:
+                if resp.status >= 400:
+                    _LOGGER.debug("PVM HA-URL detect returned HTTP %s", resp.status)
+                    return None
+                return await resp.json(content_type=None)
+        except Exception as err:  # noqa: BLE001 - detection is best-effort
+            _LOGGER.debug("PVM HA-URL detection failed: %s", err)
+            return None
+
+
+def _ha_url_candidates(hass: HomeAssistant) -> list[str]:
+    """Collect HA base URLs the PVM backend might reach.
+
+    ``internal_url`` is preferred (usually the LAN address PVM can reach);
+    ``external_url`` and the running API base URL are included as fallbacks.
+    """
+    candidates: list[str] = []
+    for attr in ("internal_url", "external_url"):
+        value = getattr(hass.config, attr, None)
+        if isinstance(value, str) and value:
+            candidates.append(value)
+    api = getattr(hass.config, "api", None)
+    base_url = getattr(api, "base_url", None) if api is not None else None
+    if isinstance(base_url, str) and base_url:
+        candidates.append(base_url)
+    # Deduplicate while preserving order.
+    seen: set[str] = set()
+    unique: list[str] = []
+    for url in candidates:
+        normalized = url.rstrip("/")
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            unique.append(normalized)
+    return unique
+

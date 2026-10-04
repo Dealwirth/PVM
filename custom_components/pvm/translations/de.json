@@ -154,6 +154,10 @@
     "get_devices": {
       "name": "Geräte abrufen",
       "description": "Liefert die von PVM verwalteten Geräte."
+    },
+    "detect_ha_url": {
+      "name": "Home-Assistant-URL erkennen",
+      "description": "Überträgt die Basis-URL(s) dieser Home-Assistant-Instanz an das PVM-Backend, damit der PVM-Einrichtungsassistent Home Assistant automatisch findet."
     }
   }
 }

@@ -36,12 +36,12 @@ Errors follow the shape `{ "error": { "code", "category", "severity",
 
 ## Settings
 
-| Method | Path                 | Description                |
-| ------ | -------------------- | -------------------------- |
-| GET    | `/settings`          | Full settings              |
-| GET    | `/settings/required` | Missing mandatory settings |
-| PUT    | `/settings`          | Patch settings             |
-| POST   | `/settings/test-ha`  | Test the HA connection     |
+| Method | Path                 | Description                                     |
+| ------ | -------------------- | ----------------------------------------------- |
+| GET    | `/settings`          | Full settings                                   |
+| GET    | `/settings/required` | Missing mandatory settings                      |
+| PUT    | `/settings`          | Patch settings                                  |
+| POST   | `/settings/test-ha`  | Test the HA connection (optional `{url,token}`) |
 
 ## Dashboard & planning
 
@@ -108,6 +108,7 @@ Errors follow the shape `{ "error": { "code", "category", "severity",
 | GET    | `/ha/services`          | Available services                    |
 | GET    | `/ha/history/:entityId` | History                               |
 | POST   | `/ha/services/:service` | Invoked by the HA component (`pvm.*`) |
+| POST   | `/ha/internal/detect`   | HA URL auto-detection (HA component)  |
 
 ## Errors
 

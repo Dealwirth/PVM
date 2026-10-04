@@ -16,6 +16,28 @@ export const en = {
       invalid: 'Invalid token. Please check and try again.',
       unreachable: 'Server unreachable. Check the connection.',
     },
+    setup: {
+      title: 'Setup',
+      intro:
+        'Connected in seconds: PVM finds Home Assistant automatically. All you need is the Long-Lived Access Token.',
+      step1: '1. Create a token in Home Assistant',
+      step1Hint:
+        'Open HA → Profile (bottom left) → Security → Long-Lived Access Tokens → “Create Token”.',
+      step2: '2. Paste the token here',
+      tokenLabel: 'Long-Lived Access Token',
+      tokenHint: 'The token is stored encrypted server-side and never returned to the browser.',
+      step3: '3. Connect',
+      step3Hint: 'PVM verifies the HA API connection and only then saves it.',
+      detectedUrl: 'Detected HA address',
+      noUrlDetected:
+        'No HA address detected automatically. Open “Advanced” and enter the HA URL manually.',
+      ok: 'Connection successful',
+      failed: 'Connection failed',
+      connect: 'Connect & save',
+      later: 'Later',
+      advanced: 'Advanced (HA URL manually)',
+      urlHint: 'Only needed if detection fails, e.g. http://homeassistant.local:8123',
+    },
     nav: {
       dashboard: 'Dashboard',
       devices: 'Devices',
@@ -309,12 +331,16 @@ export const en = {
       maxDevicePower: 'Max. device power (W)',
       minBattery: 'Min. battery (%)',
       requiredBadge: 'Required',
+      tokenSaved: 'Saved',
+      haUrlAutoHint: 'Detected automatically during setup.',
+      haTokenHint: 'Stored encrypted, never returned to the browser.',
+      connectedTo: 'Connected to HA',
     },
     tutorial: {
       title: 'Welcome to PVM',
       step1Title: '1. Installation & configuration',
       step1Text:
-        'PVM is installed. Open settings and enter the HA URL and Long-Lived Access Token.',
+        'PVM is installed. Open the setup assistant and paste the Long-Lived Access Token — the HA address is detected automatically.',
       step2Title: '2. HA integration',
       step2Text:
         'Test the connection to Home Assistant. PVM reads devices and entities automatically.',

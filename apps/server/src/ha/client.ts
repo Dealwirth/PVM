@@ -53,30 +53,43 @@ export class HaClient extends EventEmitter {
     return { ...this.state };
   }
 
-  private baseUrl(): string {
-    const url = this.opts.url.replace(/\/+$/, '');
-    if (!url) throw new PvmError('PVM-001', { field: 'ha.url' });
-    if (this.opts.localOnly && !isLocalUrl(url)) {
-      throw new PvmError('PVM-016', { url });
+  private buildBase(url: string, localOnly: boolean): string {
+    const base = url.replace(/\/+$/, '');
+    if (!base) throw new PvmError('PVM-001', { field: 'ha.url' });
+    if (localOnly && !isLocalUrl(base)) {
+      throw new PvmError('PVM-016', { url: base });
     }
-    return url;
+    return base;
   }
 
-  private headers(): Record<string, string> {
-    if (!this.opts.token) throw new PvmError('PVM-001', { field: 'ha.token' });
+  private buildHeaders(token: string): Record<string, string> {
+    if (!token) throw new PvmError('PVM-001', { field: 'ha.token' });
     return {
-      Authorization: `Bearer ${this.opts.token}`,
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     };
   }
 
-  private async rest<T>(path: string, method: 'GET' | 'POST' = 'GET', body?: unknown): Promise<T> {
-    const base = this.baseUrl();
+  private baseUrl(): string {
+    return this.buildBase(this.opts.url, this.opts.localOnly);
+  }
+
+  private headers(): Record<string, string> {
+    return this.buildHeaders(this.opts.token);
+  }
+
+  private async restWith<T>(
+    base: string,
+    headers: Record<string, string>,
+    path: string,
+    method: 'GET' | 'POST' = 'GET',
+    body?: unknown,
+  ): Promise<T> {
     let res;
     try {
       res = await request(`${base}${path}`, {
         method,
-        headers: this.headers(),
+        headers,
         body: body === undefined ? undefined : JSON.stringify(body),
         headersTimeout: 15_000,
         bodyTimeout: 30_000,
@@ -97,18 +110,43 @@ export class HaClient extends EventEmitter {
     return (await res.body.json()) as T;
   }
 
-  async testConnection(): Promise<{ ok: boolean; config?: HaConfig; error?: string }> {
+  private async rest<T>(path: string, method: 'GET' | 'POST' = 'GET', body?: unknown): Promise<T> {
+    return this.restWith<T>(this.baseUrl(), this.headers(), path, method, body);
+  }
+
+  /**
+   * Probe the HA API.
+   *
+   * When `override` is given the values are used **without** touching the
+   * stored connection or the cached state, so the setup wizard can validate a
+   * URL/token pair before it is persisted.
+   */
+  async testConnection(override?: {
+    url?: string;
+    token?: string;
+  }): Promise<{ ok: boolean; config?: HaConfig; error?: string; errorCode?: string }> {
+    const provisional = override !== undefined;
     try {
-      const cfg = await this.rest<HaConfig>('/api/config');
-      this.state.connected = true;
-      this.state.lastConnectedAt = new Date().toISOString();
-      this.state.haVersion = cfg.version;
+      const base = this.buildBase(override?.url ?? this.opts.url, this.opts.localOnly);
+      const headers = this.buildHeaders(override?.token ?? this.opts.token);
+      const cfg = await this.restWith<HaConfig>(base, headers, '/api/config');
+      if (!provisional) {
+        this.state.connected = true;
+        this.state.lastConnectedAt = new Date().toISOString();
+        this.state.haVersion = cfg.version;
+      }
       return { ok: true, config: cfg };
     } catch (err) {
-      this.state.connected = false;
-      this.state.lastError = (err as Error).message;
-      this.state.lastErrorAt = new Date().toISOString();
-      return { ok: false, error: (err as Error).message };
+      if (!provisional) {
+        this.state.connected = false;
+        this.state.lastError = (err as Error).message;
+        this.state.lastErrorAt = new Date().toISOString();
+      }
+      return {
+        ok: false,
+        error: (err as Error).message,
+        errorCode: err instanceof PvmError ? err.code : 'PVM-002',
+      };
     }
   }
 

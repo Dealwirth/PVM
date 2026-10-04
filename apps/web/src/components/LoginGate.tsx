@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { setAuthToken, getAuthToken } from '../lib/api.js';
+import { setAuthToken, getAuthToken, api } from '../lib/api.js';
+import { SetupWizard } from './SetupWizard.js';
 
 /** A guarded endpoint used to detect whether the server requires a token. */
 async function probeAuth(): Promise<boolean> {
@@ -35,11 +36,32 @@ export function LoginGate({ children }: { children: ReactNode }): JSX.Element {
     staleTime: Infinity,
   });
 
+  const required = useQuery({
+    queryKey: ['settings-required'],
+    queryFn: () =>
+      api.get<{ complete: boolean; missing: Array<{ key: string; label: string }> }>(
+        '/settings/required',
+      ),
+    enabled: probe.data === true,
+  });
+
+  const [wizardDismissed, setWizardDismissed] = useState(false);
+
   if (probe.isLoading) {
     return <div className="p-8 text-center text-gray-400">{t('common.loading')}</div>;
   }
 
-  if (probe.data) return <>{children}</>;
+  if (probe.data) {
+    // Wait for the required-settings probe before deciding whether to show
+    // the first-run setup assistant.
+    if (required.isLoading) {
+      return <div className="p-8 text-center text-gray-400">{t('common.loading')}</div>;
+    }
+    if (required.data && !required.data.complete && !wizardDismissed) {
+      return <SetupWizard onDone={() => setWizardDismissed(true)} />;
+    }
+    return <>{children}</>;
+  }
 
   const submit = async (): Promise<void> => {
     setSubmitting(true);

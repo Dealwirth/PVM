@@ -63,7 +63,6 @@ export function createContext(config: ServerConfig, db: Db): AppContext {
   const safetyRepo = new SafetyRepository(db);
   const addonRepo = new AddonRepository(db);
 
-  const settings = new SettingsService(settingsRepo, config, log);
   const ha = new HaClient({
     url: config.haUrl,
     token: config.haToken,
@@ -71,6 +70,7 @@ export function createContext(config: ServerConfig, db: Db): AppContext {
     reconnectBaseMs: 5000,
     log,
   });
+  const settings = new SettingsService(settingsRepo, config, log, ha);
   const devices = new DeviceService(deviceRepo, historyRepo, ha, log);
   const forecast = new ForecastService(forecastRepo, log);
   const planner = new PlannerService(planRepo, log);
