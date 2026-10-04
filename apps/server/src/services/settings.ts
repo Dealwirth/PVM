@@ -24,6 +24,7 @@ export function defaultSettings(config: ServerConfig): Settings {
       safetyMode: true,
       backupExport: false,
       developerMode: false,
+      setupDismissed: false,
     },
     ha: {
       url: config.haUrl,
@@ -135,7 +136,7 @@ export class SettingsService {
     if (!s.general.timezone) {
       missing.push({ key: 'general.timezone', label: 'Zeitzone', errorCode: 'PVM-001' });
     }
-    return { complete: missing.length === 0, missing };
+    return { complete: missing.length === 0, missing, setupDismissed: s.general.setupDismissed };
   }
 
   /**

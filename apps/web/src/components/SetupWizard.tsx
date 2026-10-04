@@ -65,9 +65,18 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
           ...(token ? { token } : {}),
           ...(detectedUrl ? { url: detectedUrl } : {}),
         },
+        general: { setupDismissed: true },
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['settings'] });
+      void qc.invalidateQueries({ queryKey: ['settings-required'] });
+      onDone();
+    },
+  });
+
+  const dismiss = useMutation({
+    mutationFn: () => api.put<PublicSettings>('/settings', { general: { setupDismissed: true } }),
+    onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['settings-required'] });
       onDone();
     },
@@ -166,7 +175,12 @@ export function SetupWizard({ onDone }: { onDone: () => void }): JSX.Element {
           >
             {test.isPending || save.isPending ? t('settings.testing') : t('setup.connect')}
           </button>
-          <button type="button" className="pvm-btn-ghost" onClick={onDone}>
+          <button
+            type="button"
+            className="pvm-btn-ghost"
+            disabled={dismiss.isPending}
+            onClick={() => dismiss.mutate()}
+          >
             {t('setup.later')}
           </button>
         </div>

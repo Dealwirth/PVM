@@ -148,4 +148,19 @@ describe('HA setup assistant', () => {
     });
     expect(test.json()).toMatchObject({ ok: true });
   });
+
+  it('persists setup dismissal so the assistant does not reappear', async () => {
+    await app.inject({
+      method: 'PUT',
+      url: '/api/settings',
+      headers: auth(),
+      payload: { general: { setupDismissed: true } },
+    });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/settings/required',
+      headers: auth(),
+    });
+    expect((res.json() as { setupDismissed: boolean }).setupDismissed).toBe(true);
+  });
 });

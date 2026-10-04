@@ -9,6 +9,7 @@
 describe('PVM end-to-end flow', () => {
   beforeEach(() => {
     cy.login();
+    cy.dismissSetup();
   });
 
   it('shows the tutorial on first login and completes it', () => {

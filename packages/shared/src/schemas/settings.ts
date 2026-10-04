@@ -45,6 +45,7 @@ export const generalSettingsSchema = z.object({
   safetyMode: z.boolean(),
   backupExport: z.boolean(),
   developerMode: z.boolean(),
+  setupDismissed: z.boolean().default(false),
 });
 
 export const notificationSettingsSchema = z.object({

@@ -166,6 +166,13 @@ export function SettingsPage(): JSX.Element {
                   {testResult.errorCode ?? 'PVM-002'}: {testResult.message ?? t('setup.failed')}
                 </Badge>
               ))}
+            <button
+              type="button"
+              className="pvm-btn-ghost"
+              onClick={() => save.mutate({ general: { setupDismissed: false } })}
+            >
+              {t('settings.runSetupAgain')}
+            </button>
           </div>
         </div>
       </Card>

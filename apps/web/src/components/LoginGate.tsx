@@ -39,9 +39,11 @@ export function LoginGate({ children }: { children: ReactNode }): JSX.Element {
   const required = useQuery({
     queryKey: ['settings-required'],
     queryFn: () =>
-      api.get<{ complete: boolean; missing: Array<{ key: string; label: string }> }>(
-        '/settings/required',
-      ),
+      api.get<{
+        complete: boolean;
+        missing: Array<{ key: string; label: string }>;
+        setupDismissed: boolean;
+      }>('/settings/required'),
     enabled: probe.data === true,
   });
 
@@ -57,7 +59,9 @@ export function LoginGate({ children }: { children: ReactNode }): JSX.Element {
     if (required.isLoading) {
       return <div className="p-8 text-center text-gray-400">{t('common.loading')}</div>;
     }
-    if (required.data && !required.data.complete && !wizardDismissed) {
+    const showWizard =
+      required.data && !required.data.complete && !required.data.setupDismissed && !wizardDismissed;
+    if (showWizard) {
       return <SetupWizard onDone={() => setWizardDismissed(true)} />;
     }
     return <>{children}</>;

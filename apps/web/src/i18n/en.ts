@@ -334,6 +334,7 @@ export const en = {
       tokenSaved: 'Saved',
       haUrlAutoHint: 'Detected automatically during setup.',
       haTokenHint: 'Stored encrypted, never returned to the browser.',
+      runSetupAgain: 'Run setup assistant again',
       connectedTo: 'Connected to HA',
     },
     tutorial: {

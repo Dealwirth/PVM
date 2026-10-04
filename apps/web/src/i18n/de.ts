@@ -336,6 +336,7 @@ export const de = {
       tokenSaved: 'Gespeichert',
       haUrlAutoHint: 'Wird beim Einrichten automatisch erkannt.',
       haTokenHint: 'Verschlüsselt gespeichert, nie an den Browser zurückgegeben.',
+      runSetupAgain: 'Einrichtungsassistent erneut starten',
       connectedTo: 'Verbunden mit HA',
     },
     tutorial: {

@@ -60,6 +60,8 @@ export interface GeneralSettings {
   safetyMode: boolean;
   backupExport: boolean;
   developerMode: boolean;
+  /** Operator has dismissed the first-run setup assistant. */
+  setupDismissed: boolean;
 }
 
 export interface NotificationSettings {
@@ -133,4 +135,6 @@ export interface Settings {
 export interface RequiredSettingStatus {
   complete: boolean;
   missing: Array<{ key: string; label: string; errorCode: string }>;
+  /** Whether the operator has dismissed the first-run setup assistant. */
+  setupDismissed: boolean;
 }

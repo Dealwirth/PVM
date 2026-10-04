@@ -25,21 +25,22 @@ for store installs and device control.
 
 ## General
 
-| Key                  | Default | Notes                              |
-| -------------------- | ------- | ---------------------------------- |
-| `language`           | `de`    | UI language                        |
-| `timezone`           | `auto`  | Used for calendar & plan rendering |
-| `units.power`        | `W`     | `W` or `kW`                        |
-| `units.temperature`  | `C`     | `C` or `F`                         |
-| `units.energy`       | `kWh`   | `Wh` or `kWh`                      |
-| `autoCache`          | `true`  | Cache HA states                    |
-| `autoUpdate`         | `false` | Auto-update installed addons       |
-| `autoStartOnHaStart` | `false` | Start stream/scheduler with HA     |
-| `shutdownOnError`    | `true`  | Safety shutdown on critical errors |
-| `selfHealing`        | `true`  | Restore last good state            |
-| `safetyMode`         | `true`  | Enable the safety subsystem        |
-| `backupExport`       | `false` | Enable backup/export endpoints     |
-| `developerMode`      | `false` | Expose extra dev tooling           |
+| Key                  | Default | Notes                                  |
+| -------------------- | ------- | -------------------------------------- |
+| `language`           | `de`    | UI language                            |
+| `timezone`           | `auto`  | Used for calendar & plan rendering     |
+| `units.power`        | `W`     | `W` or `kW`                            |
+| `units.temperature`  | `C`     | `C` or `F`                             |
+| `units.energy`       | `kWh`   | `Wh` or `kWh`                          |
+| `autoCache`          | `true`  | Cache HA states                        |
+| `autoUpdate`         | `false` | Auto-update installed addons           |
+| `autoStartOnHaStart` | `false` | Start stream/scheduler with HA         |
+| `shutdownOnError`    | `true`  | Safety shutdown on critical errors     |
+| `selfHealing`        | `true`  | Restore last good state                |
+| `safetyMode`         | `true`  | Enable the safety subsystem            |
+| `backupExport`       | `false` | Enable backup/export endpoints         |
+| `developerMode`      | `false` | Expose extra dev tooling               |
+| `setupDismissed`     | `false` | Operator dismissed the setup assistant |
 
 ## Home Assistant (`ha`)
 
