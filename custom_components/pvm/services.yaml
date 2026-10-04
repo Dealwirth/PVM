@@ -1,0 +1,134 @@
+set_device_state:
+  name: Set device state
+  description: Set a PVM-managed device's on/off state via the PVM backend.
+  fields:
+    device_id:
+      name: Device ID
+      description: PVM device identifier.
+      required: true
+      example: 'wallbox-1'
+      selector:
+        text:
+    state:
+      name: State
+      description: Target state (on/off, true/false or a device-specific value).
+      required: true
+      example: 'on'
+      selector:
+        text:
+
+set_device_power:
+  name: Set device power
+  description: Set a PVM-managed device's power setpoint in watts.
+  fields:
+    device_id:
+      name: Device ID
+      description: PVM device identifier.
+      required: true
+      example: 'wallbox-1'
+      selector:
+        text:
+    power:
+      name: Power (W)
+      description: Target power setpoint in watts.
+      required: true
+      example: 11000
+      selector:
+        number:
+          min: 0
+          max: 100000
+          unit_of_measurement: W
+
+set_device_temperature:
+  name: Set device temperature
+  description: Set a PVM-managed device's temperature setpoint in °C.
+  fields:
+    device_id:
+      name: Device ID
+      description: PVM device identifier.
+      required: true
+      example: 'heatpump-1'
+      selector:
+        text:
+    temperature:
+      name: Temperature (°C)
+      description: Target temperature in degrees Celsius.
+      required: true
+      example: 45
+      selector:
+        number:
+          min: -50
+          max: 120
+          step: 0.5
+          unit_of_measurement: '°C'
+
+update_plan:
+  name: Update load plan
+  description: Push a load plan to the PVM backend.
+  fields:
+    plan:
+      name: Plan
+      description: The plan object to apply.
+      required: true
+      selector:
+        object:
+
+run_planning_cycle:
+  name: Run planning cycle
+  description: Trigger the PVM load-planning algorithm.
+
+get_forecast:
+  name: Get forecast
+  description: Return the latest PVM residual-power forecast.
+  fields:
+    horizon:
+      name: Horizon
+      description: Forecast horizon to return.
+      required: false
+      example: 'day'
+      selector:
+        select:
+          options:
+            - 'day'
+            - 'week'
+            - 'total'
+
+get_history:
+  name: Get device history
+  description: Return recorded history for a PVM-managed device.
+  fields:
+    device_id:
+      name: Device ID
+      description: PVM device identifier.
+      required: true
+      example: 'wallbox-1'
+      selector:
+        text:
+    start:
+      name: Start
+      description: Optional ISO timestamp for the start of the window.
+      required: false
+      selector:
+        text:
+    end:
+      name: End
+      description: Optional ISO timestamp for the end of the window.
+      required: false
+      selector:
+        text:
+
+get_calendar_events:
+  name: Get calendar events
+  description: Return calendar events known to PVM.
+
+get_sensors:
+  name: Get sensors
+  description: Return Home Assistant sensor states known to PVM.
+
+get_entities:
+  name: Get entities
+  description: Return the Home Assistant entity registry known to PVM.
+
+get_devices:
+  name: Get devices
+  description: Return the devices managed by PVM.

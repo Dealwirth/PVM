@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Runtime data
+data/
+*.sqlite
+*.sqlite3
+*.db
+.freebuff/
+logs/
+addons-data/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Coverage / test
+coverage/
+.nyc_output/
+cypress/videos/
+cypress/screenshots/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Docs
+docs-site/build/
+docs-site/.docusaurus/
+docs-site/node_modules/
+
+# Python
+__pycache__/
+*.py[cod]

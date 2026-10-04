@@ -1,0 +1,205 @@
+import type { FastifyInstance } from 'fastify';
+import {
+  addonInstallSchema,
+  forecastInputSchema,
+  idParamSchema,
+  logFilterSchema,
+  plannerSettingsSchema,
+  settingsPatchSchema,
+  validateHaServicePayload,
+} from '@pvm/shared';
+import type { AppContext } from '../../context.js';
+
+export async function settingsRoutes(app: FastifyInstance): Promise<void> {
+  const ctx = (): AppContext => app.pvm;
+
+  app.get('/settings', async () => ctx().settings.toPublic());
+  app.get('/settings/required', async () => ctx().settings.requiredStatus());
+
+  app.put('/settings', async (request) => {
+    const patch = settingsPatchSchema.parse(request.body);
+    const updated = ctx().settings.update(patch);
+    ctx().ha.configure({
+      url: updated.ha.url,
+      token: updated.ha.token,
+      localOnly: updated.ha.localOnly,
+    });
+    ctx().log.setLevel(updated.log.level);
+    return ctx().settings.toPublic();
+  });
+
+  app.post('/settings/test-ha', async () => ctx().ha.testConnection());
+}
+
+export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
+  const ctx = (): AppContext => app.pvm;
+  app.get('/dashboard', async () => ctx().dashboard.summary());
+  app.post('/dashboard/run-cycle', async () => ctx().dashboard.runPlanningCycle());
+}
+
+export async function forecastRoutes(app: FastifyInstance): Promise<void> {
+  const ctx = (): AppContext => app.pvm;
+  app.get('/forecast/latest', async (request) => {
+    const query = request.query as { horizon?: string };
+    return ctx().forecast.latest(query.horizon) ?? null;
+  });
+  app.get('/forecast/history', async (request) => {
+    const query = request.query as { limit?: string };
+    return ctx().forecast.history(query.limit ? Number(query.limit) : 50);
+  });
+  app.post('/forecast/generate', async (request) => {
+    const body = forecastInputSchema.parse(request.body);
+    return ctx().forecast.generate(body);
+  });
+}
+
+export async function plannerRoutes(app: FastifyInstance): Promise<void> {
+  const ctx = (): AppContext => app.pvm;
+  app.get('/plan/latest', async () => ctx().planner.latest() ?? null);
+  app.get('/plan/history', async (request) => {
+    const query = request.query as { limit?: string };
+    return ctx().planner.history(query.limit ? Number(query.limit) : 50);
+  });
+  app.post('/plan/generate', async (request) => {
+    const body = request.body as Parameters<AppContext['planner']['plan']>[0];
+    return ctx().planner.plan(body);
+  });
+  app.post('/plan/settings', async (request) => {
+    return plannerSettingsSchema.parse(request.body);
+  });
+}
+
+export async function calendarRoutes(app: FastifyInstance): Promise<void> {
+  const ctx = (): AppContext => app.pvm;
+  app.get('/calendar/sources', async () => ctx().calendar.listSources());
+  app.post('/calendar/sources', async (request, reply) => {
+    const body = request.body as Parameters<AppContext['calendar']['addSource']>[0];
+    reply.status(201);
+    return ctx().calendar.addSource(body);
+  });
+  app.delete('/calendar/sources/:id', async (request, reply) => {
+    const { id } = idParamSchema.parse(request.params);
+    ctx().calendar.removeSource(id);
+    reply.status(204);
+    return null;
+  });
+  app.post('/calendar/sync', async () => ({ synced: await ctx().calendar.syncAll() }));
+  app.get('/calendar/events', async (request) => {
+    const query = request.query as { start?: string; end?: string };
+    if (query.start && query.end) return ctx().calendar.eventsBetween(query.start, query.end);
+    return ctx().calendar.allEvents();
+  });
+}
+
+export async function logRoutes(app: FastifyInstance): Promise<void> {
+  const ctx = (): AppContext => app.pvm;
+  app.get('/logs', async (request) => {
+    const filter = logFilterSchema.parse(request.query);
+    return ctx().log.query(filter);
+  });
+  app.get('/logs/export', async (request, reply) => {
+    const query = request.query as { format?: 'json' | 'csv' };
+    const filter = logFilterSchema.parse(request.query);
+    if (query.format === 'csv') {
+      reply.header('Content-Type', 'text/csv');
+      reply.header('Content-Disposition', 'attachment; filename="devlog.csv"');
+      return ctx().log.exportCsv(filter);
+    }
+    reply.header('Content-Type', 'application/json');
+    reply.header('Content-Disposition', 'attachment; filename="devlog.json"');
+    return ctx().log.exportJson(filter);
+  });
+
+  app.get('/logs/stats', async () => ctx().log.stats());
+  app.delete('/logs', async (_request, reply) => {
+    ctx().log.clear();
+    reply.status(204);
+    return null;
+  });
+}
+
+export async function addonRoutes(app: FastifyInstance): Promise<void> {
+  const ctx = (): AppContext => app.pvm;
+  app.get('/addons', async () => ctx().addons.list());
+  app.get('/addons/store', async () => ctx().addons.browse());
+  app.get('/addons/:id', async (request) => {
+    const { id } = idParamSchema.parse(request.params);
+    return ctx().addons.get(id);
+  });
+  app.get('/addons/:id/logs', async (request) => {
+    const { id } = idParamSchema.parse(request.params);
+    return { log: ctx().addons.readAddonLog(id) };
+  });
+  app.post('/addons/install', async (request, reply) => {
+    const body = addonInstallSchema.parse(request.body);
+    const result = await ctx().addons.install(body.source, body.version, body.config);
+    reply.status(201);
+    return result;
+  });
+  app.post('/addons/:id/update', async (request) => {
+    const { id } = idParamSchema.parse(request.params);
+    return ctx().addons.update(id);
+  });
+  app.post('/addons/:id/enable', async (request) => {
+    const { id } = idParamSchema.parse(request.params);
+    return ctx().addons.setEnabled(id, true);
+  });
+  app.post('/addons/:id/disable', async (request) => {
+    const { id } = idParamSchema.parse(request.params);
+    return ctx().addons.setEnabled(id, false);
+  });
+  app.put('/addons/:id/config', async (request) => {
+    const { id } = idParamSchema.parse(request.params);
+    const config = (request.body as { config: Record<string, unknown> }).config ?? {};
+    return ctx().addons.updateConfig(id, config);
+  });
+  app.delete('/addons/:id', async (request, reply) => {
+    const { id } = idParamSchema.parse(request.params);
+    ctx().addons.remove(id);
+    reply.status(204);
+    return null;
+  });
+}
+
+export async function safetyRoutes(app: FastifyInstance): Promise<void> {
+  const ctx = (): AppContext => app.pvm;
+  app.get('/safety/events', async (request) => {
+    const query = request.query as { limit?: string };
+    return ctx().safety.list(query.limit ? Number(query.limit) : 200);
+  });
+  app.post('/safety/evaluate', async (request) => {
+    const body = request.body as { totalPowerW: number };
+    return ctx().safety.evaluateLoad(body.totalPowerW);
+  });
+  app.post('/safety/self-heal', async () => ctx().safety.selfHeal());
+}
+
+export async function haRoutes(app: FastifyInstance): Promise<void> {
+  const ctx = (): AppContext => app.pvm;
+  app.get('/ha/status', async () => ctx().ha.getState());
+  app.get('/ha/config', async () => ctx().ha.getConfig());
+  app.get('/ha/states', async () => ctx().ha.getStates());
+  app.get('/ha/services', async () => ctx().ha.getServices());
+  app.get('/ha/history/:entityId', async (request) => {
+    const params = request.params as { entityId: string };
+    const query = request.query as { start: string; end?: string };
+    return ctx().ha.getHistory(params.entityId, query.start, query.end);
+  });
+
+  // Invoked by the Home Assistant custom component (pvm.* services).
+  app.post('/ha/services/:service', async (request) => {
+    const { service } = request.params as { service: string };
+    const payload = validateHaServicePayload(service, request.body ?? {}) as Record<
+      string,
+      unknown
+    >;
+    return ctx().haServiceCall(service, payload);
+  });
+}
+
+export async function errorRoutes(app: FastifyInstance): Promise<void> {
+  app.get('/errors/catalog', async () => {
+    const { ERROR_CATALOG } = await import('@pvm/shared');
+    return ERROR_CATALOG;
+  });
+}

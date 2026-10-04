@@ -1,0 +1,11 @@
+# Dependencies for running the Home Assistant custom-component test suite.
+# pytest-homeassistant-custom-component pins the matching Home Assistant and
+# pytest versions, so it is the only explicitly pinned requirement.
+pytest-homeassistant-custom-component==0.13.316
+
+# The PVM component declares the `frontend`/`panel_custom` dependencies, so the
+# test harness must be able to set up HA's frontend integration. Home Assistant
+# requires the frontend assets package for that; it is not pulled in as a
+# transitive dependency of the pinned test package.
+home-assistant-frontend==20260128.6
+
