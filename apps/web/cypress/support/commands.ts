@@ -32,14 +32,18 @@ Cypress.Commands.add('dismissSetup', () => {
     body: { token: Cypress.env('PVM_API_SECRET') },
     failOnStatusCode: false,
   }).then((login) => {
-    if (!login.body?.token) return;
-    cy.request({
-      method: 'PUT',
-      url: '/api/settings',
-      headers: { Authorization: `Bearer ${login.body.token}` },
-      body: { general: { setupDismissed: true } },
-      failOnStatusCode: false,
-    });
+    expect(login.status, `login ${JSON.stringify(login.body)}`).to.eq(200);
+    // Return the request so Cypress waits for it before the test body ends.
+    return cy
+      .request({
+        method: 'PUT',
+        url: '/api/settings',
+        headers: { Authorization: `Bearer ${login.body.token}` },
+        body: { general: { setupDismissed: true } },
+        failOnStatusCode: false,
+      })
+      .its('status')
+      .should('eq', 200);
   });
 });
 
