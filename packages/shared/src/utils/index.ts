@@ -78,3 +78,30 @@ export function isLocalUrl(rawUrl: string): boolean {
   if (/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(host)) return true;
   return false;
 }
+
+/**
+ * Normalise a user-entered URL to a scheme-qualified origin without a trailing
+ * slash. `homeassistant.local:8123` becomes `http://homeassistant.local:8123`
+ * and `myhome.duckdns.org` becomes `https://myhome.duckdns.org` (HTTPS is
+ * assumed for public hostnames, HTTP for local hosts), so users never have to
+ * remember the scheme. Returns `null` when the input cannot be parsed.
+ */
+export function normalizeUrlInput(raw: string): string | null {
+  const trimmed = (raw ?? '').trim();
+  if (!trimmed) return null;
+  let candidate = trimmed;
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(candidate)) {
+    const hostPart = (candidate.split('/')[0] ?? '').split(':')[0] ?? '';
+    const isLocalHost =
+      /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.)/i.test(hostPart) ||
+      hostPart.toLowerCase().endsWith('.local') ||
+      hostPart.toLowerCase() === 'host.docker.internal';
+    candidate = `${isLocalHost ? 'http' : 'https'}://${candidate}`;
+  }
+  try {
+    const url = new URL(candidate);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return null;
+  }
+}

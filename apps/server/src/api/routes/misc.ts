@@ -6,6 +6,7 @@ import {
   haTestSchema,
   idParamSchema,
   logFilterSchema,
+  normalizeUrlInput,
   plannerSettingsSchema,
   settingsPatchSchema,
   validateHaServicePayload,
@@ -23,6 +24,11 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
     const patch = settingsPatchSchema.parse(request.body);
     // Never overwrite the stored token with the UI placeholder.
     if (patch.ha?.token === TOKEN_MASK) delete patch.ha.token;
+    // Accept scheme-less input (e.g. "homeassistant.local:8123").
+    if (patch.ha?.url) {
+      const normalized = normalizeUrlInput(patch.ha.url);
+      if (normalized) patch.ha.url = normalized;
+    }
     let updated = ctx().settings.update(patch);
 
     // Auto-detect the HA URL when it is still unknown (candidates are pushed
@@ -237,5 +243,37 @@ export async function errorRoutes(app: FastifyInstance): Promise<void> {
   app.get('/errors/catalog', async () => {
     const { ERROR_CATALOG } = await import('@pvm/shared');
     return ERROR_CATALOG;
+  });
+}
+
+export async function backupRoutes(app: FastifyInstance): Promise<void> {
+  const ctx = (): AppContext => app.pvm;
+
+  // Summary of what a backup would contain, for the UI preview.
+  app.get('/backup/info', async () => ({
+    counts: ctx().backup.counts(),
+    version: '1.3.0',
+  }));
+
+  // Download a full backup. Secrets (HA token) are excluded unless requested.
+  app.get('/backup/export', async (request, reply) => {
+    const query = request.query as { secrets?: string };
+    const includesSecrets = query.secrets === 'true';
+    const backup = ctx().backup.export(includesSecrets);
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    reply.header('Content-Type', 'application/json');
+    reply.header('Content-Disposition', `attachment; filename="pvm-backup-${stamp}.json"`);
+    return backup;
+  });
+
+  // Restore a backup. Replaces all current data in a single transaction.
+  app.post('/backup/import', { bodyLimit: 64 * 1024 * 1024 }, async (request) => {
+    const result = ctx().backup.import(
+      request.body as Parameters<AppContext['backup']['import']>[0],
+    );
+    // The restore wrote settings straight to the DB; refresh the in-memory
+    // cache and re-apply them to the HA client.
+    ctx().settings.reload();
+    return result;
   });
 }

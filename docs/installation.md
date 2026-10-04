@@ -46,6 +46,13 @@ PVM backend. HACS deploys the files under `custom_components/pvm`.
 Step-by-step instructions, update/removal and troubleshooting:
 [hacs.md](hacs.md).
 
+## Mode D — Backend-Adresse, DuckDNS & Fehlersuche
+
+Wenn die Verbindung nicht klappt („Backend nicht erreichbar“, PVM-016 bei
+DuckDNS/Nabu Casa, PVM-002/003 bei HA), führt
+[connect-backend.md](connect-backend.md) jeden Schritt durch — inklusive, wie
+man die HA-URL findet und das Schema weglassen darf.
+
 ## Environment variables
 
 See [.env.example](.env.example). The critical ones:
@@ -73,7 +80,19 @@ Keep `HA_LOCAL_ONLY=true` and use a local HA URL; expose PVM only on your LAN.
 
 ## Backups
 
-Enable `general.backupExport`, then back up:
+PVM can export and restore all of its data as a single JSON file from the UI
+(**Einstellungen → Backup & Wiederherstellung**) or via the API:
+
+- `GET /api/backup/info` — row counts per table (preview)
+- `GET /api/backup/export` — download a full backup (HA token excluded;
+  add `?secrets=true` to include it)
+- `POST /api/backup/import` — restore a backup (replaces all current data)
+
+The restore runs in a single transaction: a malformed file is rejected with
+`PVM-021` and changes nothing. The HA token is not part of the backup unless you
+opt in, so re-enter it after restoring.
+
+For a manual, lower-level backup you can also copy:
 
 - the SQLite database (`PVM_DB_PATH`)
 - `PVM_LOGS_DIR` (dev-log archives)

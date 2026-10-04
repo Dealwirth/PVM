@@ -1,5 +1,10 @@
 const API_BASE = import.meta.env.VITE_PVM_API_BASE ?? '/api';
 
+/** The configured PVM API base, for diagnostics in the UI. */
+export function getApiBase(): string {
+  return API_BASE;
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly code: string,
@@ -97,4 +102,34 @@ export function wsUrl(): string {
   const ws = base.replace(/^http/, 'ws');
   const token = authToken();
   return `${ws}/ws${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+}
+
+/** Absolute URL for an API path (no token; use the api helpers for authed calls). */
+export function apiUrl(path: string): string {
+  return `${API_BASE}${path}`;
+}
+
+/**
+ * Download a file from an authenticated API endpoint. Uses the bearer header
+ * (not a query param) so the token never ends up in URLs or server logs.
+ */
+export async function downloadFile(path: string, filename: string): Promise<void> {
+  const token = authToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}${path}`, { headers });
+  if (res.status === 401) {
+    notifyUnauthorized();
+    throw new ApiError('PVM-004', 'Authentication failed', 'API token is missing or invalid.');
+  }
+  if (!res.ok) throw new ApiError('PVM-020', `HTTP ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }

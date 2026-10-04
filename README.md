@@ -64,6 +64,16 @@ PVM is _not_ a HA addon and does _not_ use the HA addon store. It has its own
 
 ### 1. Install & configure
 
+Fastest path — one command does everything (secret, `.env`, build, start):
+
+```bash
+git clone https://github.com/Dealwirth/PVM.git
+cd PVM
+npm run setup        # Docker if available, otherwise Node.js
+```
+
+Manual path:
+
 ```bash
 cp .env.example .env
 # Edit .env:
@@ -87,6 +97,11 @@ Open <http://localhost:7001>.
 npm run build
 npm start            # serves API + built UI on http://localhost:7000
 ```
+
+> **"PVM backend is not reachable"?** Start the backend (step 3) and make sure
+> the browser uses the right host/port. See
+> [docs/connect-backend.md](docs/connect-backend.md) for the full checklist,
+> how to find the HA URL (incl. DuckDNS) and how to fix `PVM-002` / `PVM-016`.
 
 ### 4. Docker
 
@@ -180,18 +195,20 @@ See `docs/error-codes.md`.
 
 ## Documentation
 
-| Document                                             | Contents                                                      |
-| ---------------------------------------------------- | ------------------------------------------------------------- |
-| [docs/installation.md](docs/installation.md)         | Install modes (standalone, Docker, HACS), env, proxy, backups |
-| [docs/hacs.md](docs/hacs.md)                         | HACS install/update/remove walkthrough and troubleshooting    |
-| [docs/home-assistant.md](docs/home-assistant.md)     | HA integration, services, discovery, error handling           |
-| [docs/settings.md](docs/settings.md)                 | All settings incl. the mandatory ones                         |
-| [docs/forecast-planner.md](docs/forecast-planner.md) | Forecast methods and the load-planning algorithm              |
-| [docs/store.md](docs/store.md)                       | PVM Store architecture, security pipeline, permissions        |
-| [docs/safety.md](docs/safety.md)                     | Shutdown rules, load shedding, self-healing                   |
-| [docs/api.md](docs/api.md)                           | Complete REST + WebSocket reference                           |
-| [docs/error-codes.md](docs/error-codes.md)           | Error catalogue and API envelope                              |
-| [docs/testing.md](docs/testing.md)                   | Test layers and section 14 acceptance mapping                 |
+| Document                                             | Contents                                                                           |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| [docs/installation.md](docs/installation.md)         | Install modes (standalone, Docker, HACS), env, proxy, backups                      |
+| [docs/effects.md](docs/effects.md)                   | Für Einsteiger: Was welche Einstellung bewirkt (Verbindung, Sicherheit, Backup)    |
+| [docs/connect-backend.md](docs/connect-backend.md)   | Schritt-für-Schritt: Backend starten, HA-URL finden (DuckDNS), PVM-002/016 beheben |
+| [docs/hacs.md](docs/hacs.md)                         | HACS install/update/remove walkthrough and troubleshooting                         |
+| [docs/home-assistant.md](docs/home-assistant.md)     | HA integration, services, discovery, error handling                                |
+| [docs/settings.md](docs/settings.md)                 | All settings incl. the mandatory ones                                              |
+| [docs/forecast-planner.md](docs/forecast-planner.md) | Forecast methods and the load-planning algorithm                                   |
+| [docs/store.md](docs/store.md)                       | PVM Store architecture, security pipeline, permissions                             |
+| [docs/safety.md](docs/safety.md)                     | Shutdown rules, load shedding, self-healing                                        |
+| [docs/api.md](docs/api.md)                           | Complete REST + WebSocket reference                                                |
+| [docs/error-codes.md](docs/error-codes.md)           | Error catalogue and API envelope                                                   |
+| [docs/testing.md](docs/testing.md)                   | Test layers and section 14 acceptance mapping                                      |
 
 ---
 

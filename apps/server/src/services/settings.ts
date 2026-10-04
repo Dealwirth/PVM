@@ -4,7 +4,7 @@ import type {
   Settings,
   SettingsPatch,
 } from '@pvm/shared';
-import { PvmError, isLocalUrl } from '@pvm/shared';
+import { PvmError, isLocalUrl, normalizeUrlInput } from '@pvm/shared';
 import type { SettingsRepository } from '../db/repositories/settings.js';
 import type { ServerConfig } from '../config.js';
 import type { HaClient } from '../ha/client.js';
@@ -109,6 +109,22 @@ export class SettingsService {
     return initial;
   }
 
+  /**
+   * Drop the in-memory cache and reload from the repository. Used after a
+   * backup restore has written settings directly to the database.
+   */
+  reload(): Settings {
+    this.cached = undefined;
+    const settings = this.get();
+    this.ha.configure({
+      url: settings.ha.url,
+      token: settings.ha.token,
+      localOnly: settings.ha.localOnly,
+    });
+    this.log.setLevel(settings.log.level);
+    return settings;
+  }
+
   update(patch: SettingsPatch): Settings {
     const current = this.get();
     const merged = deepMerge(current, patch);
@@ -153,7 +169,7 @@ export class SettingsService {
     if (!token) {
       return { ok: false, errorCode: 'PVM-001', message: 'HA-Token fehlt.' };
     }
-    const url = (input.url ?? '').trim().replace(/\/+$/, '');
+    const url = normalizeUrlInput(input.url ?? '');
     if (url) return this.probe(url, token);
     // No URL supplied: try the stored URL, then any known candidates.
     return this.detectHa([s.ha.url], token);
@@ -163,8 +179,10 @@ export class SettingsService {
    * Probe candidate HA base URLs and return the first reachable one.
    *
    * Candidates come from the explicit list, the stored candidates pushed by the
-   * HA custom component and the `HA_URL` env fallback. Non-local candidates are
-   * skipped when `localOnly` is set.
+   * HA custom component and the `HA_URL` env fallback. When `localOnly` is set,
+   * non-local candidates are not skipped silently: if none of the local
+   * candidates work but a non-local one exists, the user gets an actionable
+   * `PVM-016` result instead of an opaque "not found".
    */
   async detectHa(extra: string[] = [], tokenOverride?: string): Promise<HaConnectionTestResult> {
     const s = this.get();
@@ -173,28 +191,47 @@ export class SettingsService {
       return { ok: false, errorCode: 'PVM-001', message: 'HA-Token fehlt.' };
     }
     const seen = new Set<string>();
-    const candidates: string[] = [];
+    const local: string[] = [];
+    const remote: string[] = [];
     for (const raw of [...extra, ...(s.ha.candidateUrls ?? []), s.ha.url, this.config.haUrl]) {
-      const url = (raw ?? '').trim().replace(/\/+$/, '');
+      const url = normalizeUrlInput(raw ?? '');
       if (!url || seen.has(url)) continue;
       seen.add(url);
-      if (s.ha.localOnly && !isLocalUrl(url)) continue;
-      candidates.push(url);
+      (isLocalUrl(url) ? local : remote).push(url);
     }
+    const ordered = s.ha.localOnly ? local : [...local, ...remote];
     let last: HaConnectionTestResult = {
       ok: false,
       errorCode: 'PVM-002',
       message: 'Keine erreichbare HA-Instanz gefunden.',
     };
-    for (const url of candidates) {
+    for (const url of ordered) {
       const result = await this.probe(url, token);
       if (result.ok) return result;
       last = result;
+    }
+    // Nothing local worked but a non-local candidate exists: tell the user
+    // exactly why (and how to allow it) instead of hiding it behind PVM-002.
+    if (s.ha.localOnly && remote.length > 0) {
+      return {
+        ok: false,
+        errorCode: 'PVM-016',
+        url: remote[0],
+        message: `Die HA-Adresse ${remote[0]} ist nicht lokal und wurde blockiert.`,
+      };
     }
     return last;
   }
 
   private async probe(url: string, token: string): Promise<HaConnectionTestResult> {
+    if (this.get().ha.localOnly && !isLocalUrl(url)) {
+      return {
+        ok: false,
+        errorCode: 'PVM-016',
+        url,
+        message: `Die HA-Adresse ${url} ist nicht lokal und wurde blockiert.`,
+      };
+    }
     const result = await this.ha.testConnection({ url, token });
     if (result.ok) {
       return {

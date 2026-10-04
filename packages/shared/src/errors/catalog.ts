@@ -215,6 +215,16 @@ export const ERROR_CATALOG: Record<string, ErrorDefinition> = {
     remediation: 'Dev-Log prüfen und ggf. Fehlerbericht erstellen.',
     triggersShutdown: false,
   },
+  'PVM-021': {
+    code: 'PVM-021',
+    category: 'config',
+    severity: 'medium',
+    title: 'Backup ungültig',
+    description: 'Die Backup-Datei ist beschädigt oder stammt nicht von PVM.',
+    remediation:
+      'Eine mit dieser PVM-Version erstellte Backup-Datei (.json) verwenden. Es wurde nichts geändert.',
+    triggersShutdown: false,
+  },
 };
 
 export function getErrorDefinition(code: string): ErrorDefinition {

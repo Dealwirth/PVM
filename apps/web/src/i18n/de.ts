@@ -15,29 +15,100 @@ export const de = {
       submit: 'Anmelden',
       invalid: 'Token ungültig. Bitte prüfen und erneut versuchen.',
       unreachable: 'Server nicht erreichbar. Verbindung prüfen.',
+      backendUnreachable:
+        'Das PVM-Backend ist nicht erreichbar. Der PVM-Server (Node.js) läuft nicht oder ist über diese Adresse nicht erreichbar.',
+      backendReachableSteps: 'So bekommst du PVM zum Laufen:',
+      backendStep1: 'Backend starten: „docker compose up -d“ oder „npm start“ (Port 7000).',
+      backendStep2:
+        'Wenn Home Assistant auf einem anderen Rechner läuft: PVM_HOST=0.0.0.0 setzen und die richtige IP/Port verwenden.',
+      backendStep3:
+        'Wenn PVM hinter einem Reverse-Proxy läuft: VITE_PVM_API_BASE auf die öffentliche URL setzen und neu bauen.',
+      apiBase: 'Verwendete API-Basis',
+      retry: 'Erneut versuchen',
     },
     setup: {
       title: 'Einrichtung',
       intro:
-        'In wenigen Sekunden verbunden: PVM findet Home Assistant automatisch. Du brauchst nur den Long-Lived Access Token.',
+        'In wenigen Sekunden verbunden. Wähle, wie PVM dein Home Assistant erreicht, und füge den Long-Lived Access Token ein. PVM prüft die Verbindung, bevor etwas gespeichert wird.',
       step1: '1. Token in Home Assistant anlegen',
       step1Hint:
         'HA öffnen → Profil (unten links) → Sicherheit → Long-Lived Access Tokens → „Token erstellen“.',
       step2: '2. Token hier einfügen',
       tokenLabel: 'Long-Lived Access Token',
-      tokenHint:
-        'Der Token wird verschlüsselt serverseitig gespeichert und nie an den Browser zurückgegeben.',
-      step3: '3. Verbinden',
-      step3Hint: 'PVM prüft die Verbindung zur HA-API und speichert erst danach.',
+      tokenHint: 'Der Token wird serverseitig gespeichert und nie an den Browser zurückgegeben.',
+      step3: '3. Verbindungsart wählen',
+      step3Hint: 'Unsicher? Lass „Automatisch“ gewählt — PVM findet die Adresse selbst.',
+      step4: '4. Verbinden & speichern',
+      step4Hint:
+        'PVM prüft die Verbindung zur HA-API. Erst bei Erfolg werden Adresse und Token gespeichert.',
       detectedUrl: 'Erkannte HA-Adresse',
       noUrlDetected:
-        'Keine HA-Adresse automatisch gefunden. Öffne „Erweitert“ und gib die HA-URL manuell ein.',
+        'Keine HA-Adresse automatisch gefunden. Wähle oben die passende Verbindungsart und gib die Adresse ein.',
       ok: 'Verbindung erfolgreich',
       failed: 'Verbindung fehlgeschlagen',
       connect: 'Verbinden & speichern',
       later: 'Später',
       advanced: 'Erweitert (HA-URL manuell)',
-      urlHint: 'Nur nötig, wenn die Erkennung fehlschlägt, z. B. http://homeassistant.local:8123',
+      urlHint: 'Schema ist optional: homeassistant.local:8123 genügt.',
+      allowRemote: 'Nicht-lokale HA-Adresse erlauben und erneut versuchen',
+      remoteBlockedHint:
+        'Deine HA-Adresse ist nicht lokal (z. B. DuckDNS/Nabu Casa) und wurde durch „Nur lokale HA-URL erlauben“ blockiert. Erlaube sie hier einmalig.',
+      remoteAllowed: 'Nicht-lokale HA-Adresse ist jetzt erlaubt.',
+      helpTitle: 'So findest du die HA-URL',
+      helpLocalTitle: 'Lokales Netzwerk (empfohlen)',
+      helpLocalText:
+        'Im HA-Dashboard unter Einstellungen → System → Netzwerk. Nutze z. B. http://homeassistant.local:8123 oder http://192.168.1.50:8123.',
+      helpDuckdnsTitle: 'DuckDNS / Remote-Zugriff',
+      helpDuckdnsText:
+        'Bei DuckDNS ist die URL normalerweise https://<dein-name>.duckdns.org. Nutzt du einen anderen Port, hänge ihn an: https://<dein-name>.duckdns.org:8123. Diese Adresse ist nicht lokal und muss erlaubt werden.',
+      helpNabuTitle: 'Nabu Casa (Home Assistant Cloud)',
+      helpNabuText:
+        'Mit Home Assistant Cloud erreichst du HA über https://<dein-name>.ui.nabu.casa. Diese Adresse ist nicht lokal und muss erlaubt werden.',
+      helpDockerTitle: 'PVM im Docker-Container',
+      helpDockerText:
+        'Läuft PVM in Docker und HA auf dem Host, erreiche HA über http://host.docker.internal:8123. Das ist der Standard in docker-compose.',
+      impactTitle: 'Was haben diese Einstellungen für Auswirkungen?',
+      impactTokenTitle: 'Der Token',
+      impactTokenText:
+        'Der Token ist der Schlüssel zu Home Assistant. PVM kann damit Geräte lesen und (falls du es aktivierst) steuern. Er bleibt auf dem PVM-Server und wird nie im Browser angezeigt. Läuft PVM nur lokal, ist das Risiko gering; gib ihn nicht weiter.',
+      impactRemoteTitle: 'Lokale vs. öffentliche Adresse',
+      impactRemoteText:
+        'Eine lokale Adresse (z. B. 192.168.x.x) verlässt dein Heimnetz nicht — sicherer und schneller. Eine öffentliche Adresse (DuckDNS/Nabu Casa) läuft über das Internet. Deshalb ist „Nur lokale HA-URL erlauben“ standardmäßig aktiv und blockiert öffentliche Adressen. Wählst du DuckDNS oder Nabu Casa, hebt PVM diese Sperre für diese Adresse auf.',
+      impactTestTitle: 'Verbindungstest',
+      impactTestText:
+        'Der Test ist unverbindlich: Es wird nichts gespeichert, solange die Verbindung nicht klappt. Schlägt er fehl, bleiben deine bisherigen Einstellungen unverändert.',
+      connTypes: {
+        auto: {
+          label: 'Automatisch',
+          hint: 'Empfohlen. PVM probiert die von Home Assistant gemeldete Adresse und bekannte lokale Adressen automatisch aus.',
+          placeholder: 'wird automatisch erkannt',
+        },
+        local: {
+          label: 'Lokales Netzwerk',
+          hint: 'HA läuft im selben Netzwerk. Nutze die lokale IP oder homeassistant.local. Sicherste Variante, keine Freigabe nötig.',
+          placeholder: 'homeassistant.local:8123',
+        },
+        duckdns: {
+          label: 'DuckDNS',
+          hint: 'HA ist über DuckDNS von außen erreichbar. Die Adresse ist öffentlich — PVM erlaubt sie automatisch, wenn du diese Art wählst.',
+          placeholder: 'meineinstanz.duckdns.org:8123',
+        },
+        nabu: {
+          label: 'Nabu Casa',
+          hint: 'HA läuft über Home Assistant Cloud. Die Adresse ist öffentlich — PVM erlaubt sie automatisch, wenn du diese Art wählst.',
+          placeholder: 'meineinstanz.ui.nabu.casa',
+        },
+        docker: {
+          label: 'Docker',
+          hint: 'PVM läuft in einem Container und HA auf dem Host. Nutze host.docker.internal. Keine Freigabe nötig.',
+          placeholder: 'host.docker.internal:8123',
+        },
+        manual: {
+          label: 'Manuell',
+          hint: 'Für eigene Setups (Reverse-Proxy, anderer Port). Gib die vollständige Adresse ein.',
+          placeholder: 'http://192.168.1.50:8123',
+        },
+      },
     },
     nav: {
       dashboard: 'Dashboard',
@@ -309,6 +380,10 @@ export const de = {
       haUrl: 'HA-Host (URL)',
       haToken: 'Long-Lived Access Token',
       localOnly: 'Nur lokale HA-URL erlauben',
+      localOnlyHint:
+        'Blockiert nicht-lokale Adressen wie DuckDNS/öffentliche Domains. Für Remote-Zugriff deaktivieren.',
+      haUrlExamples:
+        'Beispiele: homeassistant.local:8123 · 192.168.1.50:8123 · host.docker.internal:8123 · meineinstanz.duckdns.org:8123',
       testConnection: 'Verbindung testen',
       testing: 'Teste…',
       requiredHint:
@@ -323,6 +398,18 @@ export const de = {
       safetyMode: 'Safety-Modus',
       backupExport: 'Backup/Export',
       developerMode: 'Entwickler-Modus',
+      hintAutoStart:
+        'PVM startet automatisch, wenn Home Assistant startet. Aus = du startest PVM selbst.',
+      hintShutdownOnError:
+        'Bei kritischen Fehlern werden Geräte sicher abgeschaltet. Aus = PVM meldet nur, schaltet aber nicht ab.',
+      hintSelfHealing:
+        'PVM versucht, einen früheren Zustand automatisch wiederherzustellen. Aus = du behebst Fehler selbst.',
+      hintSafetyMode:
+        'Überwacht Grenzwerte (Leistung, Temperatur) und greift ein. Für Einsteiger empfohlen: an.',
+      hintBackupExport:
+        'Schaltet die Backup-Karte weiter unten frei. Ohne Backup kannst du Daten nicht wiederherstellen.',
+      hintDeveloperMode:
+        'Zeigt zusätzliche technische Optionen und Details. Für normale Nutzung aus lassen.',
       devLog: 'Dev-Log',
       logLevel: 'Log-Level',
       autoLogs: 'Auto-Logs',
@@ -338,6 +425,40 @@ export const de = {
       haTokenHint: 'Verschlüsselt gespeichert, nie an den Browser zurückgegeben.',
       runSetupAgain: 'Einrichtungsassistent erneut starten',
       connectedTo: 'Verbunden mit HA',
+      backup: {
+        title: 'Backup & Wiederherstellung',
+        description:
+          'Sichert alle deine PVM-Daten in eine Datei und kann sie später wieder einspielen. Empfohlen vor Updates oder größeren Änderungen.',
+        includesTitle: 'Was ist im Backup enthalten?',
+        includesText:
+          'Enthalten: Einstellungen, Geräte, Verlauf, Prognosen, Ladepläne, Kalender, Addon-Konfigurationen und Sicherheits-Ereignisse.',
+        excludesText:
+          'Nicht enthalten (aus Sicherheitsgründen): dein HA-Token. Nach dem Wiederherstellen muss der Token einmal neu eingetragen werden. Die Backup-Datei ist unverschlüsselt — bewahre sie sicher auf.',
+        exportButton: 'Backup herunterladen',
+        exportSuccess: 'Backup wurde heruntergeladen.',
+        exportWithSecrets: 'HA-Token mit ins Backup aufnehmen (nicht empfohlen)',
+        exportWithSecretsHint:
+          'Wenn aktiv, enthält die Datei deinen HA-Token im Klartext. Nur auf einem sicheren Gerät verwenden.',
+        importTitle: 'Backup wiederherstellen',
+        importHint:
+          'Achtung: Beim Wiederherstellen werden alle aktuellen PVM-Daten ersetzt. Vorher ein Backup erstellen!',
+        importButton: 'Backup-Datei auswählen',
+        importConfirm:
+          'Wirklich wiederherstellen? Alle aktuellen Daten werden durch das Backup ersetzt.',
+        importSuccess: 'Backup erfolgreich wiederhergestellt.',
+        importError: 'Wiederherstellung fehlgeschlagen',
+        counts: 'Enthaltene Datensätze',
+        countsDevices: 'Geräte',
+        countsHistory: 'Verlaufsdaten',
+        countsPlans: 'Ladepläne',
+        countsCalendar: 'Kalender-Ereignisse',
+        countsAddons: 'Addons',
+        createdAt: 'Erstellt am',
+        secretsIncluded: 'HA-Token enthalten',
+        disabledHint:
+          'Backup/Export ist ausgeschaltet. Schalte es ein, um Backups zu erstellen oder wiederherzustellen.',
+        enableButton: 'Backup/Export einschalten',
+      },
     },
     tutorial: {
       title: 'Willkommen bei PVM',

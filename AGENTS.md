@@ -72,6 +72,20 @@ PVM_E2E_BASE_URL=http://localhost:7000 PVM_API_SECRET=e2e-secret \
 - HACS packaging: keep `custom_components/pvm/manifest.json` to HA's standard
   keys only (no `homeassistant` key — that belongs in `hacs.json`). `hacs.json`
   and `manifest.json` versions are bumped independently when releasing.
+- HA-URL handling: user-entered URLs may omit the scheme. `normalizeUrlInput`
+  (`packages/shared/src/utils/index.ts`) and `normalize_pvm_url`
+  (`custom_components/pvm/const.py`) must stay in sync: they strip the port
+  before deciding local-vs-public, default to `http` for local hosts
+  (localhost, RFC1918, `.local`, `host.docker.internal`) and `https` otherwise,
+  and strip trailing slashes. Never compare `host:port` against local patterns
+  without splitting off the port first.
+- When `HA_LOCAL_ONLY=true` and only non-local (DuckDNS/Nabu Casa) HA candidates
+  exist, `detectHa`/`test-ha` return `PVM-016` with the offending URL — not an
+  opaque `PVM-002`. The web SetupWizard offers a one-click "allow non-local"
+  action that PUTs `ha.localOnly=false` and retries. Keep the frontend probe
+  (`LoginGate.probeAuth`) using `getApiBase()` so a custom `VITE_PVM_API_BASE`
+  is respected; a fetch rejection means the backend is down (`PVM-002`), a 401
+  means it is up but needs a token.
 - CI validations: `.github/workflows/hacs.yml` (HACS Action, category
   `integration`) and `.github/workflows/hassfest.yml` must stay green; a HACS
   release requires a full GitHub release (not just a tag). The HACS Action also
@@ -79,3 +93,17 @@ PVM_E2E_BASE_URL=http://localhost:7000 PVM_API_SECRET=e2e-secret \
   **topic** (e.g. `home-assistant`, `hacs`) must be set in the GitHub repo
   settings; the license check reads `LICENSE` from the default branch, so merge
   before expecting it to pass.
+- Backup/restore lives in `apps/server/src/services/backup.ts` and is exposed as
+  `GET /api/backup/info|export` and `POST /api/backup/import` (`backupRoutes` in
+  `apps/server/src/api/routes/misc.ts`). Restores run in one transaction and
+  whitelist columns via `PRAGMA table_info`, so unknown/extra columns are ignored
+  and column names can never be injected. The HA token is stripped from the
+  export unless `?secrets=true`. After a successful import the route calls
+  `settings.reload()` so the in-memory cache and HA client pick up the restored
+  settings. The web card is gated by the `general.backupExport` master switch.
+- Setup assistant (`apps/web/src/components/SetupWizard.tsx`) exposes connection
+  types `auto|local|duckdns|nabu|docker|manual`. Picking `duckdns` or `nabu`
+  PUTs `ha.localOnly=false` before testing so a deliberately public URL is not
+  rejected with `PVM-016`. Keep the `setup.connTypes.*` and `setup.help*` /
+  `setup.impact*` i18n keys in both `de.ts` and `en.ts` (the i18n test enforces
+  key parity). User-facing impact explanations live in `docs/effects.md`.
