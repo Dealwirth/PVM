@@ -74,4 +74,8 @@ PVM_E2E_BASE_URL=http://localhost:7000 PVM_API_SECRET=e2e-secret \
   and `manifest.json` versions are bumped independently when releasing.
 - CI validations: `.github/workflows/hacs.yml` (HACS Action, category
   `integration`) and `.github/workflows/hassfest.yml` must stay green; a HACS
-  release requires a full GitHub release (not just a tag).
+  release requires a full GitHub release (not just a tag). The HACS Action also
+  checks repo metadata — a repository **description** and at least one
+  **topic** (e.g. `home-assistant`, `hacs`) must be set in the GitHub repo
+  settings; the license check reads `LICENSE` from the default branch, so merge
+  before expecting it to pass.
