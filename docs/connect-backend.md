@@ -21,6 +21,7 @@ Browser / HA-Panel  ──(1)──►  PVM-Backend  ──(2)──►  Home As
 | „PVM-002 – HA nicht erreichbar“    | Verbindung **(2)** fehlt — HA-Adresse/Port falsch oder HA nicht erreichbar.       |
 | „PVM-003 – HA-Authentifizierung“   | Der Long-Lived Access Token ist falsch.                                           |
 | „PVM-004 – PVM-API-Token“          | Das `PVM_API_SECRET` stimmt nicht.                                                |
+| „PVM-022 – HA-Integration“         | PVM erreicht HA nicht direkt und hat noch keine Daten von der HA-Integration.     |
 
 ---
 
@@ -234,14 +235,23 @@ davor, dass HA-Zugangsdaten an eine öffentliche Adresse geschickt werden.
 Für DuckDNS/Nabu Casa/Reverse-Proxy muss sie einmalig deaktiviert werden.
 
 **Weg A — direkt im Setup-Assistenten (am einfachsten):**
-Erscheint die Meldung PVM-016, klick auf **„Nicht-lokale HA-Adresse erlauben
-und erneut versuchen“**. PVM deaktiviert die Sperre und testet sofort erneut.
+Erscheint die Meldung PVM-016, klick auf **„Verbinden & speichern“**. PVM
+erkennt die öffentliche Adresse, deaktiviert die Sperre automatisch und testet
+sofort erneut — ein Klick genügt.
 
 **Weg B — in den Einstellungen:**
 **Einstellungen → Home Assistant → „Nur lokale HA-URL erlauben“** ausschalten,
-**Speichern**, dann **„Verbindung testen“**.
+**Speichern**, dann **„Verbindung testen“**. Auch hier erlaubt der Verbindungstest
+eine öffentliche Adresse automatisch, sobald sie erreichbar ist.
 
-**Weg C — Sicherheitsempfehlung:**
+**Weg C — ohne API-Zugriff (HA-Integration):**
+Kann PVM HA **gar nicht** direkt erreichen (Firewall, HA nur intern erreichbar,
+Zertifikatsfehler), brauchst du die Sperre nicht zu umgehen. Richte PVM in Home
+Assistant als **Integration** ein (siehe [hacs.md](hacs.md)); die Integration
+sendet HA-Zustände selbst an PVM. Im Setup-Assistenten klickst du dann auf
+**„Ohne API verbinden (HA-Integration)“** — ein HA-Token ist in PVM nicht nötig.
+
+**Weg D — Sicherheitsempfehlung:**
 Wenn möglich, nutze für die Server-zu-Server-Verbindung die **lokale** HA-URL
 (IP:8123) und behalte die Sperre aktiv. Öffentliche Adressen nur dann
 erlauben, wenn PVM und HA nicht im selben Netz stehen.

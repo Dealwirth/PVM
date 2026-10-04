@@ -1,8 +1,10 @@
 import type { FastifyInstance } from 'fastify';
+import type { HaSnapshot } from '@pvm/shared';
 import {
   addonInstallSchema,
   forecastInputSchema,
   haDetectSchema,
+  haIngestSchema,
   haTestSchema,
   idParamSchema,
   logFilterSchema,
@@ -13,6 +15,7 @@ import {
 } from '@pvm/shared';
 import type { AppContext } from '../../context.js';
 import { TOKEN_MASK } from '../../services/settings.js';
+import { VERSION } from '../../services/backup.js';
 
 export async function settingsRoutes(app: FastifyInstance): Promise<void> {
   const ctx = (): AppContext => app.pvm;
@@ -225,17 +228,37 @@ export async function haRoutes(app: FastifyInstance): Promise<void> {
   // Called by the HA custom component during setup so the user only has to
   // enter the HA token in PVM. The component hands over the HA base URL(s) it
   // can derive and (optionally) the HA token it already holds, then PVM probes
-  // them and stores the first reachable URL.
+  // them and stores the first reachable URL. The component is authenticated
+  // with the PVM API token and only forwards HA's own URLs, so a deliberately
+  // public (DuckDNS/Nabu Casa) URL is allowed here.
   app.post('/ha/internal/detect', async (request) => {
     const input = haDetectSchema.parse(request.body ?? {});
     const candidates = [...(input.url ? [input.url] : []), ...(input.candidates ?? [])];
-    const result = await ctx().settings.detectHa(candidates, input.token);
+    const result = await ctx().settings.detectHa(candidates, input.token, true);
     if (result.ok && result.url) {
       ctx().settings.update({ ha: { url: result.url } });
       ctx().ha.configure({ url: result.url });
       ctx().log.info('ha', 'HA URL auto-detected', { url: result.url });
     }
     return result;
+  });
+
+  // API-free path: the HA custom component pushes a full snapshot of the data
+  // it already has (states, services, registries). PVM then works without ever
+  // reaching HA over the network. Used when PVM cannot reach HA directly.
+  app.post('/ha/internal/ingest', { bodyLimit: 64 * 1024 * 1024 }, async (request) => {
+    const input = haIngestSchema.parse(request.body ?? {});
+    return ctx().settings.ingestSnapshot({
+      takenAt: input.takenAt ?? new Date().toISOString(),
+      haVersion: input.haVersion,
+      locationName: input.locationName,
+      haUrl: input.haUrl,
+      states: input.states as HaSnapshot['states'],
+      services: input.services as HaSnapshot['services'],
+      deviceRegistry: input.deviceRegistry as HaSnapshot['deviceRegistry'],
+      entityRegistry: input.entityRegistry as HaSnapshot['entityRegistry'],
+      areaRegistry: input.areaRegistry as HaSnapshot['areaRegistry'],
+    });
   });
 }
 
@@ -252,7 +275,7 @@ export async function backupRoutes(app: FastifyInstance): Promise<void> {
   // Summary of what a backup would contain, for the UI preview.
   app.get('/backup/info', async () => ({
     counts: ctx().backup.counts(),
-    version: '1.3.0',
+    version: VERSION,
   }));
 
   // Download a full backup. Secrets (HA token) are excluded unless requested.

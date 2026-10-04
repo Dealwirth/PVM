@@ -58,6 +58,36 @@ export interface HaConfig {
   unit_system: Record<string, string>;
 }
 
+/**
+ * A snapshot of Home Assistant state pushed by the HA custom component.
+ *
+ * This is the API-free path: instead of PVM reaching *out* to HA (which fails
+ * when HA is only reachable from the HA host, sits behind a firewall, or uses
+ * a self-signed certificate), the HA integration pushes the data it already
+ * has *in* to PVM. Fields mirror the REST/WS shapes so downstream code does not
+ * need to distinguish the two sources.
+ */
+export interface HaSnapshot {
+  /** ISO timestamp of when the snapshot was collected in HA. */
+  takenAt: string;
+  /** HA version from `GET /api/config`. */
+  haVersion?: string;
+  /** HA instance name from `GET /api/config`. */
+  locationName?: string;
+  /** The HA base URL(s) HA itself knows (internal/external/api). */
+  haUrl?: string;
+  /** Result of `GET /api/states`. */
+  states?: HaState[];
+  /** Result of `GET /api/services`. */
+  services?: HaServiceDomain[];
+  /** Result of the device-registry WebSocket command. */
+  deviceRegistry?: HaDeviceRegistryEntry[];
+  /** Result of the entity-registry WebSocket command. */
+  entityRegistry?: HaEntityRegistryEntry[];
+  /** Result of the area-registry WebSocket command. */
+  areaRegistry?: HaAreaRegistryEntry[];
+}
+
 export interface HaCallServiceRequest {
   domain: string;
   service: string;
@@ -72,4 +102,8 @@ export interface HaConnectionState {
   lastErrorAt?: string;
   lastError?: string;
   haVersion?: string;
+  /** The HA integration has pushed at least one snapshot (API-free path). */
+  integrationConnected?: boolean;
+  /** ISO timestamp of the most recent pushed snapshot. */
+  snapshotAt?: string;
 }

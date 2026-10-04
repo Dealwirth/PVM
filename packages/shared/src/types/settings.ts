@@ -32,6 +32,14 @@ export interface HaConnectionTestResult {
   /** PVM error code (e.g. PVM-002, PVM-003) on failure. */
   errorCode?: string;
   message?: string;
+  /**
+   * The URL is public (DuckDNS/Nabu Casa) and was blocked by the local-only
+   * guard. The UI can retry with `allowRemote` to verify and allow it in one
+   * step instead of showing a dead-end error.
+   */
+  publicUrl?: boolean;
+  /** How the connection is established: PVM→HA API, or HA pushes to PVM. */
+  mode?: 'api' | 'integration';
 }
 
 export interface PvmApiSettings {

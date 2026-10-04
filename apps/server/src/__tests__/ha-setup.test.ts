@@ -189,14 +189,16 @@ describe('non-local (public) HA URL handling', () => {
     expect(body.url).toBe('https://pvm-test.invalid:8123');
   });
 
-  it('reports PVM-016 from detection when only public candidates exist', async () => {
+  it('accepts a public candidate pushed by the HA component (detect allows remote)', async () => {
+    // The HA component only forwards HA's own URLs and is authenticated with
+    // the PVM token, so detect verifies the public URL instead of blocking it.
     const res = await app.inject({
       method: 'POST',
       url: '/api/ha/internal/detect',
       headers: auth(),
-      payload: { candidates: ['https://pvm-test.invalid:8123'], token: 'good-token' },
+      payload: { candidates: [haUrl], token: 'good-token' },
     });
-    expect(res.json()).toMatchObject({ ok: false, errorCode: 'PVM-016' });
+    expect(res.json()).toMatchObject({ ok: true, url: haUrl });
   });
 
   it('attempts the public URL once non-local URLs are allowed', async () => {

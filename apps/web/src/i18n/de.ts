@@ -47,6 +47,9 @@ export const de = {
       ok: 'Verbindung erfolgreich',
       failed: 'Verbindung fehlgeschlagen',
       connect: 'Verbinden & speichern',
+      connectIntegration: 'Ohne API verbinden (HA-Integration)',
+      connectIntegrationHint:
+        'Kein direkter API-Zugriff möglich (Firewall, nur lokale HA-Adresse, Zertifikat)? Richte PVM in Home Assistant als Integration ein — dann sendet HA die Daten selbst an PVM. Kein HA-Token in PVM nötig.',
       later: 'Später',
       advanced: 'Erweitert (HA-URL manuell)',
       urlHint: 'Schema ist optional: homeassistant.local:8123 genügt.',

@@ -17,7 +17,7 @@ const TABLES = [
 
 type TableName = (typeof TABLES)[number];
 
-const VERSION = '1.3.0';
+export const VERSION = '1.4.0';
 
 function toCounts(rows: Record<TableName, unknown[]>): BackupCounts {
   return {

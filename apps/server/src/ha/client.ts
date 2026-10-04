@@ -8,6 +8,7 @@ import type {
   HaEntityRegistryEntry,
   HaHistoryPoint,
   HaServiceDomain,
+  HaSnapshot,
   HaState,
 } from '@pvm/shared';
 import { PvmError, isLocalUrl } from '@pvm/shared';
@@ -34,6 +35,12 @@ export class HaClient extends EventEmitter {
   private reconnectAttempts = 0;
   private nextMessageId = 1;
   private closing = false;
+  /**
+   * Last snapshot pushed by the HA integration. When set, read operations fall
+   * back to it if the direct PVM→HA API is unreachable, so PVM works without
+   * ever needing to reach HA over the network.
+   */
+  private snapshot?: HaSnapshot;
   private readonly pending = new Map<
     number,
     { resolve: (v: unknown) => void; reject: (e: Error) => void }
@@ -47,6 +54,42 @@ export class HaClient extends EventEmitter {
   configure(opts: Partial<HaClientOptions>): void {
     this.opts = { ...this.opts, ...opts };
     this.state.url = this.opts.url;
+  }
+
+  /** Store a snapshot pushed by the HA integration (API-free path). */
+  setSnapshot(snapshot: HaSnapshot): void {
+    this.snapshot = snapshot;
+    this.state.integrationConnected = true;
+    this.state.snapshotAt = snapshot.takenAt;
+    if (snapshot.haVersion) this.state.haVersion = snapshot.haVersion;
+  }
+
+  /** The most recent HA snapshot, if the integration has pushed one. */
+  getSnapshot(): HaSnapshot | undefined {
+    return this.snapshot;
+  }
+
+  hasSnapshot(): boolean {
+    return this.snapshot !== undefined;
+  }
+
+  /**
+   * Mark the direct HA connection as working. Called after a successful probe
+   * so reads prefer the live API over a possibly stale pushed snapshot.
+   */
+  markConnected(): void {
+    this.state.connected = true;
+    this.state.lastConnectedAt = new Date().toISOString();
+    this.state.lastError = undefined;
+    this.state.lastErrorAt = undefined;
+  }
+
+  /**
+   * True when reads should come from the pushed snapshot rather than the direct
+   * API: the direct API is down (or was never connected) but a snapshot exists.
+   */
+  private preferSnapshot(): boolean {
+    return !this.state.connected && this.snapshot !== undefined;
   }
 
   getState(): HaConnectionState {
@@ -119,15 +162,18 @@ export class HaClient extends EventEmitter {
    *
    * When `override` is given the values are used **without** touching the
    * stored connection or the cached state, so the setup wizard can validate a
-   * URL/token pair before it is persisted.
+   * URL/token pair before it is persisted. `allowRemote` bypasses the
+   * local-only guard for a deliberately chosen public URL.
    */
   async testConnection(override?: {
     url?: string;
     token?: string;
+    allowRemote?: boolean;
   }): Promise<{ ok: boolean; config?: HaConfig; error?: string; errorCode?: string }> {
     const provisional = override !== undefined;
     try {
-      const base = this.buildBase(override?.url ?? this.opts.url, this.opts.localOnly);
+      const localOnly = this.opts.localOnly && !override?.allowRemote;
+      const base = this.buildBase(override?.url ?? this.opts.url, localOnly);
       const headers = this.buildHeaders(override?.token ?? this.opts.token);
       const cfg = await this.restWith<HaConfig>(base, headers, '/api/config');
       if (!provisional) {
@@ -151,19 +197,61 @@ export class HaClient extends EventEmitter {
   }
 
   async getConfig(): Promise<HaConfig> {
-    return this.rest<HaConfig>('/api/config');
+    if (this.preferSnapshot()) {
+      return {
+        version: this.snapshot?.haVersion ?? 'unknown',
+        location_name: this.snapshot?.locationName ?? '',
+        time_zone: '',
+        unit_system: {},
+      };
+    }
+    try {
+      return await this.rest<HaConfig>('/api/config');
+    } catch (err) {
+      if (this.snapshot) {
+        return {
+          version: this.snapshot.haVersion ?? 'unknown',
+          location_name: this.snapshot.locationName ?? '',
+          time_zone: '',
+          unit_system: {},
+        };
+      }
+      throw err;
+    }
   }
 
   async getStates(): Promise<HaState[]> {
-    return this.rest<HaState[]>('/api/states');
+    if (this.preferSnapshot() && this.snapshot?.states) return this.snapshot.states;
+    try {
+      return await this.rest<HaState[]>('/api/states');
+    } catch (err) {
+      if (this.snapshot?.states) return this.snapshot.states;
+      throw err;
+    }
   }
 
   async getStateById(entityId: string): Promise<HaState> {
-    return this.rest<HaState>(`/api/states/${encodeURIComponent(entityId)}`);
+    if (this.preferSnapshot()) {
+      const found = this.snapshot?.states?.find((s) => s.entity_id === entityId);
+      if (found) return found;
+    }
+    try {
+      return await this.rest<HaState>(`/api/states/${encodeURIComponent(entityId)}`);
+    } catch (err) {
+      const found = this.snapshot?.states?.find((s) => s.entity_id === entityId);
+      if (found) return found;
+      throw err;
+    }
   }
 
   async getServices(): Promise<HaServiceDomain[]> {
-    return this.rest<HaServiceDomain[]>('/api/services');
+    if (this.preferSnapshot() && this.snapshot?.services) return this.snapshot.services;
+    try {
+      return await this.rest<HaServiceDomain[]>('/api/services');
+    } catch (err) {
+      if (this.snapshot?.services) return this.snapshot.services;
+      throw err;
+    }
   }
 
   async getHistory(entityId: string, startIso: string, endIso?: string): Promise<HaHistoryPoint[]> {
@@ -193,6 +281,27 @@ export class HaClient extends EventEmitter {
    * to the legacy unprefixed name, so the integration works across HA versions.
    */
   async getRegistry<T>(
+    type: 'device_registry/list' | 'entity_registry/list' | 'area_registry/list',
+  ): Promise<T[]> {
+    const snapshotted = this.registryFromSnapshot(type);
+    if (this.preferSnapshot() && snapshotted) return snapshotted as T[];
+    try {
+      return await this.getRegistryLive<T>(type);
+    } catch (err) {
+      if (snapshotted) return snapshotted as T[];
+      throw err;
+    }
+  }
+
+  /** Registry data from the pushed snapshot, keyed by registry type. */
+  private registryFromSnapshot(type: string): unknown[] | undefined {
+    if (!this.snapshot) return undefined;
+    if (type === 'device_registry/list') return this.snapshot.deviceRegistry;
+    if (type === 'entity_registry/list') return this.snapshot.entityRegistry;
+    return undefined;
+  }
+
+  private async getRegistryLive<T>(
     type: 'device_registry/list' | 'entity_registry/list' | 'area_registry/list',
   ): Promise<T[]> {
     const ws = await this.connectWs();
