@@ -19,23 +19,23 @@
         }
       }
     },
-    "options": {
-      "step": {
-        "init": {
-          "data": {
-            "pvm_token": "PVM API token",
-            "verify_ssl": "Verify TLS certificate",
-            "scan_interval": "Update interval (seconds)"
-          }
-        }
-      }
-    },
     "error": {
       "cannot_connect": "Could not connect to the PVM backend."
     },
     "abort": {
       "already_configured": "PVM is already configured.",
       "reauth_successful": "Re-authentication successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "pvm_token": "PVM API token",
+          "verify_ssl": "Verify TLS certificate",
+          "scan_interval": "Update interval (seconds)"
+        }
+      }
     }
   },
   "entity": {

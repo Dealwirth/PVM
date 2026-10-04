@@ -19,23 +19,23 @@
         }
       }
     },
-    "options": {
-      "step": {
-        "init": {
-          "data": {
-            "pvm_token": "PVM-API-Token",
-            "verify_ssl": "TLS-Zertifikat prüfen",
-            "scan_interval": "Aktualisierungsintervall (Sekunden)"
-          }
-        }
-      }
-    },
     "error": {
       "cannot_connect": "Verbindung zum PVM-Backend fehlgeschlagen."
     },
     "abort": {
       "already_configured": "PVM ist bereits konfiguriert.",
       "reauth_successful": "Neuanmeldung erfolgreich."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "pvm_token": "PVM-API-Token",
+          "verify_ssl": "TLS-Zertifikat prüfen",
+          "scan_interval": "Aktualisierungsintervall (Sekunden)"
+        }
+      }
     }
   },
   "entity": {
