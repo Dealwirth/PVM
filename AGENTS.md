@@ -69,3 +69,9 @@ PVM_E2E_BASE_URL=http://localhost:7000 PVM_API_SECRET=e2e-secret \
   `listStore()` in `apps/server/src/services/addon-fetcher.ts`.
 - Runtime requires Node 22 for `better-sqlite3`; Node 24 breaks its native ABI.
   Run the server/tests with `npx -y node@22` if the default Node is 24.
+- HACS packaging: keep `custom_components/pvm/manifest.json` to HA's standard
+  keys only (no `homeassistant` key — that belongs in `hacs.json`). `hacs.json`
+  and `manifest.json` versions are bumped independently when releasing.
+- CI validations: `.github/workflows/hacs.yml` (HACS Action, category
+  `integration`) and `.github/workflows/hassfest.yml` must stay green; a HACS
+  release requires a full GitHub release (not just a tag).

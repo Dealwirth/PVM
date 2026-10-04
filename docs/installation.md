@@ -37,9 +37,14 @@ docker compose --profile dev up
 
 ## Mode C — HACS custom component
 
-Add this repository as a **custom repository** in HACS, install the **PVM**
-integration, then configure it with the URL of a running PVM backend. HACS
-deploys the files under `custom_components/pvm`.
+PVM is a HACS-installable integration. Add `https://github.com/Dealwirth/PVM`
+as a **custom repository** (category **Integration**) in HACS, install **PVM
+(PV-Manager)**, restart Home Assistant, then add the integration via **Settings →
+Devices & Services → Add Integration → PVM** with the URL and token of a running
+PVM backend. HACS deploys the files under `custom_components/pvm`.
+
+Step-by-step instructions, update/removal and troubleshooting:
+[hacs.md](hacs.md).
 
 ## Environment variables
 

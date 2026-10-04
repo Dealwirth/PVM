@@ -1,5 +1,10 @@
 # PVM — PV-Manager
 
+[![HACS Action](https://github.com/Dealwirth/PVM/actions/workflows/hacs.yml/badge.svg)](https://github.com/Dealwirth/PVM/actions/workflows/hacs.yml)
+[![Hassfest](https://github.com/Dealwirth/PVM/actions/workflows/hassfest.yml/badge.svg)](https://github.com/Dealwirth/PVM/actions/workflows/hassfest.yml)
+[![CI](https://github.com/Dealwirth/PVM/actions/workflows/ci.yml/badge.svg)](https://github.com/Dealwirth/PVM/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 PVM is a standalone web application for photovoltaic / energy management that
 runs alongside **Home Assistant (HA)**. It reads and controls HA devices through
 the HA Local API (REST + WebSocket) using a Long-Lived Access Token, adds
@@ -112,6 +117,18 @@ See `docs/settings.md` for the complete list.
 
 ## Home Assistant integration
 
+### Install via HACS (recommended)
+
+1. **HACS → Integrations → ⋮ → Custom repositories**, add
+   `https://github.com/Dealwirth/PVM` with category **Integration**.
+2. Install **PVM (PV-Manager)**, then **restart Home Assistant**.
+3. **Settings → Devices & Services → Add Integration → PVM**, enter the PVM
+   backend URL and token.
+
+Full walkthrough (updates, removal, troubleshooting): [docs/hacs.md](docs/hacs.md).
+
+### Manual install
+
 Copy `custom_components/pvm` into your HA `config/custom_components/pvm`
 directory and restart HA. Add the integration via **Settings → Devices &
 Services → Add Integration → PVM**, entering the PVM backend URL and token.
@@ -166,6 +183,7 @@ See `docs/error-codes.md`.
 | Document                                             | Contents                                                      |
 | ---------------------------------------------------- | ------------------------------------------------------------- |
 | [docs/installation.md](docs/installation.md)         | Install modes (standalone, Docker, HACS), env, proxy, backups |
+| [docs/hacs.md](docs/hacs.md)                         | HACS install/update/remove walkthrough and troubleshooting    |
 | [docs/home-assistant.md](docs/home-assistant.md)     | HA integration, services, discovery, error handling           |
 | [docs/settings.md](docs/settings.md)                 | All settings incl. the mandatory ones                         |
 | [docs/forecast-planner.md](docs/forecast-planner.md) | Forecast methods and the load-planning algorithm              |
