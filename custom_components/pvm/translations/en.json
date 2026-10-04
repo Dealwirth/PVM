@@ -10,12 +10,18 @@
           "verify_ssl": "Verify TLS certificate",
           "scan_interval": "Update interval (seconds)"
         }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate PVM",
+        "description": "The PVM backend rejected the stored token. Enter a new PVM API token.",
+        "data": {
+          "pvm_token": "PVM API token"
+        }
       }
     },
     "options": {
       "step": {
         "init": {
-          "title": "PVM options",
           "data": {
             "pvm_token": "PVM API token",
             "verify_ssl": "Verify TLS certificate",
@@ -34,10 +40,18 @@
   },
   "entity": {
     "sensor": {
-      "total_power": { "name": "Total power" },
-      "device_count": { "name": "Device count" },
-      "residual_energy": { "name": "Residual energy" },
-      "production_energy": { "name": "Production energy" }
+      "total_power": {
+        "name": "Total power"
+      },
+      "device_count": {
+        "name": "Device count"
+      },
+      "residual_energy": {
+        "name": "Residual energy"
+      },
+      "production_energy": {
+        "name": "Production energy"
+      }
     }
   },
   "services": {
@@ -45,7 +59,10 @@
       "name": "Set device state",
       "description": "Set a PVM-managed device's on/off state via the PVM backend.",
       "fields": {
-        "device_id": { "name": "Device ID", "description": "PVM device identifier." },
+        "device_id": {
+          "name": "Device ID",
+          "description": "PVM device identifier."
+        },
         "state": {
           "name": "State",
           "description": "Target state (on/off, true/false or a device-specific value)."
@@ -56,15 +73,24 @@
       "name": "Set device power",
       "description": "Set a PVM-managed device's power setpoint in watts.",
       "fields": {
-        "device_id": { "name": "Device ID", "description": "PVM device identifier." },
-        "power": { "name": "Power (W)", "description": "Target power setpoint in watts." }
+        "device_id": {
+          "name": "Device ID",
+          "description": "PVM device identifier."
+        },
+        "power": {
+          "name": "Power (W)",
+          "description": "Target power setpoint in watts."
+        }
       }
     },
     "set_device_temperature": {
       "name": "Set device temperature",
       "description": "Set a PVM-managed device's temperature setpoint in °C.",
       "fields": {
-        "device_id": { "name": "Device ID", "description": "PVM device identifier." },
+        "device_id": {
+          "name": "Device ID",
+          "description": "PVM device identifier."
+        },
         "temperature": {
           "name": "Temperature (°C)",
           "description": "Target temperature in degrees Celsius."
@@ -75,7 +101,10 @@
       "name": "Update load plan",
       "description": "Push a load plan to the PVM backend.",
       "fields": {
-        "plan": { "name": "Plan", "description": "The plan object to apply." }
+        "plan": {
+          "name": "Plan",
+          "description": "The plan object to apply."
+        }
       }
     },
     "run_planning_cycle": {
@@ -86,19 +115,28 @@
       "name": "Get forecast",
       "description": "Return the latest PVM residual-power forecast.",
       "fields": {
-        "horizon": { "name": "Horizon", "description": "Forecast horizon to return." }
+        "horizon": {
+          "name": "Horizon",
+          "description": "Forecast horizon to return."
+        }
       }
     },
     "get_history": {
       "name": "Get device history",
       "description": "Return recorded history for a PVM-managed device.",
       "fields": {
-        "device_id": { "name": "Device ID", "description": "PVM device identifier." },
+        "device_id": {
+          "name": "Device ID",
+          "description": "PVM device identifier."
+        },
         "start": {
           "name": "Start",
           "description": "Optional ISO timestamp for the start of the window."
         },
-        "end": { "name": "End", "description": "Optional ISO timestamp for the end of the window." }
+        "end": {
+          "name": "End",
+          "description": "Optional ISO timestamp for the end of the window."
+        }
       }
     },
     "get_calendar_events": {
