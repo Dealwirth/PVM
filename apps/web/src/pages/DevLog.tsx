@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { LogEntry, LogLevel } from '@pvm/shared';
 import { api } from '../lib/api.js';
-import { Badge, Card, Spinner } from '../components/ui.js';
+import { Badge, Card, EmptyState, PageHeader, Spinner } from '../components/ui.js';
 import { useRealtime } from '../hooks/useRealtime.js';
 
 const LEVEL_TONE: Record<LogLevel, 'neutral' | 'info' | 'warning' | 'error'> = {
@@ -14,9 +14,13 @@ const LEVEL_TONE: Record<LogLevel, 'neutral' | 'info' | 'warning' | 'error'> = {
   FATAL: 'error',
 };
 
+const LEVELS: LogLevel[] = ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'];
+
 export function DevLogPage(): JSX.Element {
   const { t } = useTranslation();
+  const qc = useQueryClient();
   const [level, setLevel] = useState<LogLevel | ''>('');
+  const [search, setSearch] = useState('');
   const [live, setLive] = useState<LogEntry[]>([]);
   const [liveEnabled, setLiveEnabled] = useState(true);
 
@@ -35,6 +39,25 @@ export function DevLogPage(): JSX.Element {
     if (logs.data) setLive(logs.data.slice(0, 300));
   }, [logs.data]);
 
+  const clear = useMutation({
+    mutationFn: () => api.delete('/logs'),
+    onSuccess: () => {
+      setLive([]);
+      void qc.invalidateQueries({ queryKey: ['logs'] });
+    },
+  });
+
+  const filtered = useMemo(() => {
+    if (!search) return live;
+    const q = search.toLowerCase();
+    return live.filter(
+      (e) =>
+        e.message.toLowerCase().includes(q) ||
+        e.category.toLowerCase().includes(q) ||
+        (e.errorCode ?? '').toLowerCase().includes(q),
+    );
+  }, [live, search]);
+
   const download = (format: 'json' | 'csv'): void => {
     const token = localStorage.getItem('pvm.token');
     const url = `/api/logs/export?format=${format}${level ? `&level=${level}` : ''}`;
@@ -52,43 +75,63 @@ export function DevLogPage(): JSX.Element {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">{t('devlog.title')}</h1>
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1 text-xs text-gray-400">
+      <PageHeader
+        title={t('devlog.title')}
+        subtitle={t('devlog.subtitle')}
+        actions={
+          <>
+            <label className="flex items-center gap-1 text-xs text-gray-400">
+              <input
+                type="checkbox"
+                className="accent-ha-primary"
+                checked={liveEnabled}
+                onChange={(e) => setLiveEnabled(e.target.checked)}
+              />
+              {t('devlog.live')}
+            </label>
+            <select
+              className="pvm-input w-32"
+              value={level}
+              onChange={(e) => setLevel(e.target.value as LogLevel | '')}
+              aria-label={t('devlog.level')}
+            >
+              <option value="">{t('common.all')}</option>
+              {LEVELS.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
             <input
-              type="checkbox"
-              className="accent-ha-primary"
-              checked={liveEnabled}
-              onChange={(e) => setLiveEnabled(e.target.checked)}
+              className="pvm-input w-44"
+              placeholder={t('devlog.searchPlaceholder')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label={t('common.search')}
             />
-            {t('devlog.live')}
-          </label>
-          <select
-            className="pvm-input w-32"
-            value={level}
-            onChange={(e) => setLevel(e.target.value as LogLevel | '')}
-          >
-            <option value="">{t('common.all')}</option>
-            {(['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'] as LogLevel[]).map((l) => (
-              <option key={l} value={l}>
-                {l}
-              </option>
-            ))}
-          </select>
-          <button type="button" className="pvm-btn-ghost" onClick={() => download('json')}>
-            {t('devlog.exportJson')}
-          </button>
-          <button type="button" className="pvm-btn-ghost" onClick={() => download('csv')}>
-            {t('devlog.exportCsv')}
-          </button>
-        </div>
-      </div>
+            <button type="button" className="pvm-btn-ghost" onClick={() => download('json')}>
+              {t('devlog.exportJson')}
+            </button>
+            <button type="button" className="pvm-btn-ghost" onClick={() => download('csv')}>
+              {t('devlog.exportCsv')}
+            </button>
+            <button
+              type="button"
+              className="pvm-btn-danger"
+              onClick={() => clear.mutate()}
+              disabled={clear.isPending}
+            >
+              {t('devlog.clear')}
+            </button>
+          </>
+        }
+      />
 
-      <Card>
+      <Card title={`${t('devlog.entries')}: ${filtered.length}`}>
         {logs.isLoading && <Spinner />}
+        {!logs.isLoading && filtered.length === 0 && <EmptyState message={t('devlog.noEntries')} />}
         <div className="max-h-[70vh] overflow-auto font-mono text-xs">
-          {live.map((entry) => (
+          {filtered.map((entry) => (
             <div
               key={entry.id}
               className="flex items-start gap-2 border-b border-ha-border/40 py-1"

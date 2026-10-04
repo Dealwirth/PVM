@@ -63,3 +63,9 @@ PVM_E2E_BASE_URL=http://localhost:7000 PVM_API_SECRET=e2e-secret \
 - Error codes live in `packages/shared/src/errors/catalog.ts`; document new ones
   in `docs/error-codes.md`.
 - Docs live in `docs/`; keep the README documentation table in sync.
+- The PVM store install endpoint (`POST /api/addons/install`) accepts either a
+  GitHub repo URL (fetched via the REST API) or a bare store manifest id
+  (e.g. `pvm.sensor.pv`), which resolves against `BUILTIN_STORE` /
+  `listStore()` in `apps/server/src/services/addon-fetcher.ts`.
+- Runtime requires Node 22 for `better-sqlite3`; Node 24 breaks its native ABI.
+  Run the server/tests with `npx -y node@22` if the default Node is 24.

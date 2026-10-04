@@ -6,14 +6,14 @@ set_device_state:
       name: Device ID
       description: PVM device identifier.
       required: true
-      example: "wallbox-1"
+      example: 'wallbox-1'
       selector:
         text:
     state:
       name: State
       description: Target state (on/off, true/false or a device-specific value).
       required: true
-      example: "on"
+      example: 'on'
       selector:
         text:
 
@@ -25,7 +25,7 @@ set_device_power:
       name: Device ID
       description: PVM device identifier.
       required: true
-      example: "wallbox-1"
+      example: 'wallbox-1'
       selector:
         text:
     power:
@@ -47,7 +47,7 @@ set_device_temperature:
       name: Device ID
       description: PVM device identifier.
       required: true
-      example: "heatpump-1"
+      example: 'heatpump-1'
       selector:
         text:
     temperature:
@@ -60,7 +60,7 @@ set_device_temperature:
           min: -50
           max: 120
           step: 0.5
-          unit_of_measurement: "°C"
+          unit_of_measurement: '°C'
 
 update_plan:
   name: Update load plan
@@ -85,13 +85,13 @@ get_forecast:
       name: Horizon
       description: Forecast horizon to return.
       required: false
-      example: "day"
+      example: 'day'
       selector:
         select:
           options:
-            - "day"
-            - "week"
-            - "total"
+            - 'day'
+            - 'week'
+            - 'total'
 
 get_history:
   name: Get device history
@@ -101,7 +101,7 @@ get_history:
       name: Device ID
       description: PVM device identifier.
       required: true
-      example: "wallbox-1"
+      example: 'wallbox-1'
       selector:
         text:
     start:

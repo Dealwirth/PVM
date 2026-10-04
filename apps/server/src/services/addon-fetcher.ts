@@ -78,6 +78,11 @@ export class GitHubAddonFetcher implements AddonSourceFetcher {
     source: string,
     version?: string,
   ): Promise<{ manifest: AddonManifest; files: AddonFile[] }> {
+    // Store installs reference a manifest id (e.g. "pvm.sensor.pv"); everything
+    // else must be a GitHub repository URL.
+    if (!/^https?:\/\//i.test(source)) {
+      return this.fetchFromStore(source, version);
+    }
     const ref = parseGitHubUrl(source);
     const treeRef = version ?? ref.ref ?? 'HEAD';
 
@@ -112,6 +117,23 @@ export class GitHubAddonFetcher implements AddonSourceFetcher {
       files: files.length,
     });
     return { manifest, files };
+  }
+
+  private async fetchFromStore(
+    id: string,
+    version?: string,
+  ): Promise<{ manifest: AddonManifest; files: AddonFile[] }> {
+    const store = await this.listStore();
+    const manifest = store.find((m) => m.id === id);
+    if (!manifest) throw new PvmError('PVM-011', { reason: `unknown store addon: ${id}` });
+    if (version && version !== manifest.version) {
+      throw new PvmError('PVM-011', { reason: `version ${version} not available for ${id}` });
+    }
+    this.log.info('addon', 'Resolved store addon', {
+      addonId: manifest.id,
+      source: manifest.source,
+    });
+    return { manifest: { ...manifest }, files: [] };
   }
 
   private async fetchBlob(ref: GitHubRef, path: string): Promise<string> {

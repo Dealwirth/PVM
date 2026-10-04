@@ -6,11 +6,11 @@ services:
     image: pvm:local
     restart: unless-stopped
     ports:
-      - "7000:7000"
+      - '7000:7000'
     environment:
       NODE_ENV: production
       PVM_HOST: 0.0.0.0
-      PVM_PORT: "7000"
+      PVM_PORT: '7000'
       PVM_LOG_LEVEL: ${PVM_LOG_LEVEL:-INFO}
       # MUST be set to a long random string (>= 32 chars).
       PVM_API_SECRET: ${PVM_API_SECRET:?PVM_API_SECRET must be set}
@@ -26,18 +26,18 @@ services:
       - pvm-data:/app/data
     # Needed if Home Assistant runs on the host network / localhost.
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
 
   # Dev-only web server (hot reload). Production serves the built UI from the API.
   web:
-    profiles: ["dev"]
+    profiles: ['dev']
     image: node:20-bookworm
     working_dir: /app
     command: sh -c "npm ci && npm run dev -w @pvm/web"
     environment:
       VITE_PVM_API_BASE: http://localhost:7000/api
     ports:
-      - "7001:7001"
+      - '7001:7001'
     volumes:
       - .:/app
       - /app/node_modules

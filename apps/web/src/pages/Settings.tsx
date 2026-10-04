@@ -3,7 +3,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { LogLevel, SecurityMode, Settings } from '@pvm/shared';
 import { api } from '../lib/api.js';
-import { Badge, Card, ErrorBanner, Spinner, Toggle } from '../components/ui.js';
+import {
+  Badge,
+  Card,
+  ErrorBanner,
+  NumberField,
+  PageHeader,
+  Select,
+  Spinner,
+  Toggle,
+} from '../components/ui.js';
 
 type PublicSettings = Settings & { ha: Settings['ha'] & { token: string } };
 
@@ -49,10 +58,16 @@ export function SettingsPage(): JSX.Element {
     save.mutate({ general: { [key]: value } });
   const patchSafety = (key: string, value: unknown): void =>
     save.mutate({ safety: { [key]: value } });
+  const patchUnits = (key: string, value: string): void =>
+    save.mutate({ general: { units: { ...s.general.units, [key]: value } } });
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">{t('settings.title')}</h1>
+      <PageHeader
+        title={t('settings.title')}
+        subtitle={t('settings.subtitle')}
+        actions={save.isPending ? <Badge tone="info">{t('common.saving')}</Badge> : undefined}
+      />
 
       {required.data && !required.data.complete && (
         <ErrorBanner
@@ -66,7 +81,8 @@ export function SettingsPage(): JSX.Element {
         <div className="space-y-3">
           <div>
             <label className="pvm-label" htmlFor="ha-url">
-              {t('settings.haUrl')} <span className="text-red-400">*</span>
+              {t('settings.haUrl')}{' '}
+              <span className="text-red-400">({t('settings.requiredBadge')})</span>
             </label>
             <input
               id="ha-url"
@@ -78,7 +94,8 @@ export function SettingsPage(): JSX.Element {
           </div>
           <div>
             <label className="pvm-label" htmlFor="ha-token">
-              {t('settings.haToken')} <span className="text-red-400">*</span>
+              {t('settings.haToken')}{' '}
+              <span className="text-red-400">({t('settings.requiredBadge')})</span>
             </label>
             <input
               id="ha-token"
@@ -93,7 +110,7 @@ export function SettingsPage(): JSX.Element {
             checked={s.ha.localOnly}
             onChange={(v) => save.mutate({ ha: { localOnly: v } })}
           />
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               className="pvm-btn-primary"
@@ -115,7 +132,7 @@ export function SettingsPage(): JSX.Element {
               onClick={() => testHa.mutate()}
               disabled={testHa.isPending}
             >
-              {t('settings.testConnection')}
+              {testHa.isPending ? t('settings.testing') : t('settings.testConnection')}
             </button>
             {testResult && (
               <Badge tone={testResult.startsWith('OK') ? 'success' : 'error'}>{testResult}</Badge>
@@ -127,20 +144,16 @@ export function SettingsPage(): JSX.Element {
       <Card title={t('settings.general')}>
         <div className="space-y-3">
           <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <label className="pvm-label" htmlFor="lang">
-                {t('settings.language')}
-              </label>
-              <select
-                id="lang"
-                className="pvm-input"
-                value={s.general.language}
-                onChange={(e) => patchGeneral('language', e.target.value)}
-              >
-                <option value="de">Deutsch</option>
-                <option value="en">English</option>
-              </select>
-            </div>
+            <Select
+              id="lang"
+              label={t('settings.language')}
+              value={s.general.language}
+              options={[
+                { value: 'de', label: 'Deutsch' },
+                { value: 'en', label: 'English' },
+              ]}
+              onChange={(v) => patchGeneral('language', v)}
+            />
             <div>
               <label className="pvm-label" htmlFor="tz">
                 {t('settings.timezone')}
@@ -152,6 +165,35 @@ export function SettingsPage(): JSX.Element {
                 onBlur={(e) => patchGeneral('timezone', e.target.value)}
               />
             </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <Select
+              label={t('settings.units')}
+              value={s.general.units.power}
+              options={[
+                { value: 'W', label: 'Watt (W)' },
+                { value: 'kW', label: 'Kilowatt (kW)' },
+              ]}
+              onChange={(v) => patchUnits('power', v)}
+            />
+            <Select
+              label={t('devices.temperature')}
+              value={s.general.units.temperature}
+              options={[
+                { value: 'C', label: 'Celsius (°C)' },
+                { value: 'F', label: 'Fahrenheit (°F)' },
+              ]}
+              onChange={(v) => patchUnits('temperature', v)}
+            />
+            <Select
+              label={t('dashboard.residual')}
+              value={s.general.units.energy}
+              options={[
+                { value: 'Wh', label: 'Wattstunden (Wh)' },
+                { value: 'kWh', label: 'Kilowattstunden (kWh)' },
+              ]}
+              onChange={(v) => patchUnits('energy', v)}
+            />
           </div>
           <div className="grid gap-1 md:grid-cols-2">
             <Toggle
@@ -198,23 +240,92 @@ export function SettingsPage(): JSX.Element {
         </div>
       </Card>
 
+      <Card title={t('settings.notifications')}>
+        <div className="space-y-3">
+          <Toggle
+            label={t('settings.email')}
+            hint={s.notifications.email?.address}
+            checked={Boolean(s.notifications.email?.enabled)}
+            onChange={(v) =>
+              save.mutate({
+                notifications: {
+                  email: {
+                    enabled: v,
+                    address: s.notifications.email?.address ?? '',
+                    smtpUrl: s.notifications.email?.smtpUrl ?? '',
+                  },
+                },
+              })
+            }
+          />
+          {s.notifications.email?.enabled && (
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <label className="pvm-label" htmlFor="email-address">
+                  {t('settings.email')}
+                </label>
+                <input
+                  id="email-address"
+                  className="pvm-input"
+                  type="email"
+                  defaultValue={s.notifications.email.address}
+                  onBlur={(e) =>
+                    save.mutate({
+                      notifications: {
+                        email: { ...s.notifications.email!, address: e.target.value },
+                      },
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <label className="pvm-label" htmlFor="smtp-url">
+                  {t('settings.smtp')}
+                </label>
+                <input
+                  id="smtp-url"
+                  className="pvm-input"
+                  defaultValue={s.notifications.email.smtpUrl}
+                  onBlur={(e) =>
+                    save.mutate({
+                      notifications: {
+                        email: { ...s.notifications.email!, smtpUrl: e.target.value },
+                      },
+                    })
+                  }
+                />
+              </div>
+            </div>
+          )}
+          <Toggle
+            label={t('settings.push')}
+            hint={s.notifications.push?.webhookUrl}
+            checked={Boolean(s.notifications.push?.enabled)}
+            onChange={(v) =>
+              save.mutate({
+                notifications: {
+                  push: { enabled: v, webhookUrl: s.notifications.push?.webhookUrl ?? '' },
+                },
+              })
+            }
+          />
+        </div>
+      </Card>
+
       <Card title={t('settings.safety')}>
         <div className="space-y-3">
-          <div>
-            <label className="pvm-label" htmlFor="secmode">
-              {t('store.securityMode')}
-            </label>
-            <select
-              id="secmode"
-              className="pvm-input"
-              value={s.safety.mode}
-              onChange={(e) => patchSafety('mode', e.target.value as SecurityMode)}
-            >
-              <option value="strict">Strict</option>
-              <option value="moderate">Moderate</option>
-              <option value="lenient">Lenient</option>
-            </select>
-          </div>
+          <Select
+            id="secmode"
+            label={t('store.securityMode')}
+            value={s.safety.mode}
+            options={[
+              { value: 'strict', label: t('store.securityModes.strict') },
+              { value: 'moderate', label: t('store.securityModes.moderate') },
+              { value: 'lenient', label: t('store.securityModes.lenient') },
+            ]}
+            onChange={(v) => patchSafety('mode', v as SecurityMode)}
+          />
+          <p className="text-xs text-gray-500">{t('store.securityModesHint')}</p>
           <Toggle
             label={t('safety.autoShutdown')}
             checked={s.safety.autoShutdown}
@@ -222,17 +333,17 @@ export function SettingsPage(): JSX.Element {
           />
           <div className="grid gap-3 md:grid-cols-3">
             <NumberField
-              label="Max. Netzbezug (W)"
+              label={t('settings.maxGridImport')}
               value={s.safety.maxGridImportW}
               onSave={(v) => patchSafety('maxGridImportW', v)}
             />
             <NumberField
-              label="Max. Geräteleistung (W)"
+              label={t('settings.maxDevicePower')}
               value={s.safety.maxDevicePowerW}
               onSave={(v) => patchSafety('maxDevicePowerW', v)}
             />
             <NumberField
-              label="Min. Batterie (%)"
+              label={t('settings.minBattery')}
               value={s.safety.minBatteryPercent}
               onSave={(v) => patchSafety('minBatteryPercent', v)}
             />
@@ -252,49 +363,20 @@ export function SettingsPage(): JSX.Element {
             checked={s.log.autoLogs}
             onChange={(v) => save.mutate({ log: { autoLogs: v } })}
           />
-          <div>
-            <label className="pvm-label" htmlFor="loglevel">
-              {t('settings.logLevel')}
-            </label>
-            <select
-              id="loglevel"
-              className="pvm-input"
-              value={s.log.level}
-              onChange={(e) => save.mutate({ log: { level: e.target.value as LogLevel } })}
-            >
-              {(['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'] as LogLevel[]).map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Select
+            id="loglevel"
+            label={t('settings.logLevel')}
+            value={s.log.level}
+            options={(['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'] as LogLevel[]).map((l) => ({
+              value: l,
+              label: l,
+            }))}
+            onChange={(v) => save.mutate({ log: { level: v as LogLevel } })}
+          />
         </div>
       </Card>
 
       {save.isError && <ErrorBanner message={(save.error as Error).message} />}
-    </div>
-  );
-}
-
-function NumberField({
-  label,
-  value,
-  onSave,
-}: {
-  label: string;
-  value: number;
-  onSave: (v: number) => void;
-}): JSX.Element {
-  return (
-    <div>
-      <label className="pvm-label">{label}</label>
-      <input
-        className="pvm-input"
-        type="number"
-        defaultValue={value}
-        onBlur={(e) => onSave(Number(e.target.value))}
-      />
     </div>
   );
 }

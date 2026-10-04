@@ -7,11 +7,7 @@ module.exports = {
     ecmaFeatures: { jsx: true },
   },
   plugins: ['@typescript-eslint'],
-  extends: [
-    'eslint:recommended',
-    'plugin:@typescript-eslint/recommended',
-    'prettier',
-  ],
+  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
   env: { node: true, browser: true, es2022: true },
   ignorePatterns: [
     'dist',

@@ -1,4 +1,25 @@
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
+}: {
+  title: string;
+  subtitle?: string;
+  actions?: ReactNode;
+}): JSX.Element {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h1 className="text-xl font-semibold">{title}</h1>
+        {subtitle && <p className="mt-0.5 text-sm text-gray-400">{subtitle}</p>}
+      </div>
+      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+    </div>
+  );
+}
 
 export function Card({
   title,
@@ -57,6 +78,15 @@ export function Stat({
   );
 }
 
+export function EmptyState({ message, hint }: { message: string; hint?: string }): JSX.Element {
+  return (
+    <div className="rounded-lg border border-dashed border-ha-border p-6 text-center">
+      <p className="text-sm text-gray-400">{message}</p>
+      {hint && <p className="mt-1 text-xs text-gray-500">{hint}</p>}
+    </div>
+  );
+}
+
 export function Spinner(): JSX.Element {
   return (
     <div
@@ -80,6 +110,7 @@ export function ErrorBanner({
   remediation?: string;
   onRetry?: () => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   return (
     <div className="rounded-lg border border-red-800 bg-red-950/60 p-3 text-sm">
       <div className="flex items-center gap-2">
@@ -89,7 +120,7 @@ export function ErrorBanner({
       {remediation && <p className="mt-1 text-red-300/80">{remediation}</p>}
       {onRetry && (
         <button type="button" className="pvm-btn-ghost mt-2" onClick={onRetry}>
-          Erneut versuchen
+          {t('common.retry')}
         </button>
       )}
     </div>
@@ -120,5 +151,72 @@ export function Toggle({
         onChange={(e) => onChange(e.target.checked)}
       />
     </label>
+  );
+}
+
+export function NumberField({
+  label,
+  value,
+  onSave,
+  suffix,
+  min,
+  max,
+}: {
+  label: string;
+  value: number;
+  onSave: (v: number) => void;
+  suffix?: string;
+  min?: number;
+  max?: number;
+}): JSX.Element {
+  return (
+    <div>
+      <label className="pvm-label">
+        {label}
+        {suffix ? <span className="ml-1 normal-case text-gray-500">({suffix})</span> : null}
+      </label>
+      <input
+        className="pvm-input"
+        type="number"
+        min={min}
+        max={max}
+        defaultValue={value}
+        onBlur={(e) => onSave(Number(e.target.value))}
+      />
+    </div>
+  );
+}
+
+export function Select({
+  label,
+  value,
+  options,
+  onChange,
+  id,
+}: {
+  label: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange: (v: string) => void;
+  id?: string;
+}): JSX.Element {
+  return (
+    <div>
+      <label className="pvm-label" htmlFor={id}>
+        {label}
+      </label>
+      <select
+        id={id}
+        className="pvm-input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }

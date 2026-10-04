@@ -3,15 +3,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { AddonManifest, InstalledAddon, SecurityScanResult } from '@pvm/shared';
 import { api, ApiError } from '../lib/api.js';
-import { Badge, Card, ErrorBanner, Spinner } from '../components/ui.js';
+import { Badge, Card, EmptyState, ErrorBanner, PageHeader, Spinner } from '../components/ui.js';
+
+type StatusFilter = 'all' | 'enabled' | 'disabled' | 'error';
 
 export function StorePage(): JSX.Element {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [githubUrl, setGithubUrl] = useState('');
   const [showMore, setShowMore] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [scanResult, setScanResult] = useState<SecurityScanResult | null>(null);
   const [installError, setInstallError] = useState<ApiError | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const installed = useQuery({
     queryKey: ['addons'],
@@ -46,7 +50,10 @@ export function StorePage(): JSX.Element {
 
   const remove = useMutation({
     mutationFn: (id: string) => api.delete(`/addons/${id}`),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['addons'] }),
+    onSuccess: () => {
+      setDetailId(null);
+      void qc.invalidateQueries({ queryKey: ['addons'] });
+    },
   });
 
   const installedIds = new Set((installed.data ?? []).map((a) => a.id));
@@ -56,9 +63,17 @@ export function StorePage(): JSX.Element {
     (m) => m.priority === 'optional' || m.category === 'community',
   );
 
+  const visible = (installed.data ?? []).filter((a) => {
+    if (statusFilter === 'enabled') return a.enabled;
+    if (statusFilter === 'disabled') return !a.enabled;
+    if (statusFilter === 'error') return Boolean(a.lastError);
+    return true;
+  });
+  const detail = (installed.data ?? []).find((a) => a.id === detailId) ?? null;
+
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">{t('store.title')}</h1>
+      <PageHeader title={t('store.title')} subtitle={t('store.subtitle')} />
 
       <Card title={t('store.installFromGithub')}>
         <div className="flex flex-wrap gap-2">
@@ -67,6 +82,7 @@ export function StorePage(): JSX.Element {
             placeholder="https://github.com/owner/repo"
             value={githubUrl}
             onChange={(e) => setGithubUrl(e.target.value)}
+            aria-label={t('store.githubUrl')}
           />
           <button
             type="button"
@@ -77,6 +93,7 @@ export function StorePage(): JSX.Element {
             {t('store.install')}
           </button>
         </div>
+        <p className="mt-1 text-xs text-gray-500">{t('store.installHint')}</p>
         {install.isPending && <Spinner />}
         {installError && (
           <div className="mt-2">
@@ -106,24 +123,58 @@ export function StorePage(): JSX.Element {
         )}
       </Card>
 
-      <Card title={t('store.installed')}>
+      <Card
+        title={`${t('store.installed')} (${(installed.data ?? []).length})`}
+        actions={
+          <select
+            className="pvm-input w-36"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            aria-label={t('common.filter')}
+          >
+            <option value="all">{t('common.all')}</option>
+            <option value="enabled">{t('common.enabled')}</option>
+            <option value="disabled">{t('common.disabled')}</option>
+            <option value="error">{t('common.error')}</option>
+          </select>
+        }
+      >
         {installed.isLoading && <Spinner />}
-        {(installed.data ?? []).length === 0 && <p className="text-sm text-gray-400">—</p>}
+        {!installed.isLoading && visible.length === 0 && (
+          <EmptyState message={t('store.noAddons')} />
+        )}
         <div className="grid gap-2 md:grid-cols-2">
-          {(installed.data ?? []).map((addon) => (
+          {visible.map((addon) => (
             <div key={addon.id} className="rounded-lg border border-ha-border bg-ha-surfaceAlt p-3">
               <div className="flex items-center justify-between">
-                <span className="font-medium">{addon.manifest.name}</span>
-                <Badge tone={addon.enabled ? 'success' : 'neutral'}>
-                  {addon.enabled ? t('common.enabled') : t('common.disabled')}
+                <button
+                  type="button"
+                  className="text-left font-medium hover:text-ha-primary"
+                  onClick={() => setDetailId(detailId === addon.id ? null : addon.id)}
+                >
+                  {addon.manifest.name}
+                </button>
+                <Badge tone={addon.lastError ? 'error' : addon.enabled ? 'success' : 'neutral'}>
+                  {addon.lastError
+                    ? t('common.error')
+                    : addon.enabled
+                      ? t('common.enabled')
+                      : t('common.disabled')}
                 </Badge>
               </div>
               <p className="text-xs text-gray-400">
                 v{addon.manifest.version} · {addon.manifest.author}
               </p>
               <p className="mt-1 text-xs text-gray-500">
-                {t('store.securityMode')}: {addon.grantedPermissions.join(', ') || '—'}
+                {t('store.permissions')}: {addon.grantedPermissions.join(', ') || '—'}
               </p>
+              {addon.availableVersion && (
+                <p className="mt-1">
+                  <Badge tone="info">
+                    {t('store.updateAvailable')}: v{addon.availableVersion}
+                  </Badge>
+                </p>
+              )}
               <div className="mt-2 flex gap-2">
                 <button
                   type="button"
@@ -145,8 +196,13 @@ export function StorePage(): JSX.Element {
         </div>
       </Card>
 
+      {detail && <AddonDetails addon={detail} onClose={() => setDetailId(null)} />}
+
       <Card title={t('store.available')}>
         {store.isLoading && <Spinner />}
+        {!store.isLoading && manifests.length === 0 && (
+          <EmptyState message={t('store.noAvailable')} />
+        )}
         <div className="grid gap-2 md:grid-cols-2">
           {primary.map((m) => (
             <ManifestCard
@@ -174,6 +230,65 @@ export function StorePage(): JSX.Element {
         )}
       </Card>
     </div>
+  );
+}
+
+function AddonDetails({
+  addon,
+  onClose,
+}: {
+  addon: InstalledAddon;
+  onClose: () => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const logs = useQuery({
+    queryKey: ['addon-logs', addon.id],
+    queryFn: () => api.get<{ log: string }>(`/addons/${addon.id}/logs`),
+  });
+
+  return (
+    <Card
+      title={`${addon.manifest.name} — ${t('store.details')}`}
+      actions={
+        <button type="button" className="pvm-btn-ghost" onClick={onClose}>
+          {t('common.close')}
+        </button>
+      }
+    >
+      <dl className="grid grid-cols-2 gap-2 text-sm md:grid-cols-3">
+        <div>
+          <dt className="text-xs text-gray-500">{t('store.version')}</dt>
+          <dd>{addon.manifest.version}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-gray-500">{t('store.author')}</dt>
+          <dd>{addon.manifest.author}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-gray-500">{t('store.category')}</dt>
+          <dd>{addon.manifest.category}</dd>
+        </div>
+        <div className="col-span-2 md:col-span-3">
+          <dt className="text-xs text-gray-500">{t('store.source')}</dt>
+          <dd className="break-all">{addon.manifest.repositoryUrl ?? addon.installPath}</dd>
+        </div>
+      </dl>
+      {addon.lastError && (
+        <div className="mt-3">
+          <ErrorBanner code="PVM-011" message={addon.lastError} />
+        </div>
+      )}
+      <div className="mt-3 border-t border-ha-border pt-3">
+        <h3 className="pvm-card-title">{t('store.addonLogs')}</h3>
+        {logs.isLoading && <Spinner />}
+        {!logs.isLoading && !logs.data?.log && <EmptyState message={t('store.noLogs')} />}
+        {logs.data?.log && (
+          <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded bg-ha-surfaceAlt p-2 font-mono text-xs text-gray-300">
+            {logs.data.log}
+          </pre>
+        )}
+      </div>
+    </Card>
   );
 }
 

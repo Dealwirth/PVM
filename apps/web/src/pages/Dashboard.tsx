@@ -1,7 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api.js';
-import { Card, ErrorBanner, Spinner, Stat } from '../components/ui.js';
+import { useUnits, formatEnergy, formatPower } from '../lib/units.js';
+import {
+  Badge,
+  Card,
+  EmptyState,
+  ErrorBanner,
+  PageHeader,
+  Spinner,
+  Stat,
+} from '../components/ui.js';
 
 interface DashboardSummary {
   generatedAt: string;
@@ -29,6 +38,7 @@ interface DashboardSummary {
 
 export function DashboardPage(): JSX.Element {
   const { t } = useTranslation();
+  const units = useUnits();
   const qc = useQueryClient();
   const summary = useQuery({
     queryKey: ['dashboard'],
@@ -50,21 +60,23 @@ export function DashboardPage(): JSX.Element {
     );
   }
   const data = summary.data!;
-  const kwh = (wh: number): string => `${(wh / 1000).toFixed(1)} kWh`;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{t('dashboard.title')}</h1>
-        <button
-          type="button"
-          className="pvm-btn-primary"
-          onClick={() => runCycle.mutate()}
-          disabled={runCycle.isPending}
-        >
-          {t('dashboard.runCycle')}
-        </button>
-      </div>
+      <PageHeader
+        title={t('dashboard.title')}
+        subtitle={t('dashboard.subtitle')}
+        actions={
+          <button
+            type="button"
+            className="pvm-btn-primary"
+            onClick={() => runCycle.mutate()}
+            disabled={runCycle.isPending}
+          >
+            {runCycle.isPending ? t('dashboard.running') : t('dashboard.runCycle')}
+          </button>
+        }
+      />
 
       {!data.requiredSettings.complete && (
         <ErrorBanner
@@ -77,7 +89,7 @@ export function DashboardPage(): JSX.Element {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat
           label={t('dashboard.totalPower')}
-          value={`${data.devices.totalPowerW.toFixed(0)} W`}
+          value={formatPower(data.devices.totalPowerW, units)}
         />
         <Stat
           label={t('dashboard.deviceCount')}
@@ -86,11 +98,12 @@ export function DashboardPage(): JSX.Element {
         />
         <Stat
           label={t('dashboard.residual')}
-          value={data.forecast ? kwh(data.forecast.totalResidualWh) : '—'}
+          value={data.forecast ? formatEnergy(data.forecast.totalResidualWh, units) : '—'}
+          hint={t('forecast.residualHint')}
         />
         <Stat
           label={t('dashboard.production')}
-          value={data.forecast ? kwh(data.forecast.totalProductionWh) : '—'}
+          value={data.forecast ? formatEnergy(data.forecast.totalProductionWh, units) : '—'}
         />
       </div>
 
@@ -98,24 +111,44 @@ export function DashboardPage(): JSX.Element {
         <Card title={t('dashboard.plan')}>
           {data.plan ? (
             <ul className="space-y-1 text-sm text-gray-300">
-              <li>{data.plan.slots} Slots</li>
-              <li>{data.plan.shutdowns} Abschaltungen</li>
               <li>
-                {new Date(data.plan.start).toLocaleString()} –{' '}
+                {t('dashboard.slots')}: {data.plan.slots}
+              </li>
+              <li>
+                {t('dashboard.shutdowns')}: {data.plan.shutdowns}
+              </li>
+              <li>
+                {t('dashboard.period')}: {new Date(data.plan.start).toLocaleString()} –{' '}
                 {new Date(data.plan.end).toLocaleString()}
               </li>
             </ul>
           ) : (
-            <p className="text-sm text-gray-400">{t('dashboard.noForecast')}</p>
+            <EmptyState message={t('dashboard.planEmpty')} />
           )}
         </Card>
-        <Card title={t('nav.safety')}>
-          <ul className="space-y-1 text-sm text-gray-300">
-            <li>Modus: {data.safety.mode}</li>
-            <li>{data.safety.recentReactions} Ereignisse (24h)</li>
-            <li>{data.log.recentErrors} Fehler (60s)</li>
-            <li>
-              HA: {data.ha.connected ? `verbunden (${data.ha.haVersion ?? '?'})` : 'getrennt'}
+        <Card title={t('dashboard.systemStatus')}>
+          <ul className="space-y-2 text-sm text-gray-300">
+            <li className="flex items-center justify-between">
+              <span>HA</span>
+              <Badge tone={data.ha.connected ? 'success' : 'error'}>
+                {data.ha.connected
+                  ? `${t('app.connected')}${data.ha.haVersion ? ` (${data.ha.haVersion})` : ''}`
+                  : t('app.offline')}
+              </Badge>
+            </li>
+            <li className="flex items-center justify-between">
+              <span>{t('dashboard.mode')}</span>
+              <span>{data.safety.mode}</span>
+            </li>
+            <li className="flex items-center justify-between">
+              <span>{t('dashboard.events24h')}</span>
+              <span>{data.safety.recentReactions}</span>
+            </li>
+            <li className="flex items-center justify-between">
+              <span>{t('dashboard.errors60s')}</span>
+              <Badge tone={data.log.recentErrors > 0 ? 'warning' : 'success'}>
+                {data.log.recentErrors}
+              </Badge>
             </li>
           </ul>
         </Card>

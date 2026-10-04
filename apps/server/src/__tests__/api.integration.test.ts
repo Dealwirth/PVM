@@ -152,6 +152,39 @@ describe('API integration', () => {
     expect((res.json() as unknown[]).length).toBeGreaterThan(0);
   });
 
+  it('installs a built-in store addon by id once required settings are set', async () => {
+    const settings = await app.inject({
+      method: 'PUT',
+      url: '/api/settings',
+      headers: auth(),
+      payload: {
+        ha: { url: 'http://localhost:8123', token: 'ha-token-for-test', localOnly: false },
+      },
+    });
+    expect(settings.statusCode).toBe(200);
+
+    const install = await app.inject({
+      method: 'POST',
+      url: '/api/addons/install',
+      headers: auth(),
+      payload: { source: 'pvm.sensor.pv' },
+    });
+    expect(install.statusCode).toBe(201);
+    expect((install.json() as { addon: { id: string } }).addon.id).toBe('pvm.sensor.pv');
+
+    const list = await app.inject({ method: 'GET', url: '/api/addons', headers: auth() });
+    expect((list.json() as Array<{ id: string }>).some((a) => a.id === 'pvm.sensor.pv')).toBe(true);
+
+    const unknown = await app.inject({
+      method: 'POST',
+      url: '/api/addons/install',
+      headers: auth(),
+      payload: { source: 'does.not.exist' },
+    });
+    expect(unknown.statusCode).toBe(404);
+    expect((unknown.json() as { error: { code: string } }).error.code).toBe('PVM-011');
+  });
+
   it('serves the error catalog', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/errors/catalog', headers: auth() });
     expect(res.statusCode).toBe(200);

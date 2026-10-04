@@ -12,10 +12,12 @@ import {
 } from 'recharts';
 import type { Forecast, LoadPlan } from '@pvm/shared';
 import { api } from '../lib/api.js';
-import { Card, Spinner, Stat } from '../components/ui.js';
+import { useUnits, formatEnergy } from '../lib/units.js';
+import { Card, EmptyState, ErrorBanner, PageHeader, Spinner, Stat } from '../components/ui.js';
 
 export function ForecastPage(): JSX.Element {
   const { t } = useTranslation();
+  const units = useUnits();
   const qc = useQueryClient();
   const forecast = useQuery({
     queryKey: ['forecast'],
@@ -44,29 +46,37 @@ export function ForecastPage(): JSX.Element {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{t('forecast.title')}</h1>
-        <button
-          type="button"
-          className="pvm-btn-primary"
-          onClick={() => runCycle.mutate()}
-          disabled={runCycle.isPending}
-        >
-          {t('forecast.generate')}
-        </button>
-      </div>
+      <PageHeader
+        title={t('forecast.title')}
+        subtitle={t('forecast.subtitle')}
+        actions={
+          <button
+            type="button"
+            className="pvm-btn-primary"
+            onClick={() => runCycle.mutate()}
+            disabled={runCycle.isPending}
+          >
+            {t('forecast.generate')}
+          </button>
+        }
+      />
 
       {forecast.isLoading && <Spinner />}
-      {!data && !forecast.isLoading && <Card>{t('forecast.noData')}</Card>}
+      {forecast.error && <ErrorBanner message={(forecast.error as Error).message} />}
+      {!data && !forecast.isLoading && (
+        <Card>
+          <EmptyState message={t('forecast.noData')} hint={t('forecast.noDataHint')} />
+        </Card>
+      )}
 
       {data && (
         <>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <Stat label={t('forecast.method')} value={data.method} />
-            <Stat label={t('forecast.horizon')} value={data.horizon} />
+            <Stat label={t('forecast.horizon')} value={t(`forecast.${data.horizon}`)} />
             <Stat
               label={t('dashboard.production')}
-              value={`${(data.totalProductionWh / 1000).toFixed(1)} kWh`}
+              value={formatEnergy(data.totalProductionWh, units)}
             />
             <Stat
               label={t('forecast.confidence')}
@@ -104,6 +114,14 @@ export function ForecastPage(): JSX.Element {
                     fill="#ff9800"
                     name={t('dashboard.consumption')}
                   />
+                  <Area
+                    type="monotone"
+                    dataKey="residual"
+                    stroke="#4caf50"
+                    fillOpacity={0.05}
+                    fill="#4caf50"
+                    name={t('dashboard.residual')}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -113,6 +131,7 @@ export function ForecastPage(): JSX.Element {
 
       <Card title={t('dashboard.plan')}>
         {plan.isLoading && <Spinner />}
+        {plan.error && <ErrorBanner message={(plan.error as Error).message} />}
         {plan.data ? (
           <ul className="space-y-1 text-sm">
             {plan.data.slots.map((slot, i) => (
@@ -130,12 +149,12 @@ export function ForecastPage(): JSX.Element {
             ))}
             {plan.data.shutdowns.map((s, i) => (
               <li key={`sd-${i}`} className="text-xs text-amber-400">
-                Abschaltung: {s.reason}
+                {t('forecast.shutdownReason')}: {s.reason}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-gray-400">{t('forecast.noData')}</p>
+          <EmptyState message={t('forecast.noData')} />
         )}
       </Card>
     </div>

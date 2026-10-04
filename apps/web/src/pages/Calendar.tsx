@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { CalendarEvent, CalendarSource } from '@pvm/shared';
 import { api } from '../lib/api.js';
-import { Badge, Card, ErrorBanner, Spinner } from '../components/ui.js';
+import { Badge, Card, EmptyState, ErrorBanner, PageHeader, Spinner } from '../components/ui.js';
 
 export function CalendarPage(): JSX.Element {
   const { t } = useTranslation();
@@ -49,17 +49,20 @@ export function CalendarPage(): JSX.Element {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{t('calendar.title')}</h1>
-        <button
-          type="button"
-          className="pvm-btn-primary"
-          onClick={() => sync.mutate()}
-          disabled={sync.isPending}
-        >
-          {t('calendar.sync')}
-        </button>
-      </div>
+      <PageHeader
+        title={t('calendar.title')}
+        subtitle={t('calendar.subtitle')}
+        actions={
+          <button
+            type="button"
+            className="pvm-btn-primary"
+            onClick={() => sync.mutate()}
+            disabled={sync.isPending}
+          >
+            {t('calendar.sync')}
+          </button>
+        }
+      />
 
       <Card title={t('calendar.addSource')}>
         <div className="flex flex-wrap gap-2">
@@ -68,12 +71,14 @@ export function CalendarPage(): JSX.Element {
             placeholder="calendar.family"
             value={entityId}
             onChange={(e) => setEntityId(e.target.value)}
+            aria-label={t('calendar.entityId')}
           />
           <input
             className="pvm-input w-40"
             placeholder={t('common.name')}
             value={name}
             onChange={(e) => setName(e.target.value)}
+            aria-label={t('common.name')}
           />
           <input
             className="pvm-input w-32"
@@ -81,16 +86,18 @@ export function CalendarPage(): JSX.Element {
             min={1}
             value={refreshMinutes}
             onChange={(e) => setRefresh(Number(e.target.value))}
+            aria-label={t('calendar.refresh')}
           />
           <button
             type="button"
             className="pvm-btn-primary"
-            disabled={!entityId}
+            disabled={!entityId || addSource.isPending}
             onClick={() => addSource.mutate()}
           >
             {t('common.add')}
           </button>
         </div>
+        {addSource.error && <ErrorBanner message={(addSource.error as Error).message} />}
       </Card>
 
       <Card title={t('calendar.events')}>
@@ -104,7 +111,11 @@ export function CalendarPage(): JSX.Element {
             >
               <span>
                 {s.name} <span className="text-xs text-gray-500">({s.entityId})</span>
-                {s.lastError && <span className="ml-2 text-xs text-red-400">{s.lastError}</span>}
+                {s.lastError && (
+                  <span className="ml-2 text-xs text-red-400">
+                    {t('calendar.lastError')}: {s.lastError}
+                  </span>
+                )}
               </span>
               <button
                 type="button"
@@ -116,7 +127,14 @@ export function CalendarPage(): JSX.Element {
             </div>
           ))}
         </div>
+        {!sources.isLoading && (sources.data ?? []).length === 0 && (
+          <EmptyState message={t('calendar.noSources')} />
+        )}
+
         {events.isLoading && <Spinner />}
+        {!events.isLoading && (events.data ?? []).length === 0 && (
+          <EmptyState message={t('calendar.noEvents')} />
+        )}
         <ul className="space-y-1 text-sm">
           {(events.data ?? []).map((e) => (
             <li

@@ -16,9 +16,27 @@ function authToken(): string | null {
   return localStorage.getItem('pvm.token');
 }
 
+export function getAuthToken(): string | null {
+  return authToken();
+}
+
 export function setAuthToken(token: string | null): void {
   if (token) localStorage.setItem('pvm.token', token);
   else localStorage.removeItem('pvm.token');
+}
+
+type UnauthorizedListener = () => void;
+const unauthorizedListeners = new Set<UnauthorizedListener>();
+
+/** Notifies subscribers when the API rejects the current token (HTTP 401). */
+export function onUnauthorized(listener: UnauthorizedListener): () => void {
+  unauthorizedListeners.add(listener);
+  return () => unauthorizedListeners.delete(listener);
+}
+
+function notifyUnauthorized(): void {
+  setAuthToken(null);
+  for (const listener of unauthorizedListeners) listener();
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -30,6 +48,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  if (res.status === 401) {
+    notifyUnauthorized();
+    throw new ApiError('PVM-004', 'Authentication failed', 'API token is missing or invalid.');
+  }
   if (res.status === 204) return undefined as T;
 
   const contentType = res.headers.get('content-type') ?? '';

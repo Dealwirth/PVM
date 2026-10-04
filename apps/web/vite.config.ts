@@ -20,6 +20,16 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          charts: ['recharts'],
+          query: ['@tanstack/react-query'],
+          i18n: ['i18next', 'react-i18next'],
+        },
+      },
+    },
   },
   test: {
     globals: true,
